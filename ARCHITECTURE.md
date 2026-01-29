@@ -70,9 +70,9 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                    SUPPORTED FILE TYPES                          │
 ├─────────────────────────────────────────────────────────────────┤
-│  Text: .txt, .md, .rst                                          │
-│  Audio: .mp3, .wav, .m4a, .flac (+ Faster Whisper)            │
-│  Video: .mp4, .avi, .mov, .mkv (+ FFmpeg + Whisper)          │
+│  Text: .txt, .md, .rst, .docx, .rtf, .pdf                      │
+│  Audio: .mp3, .wav, .m4a, .flac, .ogg                          │
+│  Video: .mp4, .avi, .mov, .mkv                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

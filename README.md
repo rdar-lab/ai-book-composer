@@ -69,30 +69,43 @@ brew install ffmpeg
 
 ## Configuration
 
-Create a `.env` file in the project root (use `.env.example` as template):
+The project uses YAML configuration files. Copy `config.yaml` and customize as needed:
 
-```env
-# LLM Provider (openai, gemini, azure, ollama)
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4
+```yaml
+# LLM Configuration
+llm:
+  provider: openai  # Options: openai, gemini, azure, ollama
+  model: gpt-4
 
-# OpenAI
-OPENAI_API_KEY=your-openai-api-key
+# Provider-specific settings (use environment variables for API keys)
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+  gemini:
+    api_key: ${GOOGLE_API_KEY}
+  azure:
+    api_key: ${AZURE_OPENAI_API_KEY}
+    endpoint: ${AZURE_OPENAI_ENDPOINT}
+    deployment: ${AZURE_OPENAI_DEPLOYMENT}
+  ollama:
+    base_url: http://localhost:11434
+    model: llama2  # Specify Ollama model name
 
-# Google Gemini
-GOOGLE_API_KEY=your-google-api-key
+# Text file reading configuration
+text_reading:
+  max_lines_per_read: 100  # Max lines to read at once from text files
 
-# Azure OpenAI
-AZURE_OPENAI_API_KEY=your-azure-key
-AZURE_OPENAI_ENDPOINT=your-azure-endpoint
-AZURE_OPENAI_DEPLOYMENT=your-deployment
+# Book generation configuration
+book:
+  output_language: en-US
+  quality_threshold: 0.7
+  max_iterations: 3
+```
 
-# Ollama
-OLLAMA_BASE_URL=http://localhost:11434
+You can specify a custom config file using the `--config` parameter:
 
-# Book Configuration
-OUTPUT_LANGUAGE=en-US
-MAX_LINES_PER_READ=100
+```bash
+ai-book-composer --config my-config.yaml -i input -o output
 ```
 
 ## Usage
@@ -288,20 +301,6 @@ ai-book-composer \
   -t "Comprehensive Guide" \
   -a "AI Book Composer"
 ```
-
-## Troubleshooting
-
-### Issue: ffmpeg not found
-**Solution**: Install ffmpeg using your system package manager
-
-### Issue: Out of memory during transcription
-**Solution**: Use smaller Whisper model size (tiny or base) or process fewer files
-
-### Issue: LLM API errors
-**Solution**: Check API keys, rate limits, and internet connection
-
-### Issue: Poor book quality
-**Solution**: Increase max_iterations, use better LLM model (e.g., GPT-4), or provide better source content
 
 ## Contributing
 

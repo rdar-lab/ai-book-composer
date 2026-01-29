@@ -8,13 +8,20 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .workflow import BookComposerWorkflow
-from .config import settings
+from .config import Settings
+from .logging_config import setup_logging, logger
 
 
 console = Console()
 
 
 @click.command()
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    help="Path to configuration YAML file"
+)
 @click.option(
     "--input-dir",
     "-i",
@@ -32,27 +39,29 @@ console = Console()
 @click.option(
     "--title",
     "-t",
-    default="Composed Book",
+    default=None,
     help="Book title"
 )
 @click.option(
     "--author",
     "-a",
-    default="AI Book Composer",
+    default=None,
     help="Book author"
 )
 @click.option(
     "--language",
     "-l",
-    default="en-US",
+    default=None,
     help="Target language (e.g., en-US, es-ES, fr-FR)"
 )
 @click.option(
     "--max-iterations",
-    default=3,
+    default=None,
+    type=int,
     help="Maximum revision iterations"
 )
 def main(
+    config: str,
     input_dir: str,
     output_dir: str,
     title: str,
@@ -67,6 +76,23 @@ def main(
     2. Execute content generation
     3. Critique and iterate for quality
     """
+    # Load configuration
+    if config:
+        settings = Settings(config)
+    else:
+        settings = Settings()
+    
+    # Set up logging
+    setup_logging(config)
+    logger.info("Starting AI Book Composer")
+    logger.info(f"Config file: {config if config else 'default'}")
+    
+    # Use config defaults if not specified
+    title = title or settings.book.default_title
+    author = author or settings.book.default_author
+    language = language or settings.book.output_language
+    max_iterations = max_iterations or settings.book.max_iterations
+    
     console.print(Panel.fit(
         "[bold blue]AI Book Composer[/bold blue]\n"
         "Using Deep-Agent pattern to compose books",
@@ -78,13 +104,14 @@ def main(
     config_table.add_column("Setting", style="cyan")
     config_table.add_column("Value", style="white")
     
+    config_table.add_row("Config File", config if config else "default")
     config_table.add_row("Input Directory", input_dir)
     config_table.add_row("Output Directory", output_dir)
     config_table.add_row("Book Title", title)
     config_table.add_row("Author", author)
     config_table.add_row("Language", language)
-    config_table.add_row("LLM Provider", settings.llm_provider)
-    config_table.add_row("LLM Model", settings.llm_model)
+    config_table.add_row("LLM Provider", settings.llm.provider)
+    config_table.add_row("LLM Model", settings.llm.model)
     config_table.add_row("Max Iterations", str(max_iterations))
     
     console.print(config_table)
@@ -95,6 +122,7 @@ def main(
     
     # Initialize workflow
     try:
+        logger.info("Initializing workflow")
         console.print("[yellow]Initializing workflow...[/yellow]")
         workflow = BookComposerWorkflow(
             input_directory=input_dir,
@@ -106,6 +134,7 @@ def main(
         )
         
         # Run workflow
+        logger.info("Starting book composition")
         console.print("[yellow]Starting book composition...[/yellow]")
         
         with Progress(

@@ -15,7 +15,7 @@ def main():
     """Run the book composer with example data."""
     
     # Paths
-    input_dir = Path(__file__).parent / "sample-input"
+    input_dir = Path(__file__).parent.parent / "tests" / "fixtures"
     output_dir = Path(__file__).parent / "sample-output"
     
     print("=" * 60)
