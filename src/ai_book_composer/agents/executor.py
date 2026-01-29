@@ -266,8 +266,8 @@ class ExecutorAgent:
         word_count = len(content.split())
         progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
         
-        # Add chapter to existing list
-        chapters = state.get("chapters", [])
+        # Add chapter to existing list (create new list to maintain immutability)
+        chapters = list(state.get("chapters", []))
         chapters.append({
             "number": chapter_num,
             "title": chapter_title,
