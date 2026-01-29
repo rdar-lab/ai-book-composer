@@ -343,13 +343,14 @@ class ExecutorAgent:
         }
     
     def _summarize_content(self, gathered_content: Dict[str, Any]) -> str:
-        """Summarize gathered content."""
+        """Summarize gathered content with full content for chapter planning."""
         summary = []
         for file_path, content_info in gathered_content.items():
             content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
-            preview = content[:CONTENT_PREVIEW_LENGTH] if content else "No content"
-            summary.append(f"- {Path(file_path).name} ({content_type}): {preview}...")
+            # Include full content so LLM can understand all files when planning chapters
+            file_content = content if content else "No content"
+            summary.append(f"File: {Path(file_path).name} ({content_type})\nContent:\n{file_content}\n")
         return "\n".join(summary)
     
     def _parse_chapter_list(self, response_content: str) -> List[Dict[str, Any]]:
