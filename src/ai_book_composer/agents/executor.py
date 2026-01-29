@@ -82,8 +82,8 @@ class ExecutorAgent:
                 result = self._gather_content(state)
             elif task_type == "plan_chapters":
                 result = self._plan_chapters(state)
-            elif task_type == "generate_chapters":
-                result = self._generate_chapters(state)
+            elif task_type == "generate_single_chapter":
+                result = self._generate_single_chapter(state, current_task)
             elif task_type == "compile_references":
                 result = self._compile_references(state)
             elif task_type == "generate_book":
@@ -201,52 +201,78 @@ class ExecutorAgent:
         progress.show_action("Saving chapter plan to disk")
         self.chapter_list_writer.run(chapter_list)
         
+        # Dynamically add individual chapter generation tasks to the plan
+        plan = state.get("plan", [])
+        current_task_index = state.get("current_task_index", 0)
+        
+        progress.show_action("Creating individual tasks for each chapter generation")
+        
+        # Find the "generate_chapters" task and replace it with individual chapter tasks
+        new_plan = []
+        for i, task in enumerate(plan):
+            if i < current_task_index + 1:
+                # Keep tasks that are already done or current
+                new_plan.append(task)
+            elif task.get("task") == "generate_chapters":
+                # Replace with individual chapter tasks
+                for chapter_info in chapter_list:
+                    chapter_num = chapter_info.get("number")
+                    chapter_title = chapter_info.get("title")
+                    new_plan.append({
+                        "task": "generate_single_chapter",
+                        "description": f"Generate Chapter {chapter_num}: {chapter_title}",
+                        "status": "pending",
+                        "chapter_number": chapter_num,
+                        "chapter_title": chapter_title,
+                        "chapter_description": chapter_info.get("description", "")
+                    })
+            else:
+                # Keep other tasks (compile_references, generate_book)
+                new_plan.append(task)
+        
+        progress.show_observation(f"Updated plan with {len(chapter_list)} individual chapter generation tasks")
+        
         return {
             "chapter_list": chapter_list,
-            "current_task_index": state.get("current_task_index", 0) + 1,
+            "plan": new_plan,
+            "current_task_index": current_task_index + 1,
             "status": "executing"
         }
     
-    def _generate_chapters(self, state: AgentState) -> Dict[str, Any]:
-        """Generate all chapters."""
-        chapter_list = state.get("chapter_list", [])
+    def _generate_single_chapter(self, state: AgentState, task: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a single chapter."""
+        chapter_num = task.get("chapter_number", 0)
+        chapter_title = task.get("chapter_title", "Untitled")
+        chapter_desc = task.get("chapter_description", "")
         gathered_content = state.get("gathered_content", {})
         language = state.get("language", "en-US")
         
-        progress.show_thought(f"Ready to generate {len(chapter_list)} chapter(s) using gathered content")
+        progress.show_thought(f"Generating Chapter {chapter_num}: {chapter_title}")
+        progress.show_chapter_info(chapter_num, chapter_title, "generating")
+        progress.show_action(f"Creating content for Chapter {chapter_num}")
         
-        chapters = []
+        # Generate chapter content
+        content = self._generate_chapter_content(
+            chapter_num,
+            chapter_title,
+            chapter_desc,
+            gathered_content,
+            language
+        )
         
-        for i, chapter_info in enumerate(chapter_list, 1):
-            chapter_num = chapter_info.get("number", 0)
-            chapter_title = chapter_info.get("title", "Untitled")
-            chapter_desc = chapter_info.get("description", "")
-            
-            progress.show_chapter_info(chapter_num, chapter_title, "generating")
-            progress.show_action(f"Generating content for Chapter {chapter_num}: {chapter_title}")
-            
-            # Generate chapter content
-            content = self._generate_chapter_content(
-                chapter_num,
-                chapter_title,
-                chapter_desc,
-                gathered_content,
-                language
-            )
-            
-            # Save chapter
-            self.chapter_writer.run(chapter_num, chapter_title, content)
-            
-            word_count = len(content.split())
-            progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
-            
-            chapters.append({
-                "number": chapter_num,
-                "title": chapter_title,
-                "content": content
-            })
+        # Save chapter
+        self.chapter_writer.run(chapter_num, chapter_title, content)
         
-        progress.show_observation(f"All {len(chapters)} chapter(s) generated successfully")
+        word_count = len(content.split())
+        progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
+        
+        # Add chapter to existing list
+        chapters = state.get("chapters", [])
+        chapters.append({
+            "number": chapter_num,
+            "title": chapter_title,
+            "content": content
+        })
         
         return {
             "chapters": chapters,
