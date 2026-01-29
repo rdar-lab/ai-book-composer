@@ -195,6 +195,52 @@ The system uses the following specialized tools:
 - **ChapterListWriterTool**: Saves chapter planning
 - **BookGeneratorTool**: Generates final RTF book
 
+### MCP Server
+
+The tools are exposed through the **Model Context Protocol (MCP)**, making them easily accessible to LLMs and enabling simple addition of new tools.
+
+#### Running the MCP Server
+
+To start the MCP server that exposes all tools:
+
+```bash
+# Using the standalone script
+python run_mcp_server.py /path/to/input /path/to/output
+
+# Or with environment variables
+INPUT_DIRECTORY=/path/to/input OUTPUT_DIRECTORY=/path/to/output python run_mcp_server.py
+
+# Default directories (current dir for input, ./output for output)
+python run_mcp_server.py
+```
+
+The MCP server will be available at `http://127.0.0.1:8000` by default.
+
+#### MCP Server Configuration
+
+Configure the MCP server in `config.yaml`:
+
+```yaml
+mcp_server:
+  host: 127.0.0.1
+  port: 8000
+  name: ai-book-composer
+  debug: false
+  log_level: INFO
+```
+
+#### Available MCP Tools
+
+When running as an MCP server, the following tools are available:
+
+1. **list_files**: List all files in the input directory
+2. **read_text_file**: Read content from text files with optional line range
+3. **transcribe_audio**: Transcribe audio files to text
+4. **transcribe_video**: Transcribe video files to text
+5. **write_chapter**: Write a chapter to a file
+6. **write_chapter_list**: Write the list of planned chapters
+7. **generate_book**: Generate the final book in RTF format
+
 ## Development
 
 ### Project Structure
