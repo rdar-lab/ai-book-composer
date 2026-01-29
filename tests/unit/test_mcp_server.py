@@ -128,7 +128,6 @@ class TestMCPTools:
         result = await generate_book(
             book_title="Test Book",
             book_author="Test Author",
-            language="en-US",
             chapters=[{"title": "Test Chapter", "content": "Test content"}],
             references=[]
         )

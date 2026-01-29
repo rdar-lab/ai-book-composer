@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 
 from mcp.server import FastMCP
 
+from .config import settings
 from .tools import (
     FileListingTool,
     TextFileReaderTool,
@@ -22,9 +23,9 @@ from .tools import (
 from .logging_config import logger
 
 
-# Initialize MCP server
+# Initialize MCP server with configuration
 mcp = FastMCP(
-    name="ai-book-composer",
+    name=settings.mcp_server.name,
     instructions="""AI Book Composer MCP Server
 
 This server provides tools for composing books from various source files including text, audio, and video.
@@ -208,7 +209,6 @@ async def write_chapter_list(chapters: List[Dict[str, Any]]) -> Dict[str, Any]:
 async def generate_book(
     book_title: str,
     book_author: str,
-    language: str = "en-US",
     chapters: Optional[List[Dict[str, str]]] = None,
     references: Optional[List[str]] = None,
     output_filename: str = "book.rtf"
@@ -218,7 +218,6 @@ async def generate_book(
     Args:
         book_title: Title of the book
         book_author: Author name
-        language: Target language code (default: "en-US")
         chapters: List of chapter dictionaries with 'title' and 'content' (optional, will read from output dir if not provided)
         references: List of reference strings (optional, will be empty if not provided)
         output_filename: Output filename (default: "book.rtf")
@@ -279,13 +278,22 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         output_dir = sys.argv[2]
     
+    # Validate and create directories
+    input_path = Path(input_dir)
+    if not input_path.exists():
+        print(f"Error: Input directory does not exist: {input_dir}")
+        sys.exit(1)
+    
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
     # Initialize tools
-    initialize_tools(input_dir, output_dir)
+    initialize_tools(str(input_path.resolve()), str(output_path.resolve()))
     
     # Run the server
     print(f"Starting AI Book Composer MCP Server")
-    print(f"Input directory: {input_dir}")
-    print(f"Output directory: {output_dir}")
-    print(f"Server will be available on http://127.0.0.1:8000")
+    print(f"Input directory: {input_path.resolve()}")
+    print(f"Output directory: {output_path.resolve()}")
+    print(f"Server will be available on http://{settings.mcp_server.host}:{settings.mcp_server.port}")
     
     asyncio.run(mcp.run())

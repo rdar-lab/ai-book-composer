@@ -12,10 +12,18 @@ import sys
 from pathlib import Path
 
 # Add src to path
-src_path = Path(__file__).parent / "src"
+src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from ai_book_composer.mcp_server import mcp, initialize_tools
+from ai_book_composer.mcp_server import (
+    mcp,
+    initialize_tools,
+    list_files,
+    read_text_file,
+    write_chapter,
+    write_chapter_list,
+    generate_book
+)
 
 
 async def example_usage():
@@ -51,7 +59,7 @@ async def example_usage():
     print("\n" + "=" * 60)
     print("Example 1: Listing files")
     print("=" * 60)
-    files = await mcp.call_tool("list_files", {})
+    files = await list_files()
     print(f"Found {len(files)} files:")
     for file_info in files:
         print(f"  - {file_info['name']} ({file_info['extension']})")
@@ -60,9 +68,7 @@ async def example_usage():
     print("\n" + "=" * 60)
     print("Example 2: Reading a text file")
     print("=" * 60)
-    result = await mcp.call_tool("read_text_file", {
-        "file_path": str(test_input / "chapter1.txt")
-    })
+    result = await read_text_file(str(test_input / "chapter1.txt"))
     print(f"Content preview: {result['content'][:100]}...")
     print(f"Total lines: {result['total_lines']}")
     
@@ -70,11 +76,11 @@ async def example_usage():
     print("\n" + "=" * 60)
     print("Example 3: Writing a chapter")
     print("=" * 60)
-    chapter_result = await mcp.call_tool("write_chapter", {
-        "chapter_number": 1,
-        "title": "Introduction",
-        "content": "This is the introduction chapter content."
-    })
+    chapter_result = await write_chapter(
+        chapter_number=1,
+        title="Introduction",
+        content="This is the introduction chapter content."
+    )
     print(f"✓ Chapter written to: {chapter_result['file_path']}")
     
     # Example 4: Write chapter list
@@ -86,9 +92,7 @@ async def example_usage():
         {"number": 2, "title": "Main Content", "description": "Main chapter content"},
         {"number": 3, "title": "Conclusion", "description": "Conclusion and summary"}
     ]
-    list_result = await mcp.call_tool("write_chapter_list", {
-        "chapters": chapters
-    })
+    list_result = await write_chapter_list(chapters)
     print(f"✓ Chapter list written to: {list_result['file_path']}")
     print(f"  Total chapters: {list_result['chapter_count']}")
     
@@ -96,11 +100,12 @@ async def example_usage():
     print("\n" + "=" * 60)
     print("Example 5: Generating final book")
     print("=" * 60)
-    book_result = await mcp.call_tool("generate_book", {
-        "book_title": "MCP Example Book",
-        "book_author": "AI Book Composer",
-        "language": "en-US"
-    })
+    book_result = await generate_book(
+        book_title="MCP Example Book",
+        book_author="AI Book Composer",
+        chapters=[{"title": "Introduction", "content": "This is the introduction chapter content."}],
+        references=[]
+    )
     print(f"✓ Book generated: {book_result.get('output_path', 'N/A')}")
     
     print("\n" + "=" * 60)

@@ -23,6 +23,7 @@ src_path = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_path))
 
 from ai_book_composer.mcp_server import mcp, initialize_tools
+from ai_book_composer.config import settings
 
 
 def main():
@@ -57,7 +58,7 @@ def main():
     print("=" * 60)
     print(f"Input directory:  {input_path.resolve()}")
     print(f"Output directory: {output_path.resolve()}")
-    print(f"Server endpoint:  http://127.0.0.1:8000")
+    print(f"Server endpoint:  http://{settings.mcp_server.host}:{settings.mcp_server.port}")
     print("=" * 60)
     print("\nAvailable tools:")
     print("  - list_files: List all files in the input directory")
