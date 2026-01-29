@@ -52,12 +52,13 @@ _chapter_list_writer: Optional[ChapterListWriterTool] = None
 _book_generator: Optional[BookGeneratorTool] = None
 
 
-def initialize_tools(input_directory: str, output_directory: str) -> None:
+def initialize_tools(input_directory: str, output_directory: str, skip_transcription: bool = False) -> None:
     """Initialize tool instances with directories.
     
     Args:
         input_directory: Directory containing source files
         output_directory: Directory for output files
+        skip_transcription: Skip initialization of transcription tools (useful for testing)
     """
     global _input_directory, _output_directory
     global _file_lister, _text_reader, _audio_transcriber, _video_transcriber
@@ -68,8 +69,11 @@ def initialize_tools(input_directory: str, output_directory: str) -> None:
     
     _file_lister = FileListingTool(input_directory)
     _text_reader = TextFileReaderTool()
-    _audio_transcriber = AudioTranscriptionTool()
-    _video_transcriber = VideoTranscriptionTool()
+    
+    if not skip_transcription:
+        _audio_transcriber = AudioTranscriptionTool()
+        _video_transcriber = VideoTranscriptionTool()
+    
     _chapter_writer = ChapterWriterTool(output_directory)
     _chapter_list_writer = ChapterListWriterTool(output_directory)
     _book_generator = BookGeneratorTool(output_directory)
@@ -204,7 +208,10 @@ async def write_chapter_list(chapters: List[Dict[str, Any]]) -> Dict[str, Any]:
 async def generate_book(
     book_title: str,
     book_author: str,
-    language: str = "en-US"
+    language: str = "en-US",
+    chapters: Optional[List[Dict[str, str]]] = None,
+    references: Optional[List[str]] = None,
+    output_filename: str = "book.rtf"
 ) -> Dict[str, Any]:
     """Generate the final book in RTF format.
     
@@ -212,6 +219,9 @@ async def generate_book(
         book_title: Title of the book
         book_author: Author name
         language: Target language code (default: "en-US")
+        chapters: List of chapter dictionaries with 'title' and 'content' (optional, will read from output dir if not provided)
+        references: List of reference strings (optional, will be empty if not provided)
+        output_filename: Output filename (default: "book.rtf")
     
     Returns:
         Dictionary with success status and output file path
@@ -220,7 +230,28 @@ async def generate_book(
         raise RuntimeError("Tools not initialized. Call initialize_tools() first.")
     
     logger.info(f"MCP: generate_book called for '{book_title}' by {book_author}")
-    result = _book_generator.run(book_title, book_author, language)
+    
+    # If chapters not provided, read from chapter files in output directory
+    if chapters is None:
+        chapters = []
+        chapter_files = sorted(_book_generator.output_directory.glob("chapter_*.txt"))
+        for chapter_file in chapter_files:
+            with open(chapter_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Extract title from first line (e.g., "# Chapter 1: Title")
+                lines = content.split('\n')
+                title_line = lines[0] if lines else "Untitled"
+                chapter_content = '\n'.join(lines[2:]) if len(lines) > 2 else content
+                chapters.append({
+                    "title": title_line.replace('#', '').strip(),
+                    "content": chapter_content
+                })
+    
+    # If references not provided, use empty list
+    if references is None:
+        references = []
+    
+    result = _book_generator.run(book_title, book_author, chapters, references, output_filename)
     logger.info(f"MCP: generate_book completed")
     return result
 
