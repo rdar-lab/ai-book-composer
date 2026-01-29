@@ -5,6 +5,7 @@ from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..llm import get_llm
+from ..config import load_prompts
 from ..tools import (
     FileListingTool,
     TextFileReaderTool,
@@ -41,6 +42,7 @@ class ExecutorAgent:
         self.book_generator = BookGeneratorTool(output_directory)
         
         self.llm = get_llm(temperature=0.7)
+        self.prompts = load_prompts()
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.
@@ -128,23 +130,12 @@ class ExecutorAgent:
         # Create content summary
         content_summary = self._summarize_content(gathered_content)
         
-        system_prompt = f"""You are an expert book editor. Based on the gathered content, create a structured list of chapters for a comprehensive book.
-
-Target language: {language}
-
-For each chapter, provide:
-- number: Chapter number
-- title: Chapter title
-- description: Brief description of what the chapter will cover
-- key_points: Main points to include
-
-Generate 5-10 chapters that logically organize the content."""
+        # Load prompts from YAML and format with placeholders
+        system_prompt_template = self.prompts['executor']['chapter_planning_system_prompt']
+        user_prompt_template = self.prompts['executor']['chapter_planning_user_prompt']
         
-        user_prompt = f"""Available content summary:
-
-{content_summary}
-
-Create a chapter list for the book."""
+        system_prompt = system_prompt_template.format(language=language)
+        user_prompt = user_prompt_template.format(content_summary=content_summary)
         
         messages = [
             SystemMessage(content=system_prompt),
@@ -220,26 +211,22 @@ Create a chapter list for the book."""
         
         content_text = "\n\n".join(all_content)
         
-        system_prompt = f"""You are an expert book writer. Write a comprehensive chapter for a book.
-
-Target language: {language}
-Chapter number: {chapter_num}
-Chapter title: {title}
-Chapter description: {description}
-
-Write a well-structured, informative chapter that:
-- Has clear introduction and conclusion
-- Uses proper paragraphs
-- Maintains consistent tone
-- Incorporates relevant information from source materials
-- Is approximately 1000-2000 words"""
+        # Load prompts from YAML and format with placeholders
+        system_prompt_template = self.prompts['executor']['chapter_generation_system_prompt']
+        user_prompt_template = self.prompts['executor']['chapter_generation_user_prompt']
         
-        user_prompt = f"""Write Chapter {chapter_num}: {title}
-
-Available source content:
-{content_text}
-
-Generate the chapter content now."""
+        system_prompt = system_prompt_template.format(
+            language=language,
+            chapter_number=chapter_num,
+            title=title,
+            description=description
+        )
+        
+        user_prompt = user_prompt_template.format(
+            chapter_number=chapter_num,
+            title=title,
+            content_text=content_text
+        )
         
         messages = [
             SystemMessage(content=system_prompt),

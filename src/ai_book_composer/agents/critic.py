@@ -4,6 +4,7 @@ from typing import Dict, Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..llm import get_llm
+from ..config import load_prompts
 from .state import AgentState
 
 # Constants
@@ -16,6 +17,7 @@ class CriticAgent:
     def __init__(self, quality_threshold: float = 0.7):
         self.llm = get_llm(temperature=0.2)
         self.quality_threshold = quality_threshold
+        self.prompts = load_prompts()
     
     def critique(self, state: AgentState) -> Dict[str, Any]:
         """Critique the generated book and provide feedback.
@@ -41,31 +43,17 @@ class CriticAgent:
         # Build critique prompt
         chapter_summaries = self._summarize_chapters(chapters)
         
-        system_prompt = """You are a harsh but fair book critic. Your job is to evaluate the quality of a generated book and provide constructive feedback.
-
-Evaluate the book on these criteria:
-1. Structure: Is the book well-organized with clear chapters?
-2. Content Quality: Is the content comprehensive and informative?
-3. Coherence: Do chapters flow logically?
-4. Completeness: Are all necessary components present (title page, TOC, references)?
-5. Language: Is the language appropriate and well-written?
-
-Provide:
-- quality_score: A score from 0.0 to 1.0
-- feedback: Specific areas for improvement
-- decision: "approve" if quality_score >= threshold, "revise" if needs work"""
+        # Load prompts from YAML and format with placeholders
+        system_prompt = self.prompts['critic']['system_prompt']
+        user_prompt_template = self.prompts['critic']['user_prompt']
         
-        user_prompt = f"""Evaluate this book:
-
-Title: {book_title}
-Target Language: {language}
-Number of Chapters: {len(chapters)}
-Number of References: {len(references)}
-
-Chapter summaries:
-{chapter_summaries}
-
-Provide your critique."""
+        user_prompt = user_prompt_template.format(
+            book_title=book_title,
+            language=language,
+            chapter_count=len(chapters),
+            reference_count=len(references),
+            chapter_summaries=chapter_summaries
+        )
         
         messages = [
             SystemMessage(content=system_prompt),

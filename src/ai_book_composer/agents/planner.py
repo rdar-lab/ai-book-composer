@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..llm import get_llm
+from ..config import load_prompts
 from .state import AgentState
 
 
@@ -12,6 +13,7 @@ class PlannerAgent:
     
     def __init__(self):
         self.llm = get_llm(temperature=0.3)
+        self.prompts = load_prompts()
     
     def plan(self, state: AgentState) -> Dict[str, Any]:
         """Generate a structured plan for creating the book.
@@ -28,28 +30,14 @@ class PlannerAgent:
         # Build file summary
         file_summary = self._summarize_files(files)
         
-        # Create planning prompt
-        system_prompt = """You are an expert book planner. Your job is to analyze source files and create a detailed plan for composing a comprehensive book.
-
-The plan should include:
-1. Analysis of available content
-2. Proposed book structure (chapters)
-3. Content mapping (which files/content go into which chapters)
-4. References to collect
-
-Output your plan as a JSON structure with these fields:
-- analysis: Brief analysis of the content
-- chapters: List of chapters with {number, title, description, source_files}
-- references: List of reference sources to cite
-"""
+        # Load prompts from YAML and format with placeholders
+        system_prompt = self.prompts['planner']['system_prompt']
+        user_prompt_template = self.prompts['planner']['user_prompt']
         
-        user_prompt = f"""Create a detailed plan for a book based on these source files:
-
-{file_summary}
-
-Target language: {language}
-
-Generate a comprehensive book plan."""
+        user_prompt = user_prompt_template.format(
+            file_summary=file_summary,
+            language=language
+        )
         
         messages = [
             SystemMessage(content=system_prompt),
