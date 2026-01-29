@@ -50,3 +50,7 @@ output/
 tmp/
 temp/
 *.tmp
+
+# Logs
+logs/
+*.log
