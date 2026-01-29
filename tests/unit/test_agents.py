@@ -222,3 +222,40 @@ class TestExecutorAgent:
             assert "doc1.txt" in summary
             assert "audio1.mp3" in summary
             assert "video1.mp4" in summary
+    
+    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
+    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
+    def test_summarize_content_truncates_large_files(self, mock_video, mock_audio, mock_llm):
+        """Test that _summarize_content truncates very large files to manage token limits."""
+        # Mock the tools to avoid initialization issues
+        mock_audio.return_value = Mock()
+        mock_video.return_value = Mock()
+        mock_llm.return_value = Mock()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            executor = ExecutorAgent(
+                input_directory=tmpdir,
+                output_directory=tmpdir
+            )
+            
+            # Import the constant to use in test
+            from ai_book_composer.agents.executor import MAX_CONTENT_FOR_CHAPTER_PLANNING
+            
+            # Create content that exceeds the limit
+            very_long_content = "X" * (MAX_CONTENT_FOR_CHAPTER_PLANNING + 5000)
+            
+            gathered_content = {
+                "/tmp/large_file.txt": {
+                    "type": "text",
+                    "content": very_long_content
+                }
+            }
+            
+            summary = executor._summarize_content(gathered_content)
+            
+            # Verify content is truncated
+            assert "Content truncated" in summary
+            assert len(summary) < len(very_long_content), "Summary should be truncated"
+            # Verify first part is included
+            assert "X" * 100 in summary, "Beginning of content should be included"
