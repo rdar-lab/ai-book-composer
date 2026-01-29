@@ -1,0 +1,88 @@
+# AI Book Composer Configuration
+
+# LLM Configuration
+llm:
+  provider: openai  # Options: openai, gemini, azure, ollama
+  model: gpt-4
+  temperature:
+    planning: 0.3
+    execution: 0.7
+    critique: 0.2
+
+# Provider-specific settings
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}  # Can use environment variables
+  
+  gemini:
+    api_key: ${GOOGLE_API_KEY}
+  
+  azure:
+    api_key: ${AZURE_OPENAI_API_KEY}
+    endpoint: ${AZURE_OPENAI_ENDPOINT}
+    deployment: ${AZURE_OPENAI_DEPLOYMENT}
+  
+  ollama:
+    base_url: http://localhost:11434
+    model: llama2  # Specify the model name for Ollama
+
+# Whisper Configuration (for audio/video transcription)
+whisper:
+  mode: local  # Options: local, remote
+  model_size: base  # Options: tiny, base, small, medium, large
+  # For remote mode (containerized):
+  remote:
+    endpoint: http://localhost:9000
+    api_key: null
+  # For local mode:
+  local:
+    device: cpu  # Options: cpu, cuda
+    compute_type: int8
+
+# Text File Reading Configuration
+text_reading:
+  max_lines_per_read: 100  # Maximum lines to read at a time from text files
+  supported_formats:
+    - txt
+    - md
+    - rst
+    - docx
+    - rtf
+    - pdf
+
+# Audio/Video Processing Configuration
+media_processing:
+  audio_formats:
+    - mp3
+    - wav
+    - m4a
+    - flac
+    - ogg
+  video_formats:
+    - mp4
+    - avi
+    - mov
+    - mkv
+  # Chunk size for large files (in seconds)
+  chunk_duration: 300  # 5 minutes per chunk
+  max_file_duration: 3600  # Max 1 hour per file
+
+# Book Generation Configuration
+book:
+  output_language: en-US
+  default_title: Composed Book
+  default_author: AI Book Composer
+  quality_threshold: 0.7
+  max_iterations: 3
+
+# Logging Configuration
+logging:
+  level: INFO  # Options: DEBUG, INFO, WARNING, ERROR
+  file: logs/ai_book_composer.log
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  console_output: false  # Don't print to console, use file only
+
+# Security Configuration
+security:
+  allow_directory_traversal: false
+  max_file_size_mb: 500
