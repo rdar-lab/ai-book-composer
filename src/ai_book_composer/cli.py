@@ -3,7 +3,6 @@
 import click
 from pathlib import Path
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.panel import Panel
 from rich.table import Table
 
@@ -135,27 +134,13 @@ def main(
         
         # Run workflow
         logger.info("Starting book composition")
-        console.print("[yellow]Starting book composition...[/yellow]")
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
-        ) as progress:
-            task = progress.add_task("Composing book...", total=None)
-            
-            final_state = workflow.run()
-            
-            progress.update(task, completed=True)
+        final_state = workflow.run()
         
-        # Display results
+        # Display results (minimal, since workflow already shows details)
         console.print()
-        console.print(Panel.fit(
-            "[bold green]✓ Book composition completed![/bold green]",
-            border_style="green"
-        ))
         
-        # Show results
+        # Show results summary (brief version since details were shown during execution)
         results_table = Table(title="Results", show_header=False)
         results_table.add_column("Metric", style="cyan")
         results_table.add_column("Value", style="white")

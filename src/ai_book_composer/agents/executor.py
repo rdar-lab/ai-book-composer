@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..llm import get_llm
 from ..config import load_prompts
+from ..progress_display import progress
 from ..tools import (
     FileListingTool,
     TextFileReaderTool,
@@ -53,44 +54,67 @@ class ExecutorAgent:
         Returns:
             Updated state
         """
-        plan = state.get("plan", [])
-        current_task_index = state.get("current_task_index", 0)
-        
-        if current_task_index >= len(plan):
-            return {"status": "execution_complete"}
-        
-        current_task = plan[current_task_index]
-        task_type = current_task.get("task")
-        
-        # Execute based on task type
-        if task_type == "gather_content":
-            return self._gather_content(state)
-        elif task_type == "plan_chapters":
-            return self._plan_chapters(state)
-        elif task_type == "generate_chapters":
-            return self._generate_chapters(state)
-        elif task_type == "compile_references":
-            return self._compile_references(state)
-        elif task_type == "generate_book":
-            return self._generate_book(state)
-        else:
-            return {
-                "current_task_index": current_task_index + 1,
-                "status": "executing"
-            }
+        with progress.agent_context(
+            "Executor",
+            "Executing tasks using specialized tools to generate book content"
+        ):
+            plan = state.get("plan", [])
+            current_task_index = state.get("current_task_index", 0)
+            
+            if current_task_index >= len(plan):
+                progress.show_observation("All tasks completed")
+                return {"status": "execution_complete"}
+            
+            current_task = plan[current_task_index]
+            task_type = current_task.get("task")
+            task_description = current_task.get("description", "")
+            
+            progress.show_step(
+                current_task_index + 1,
+                len(plan),
+                f"{task_type}: {task_description}"
+            )
+            progress.show_task(task_type, "started")
+            
+            # Execute based on task type
+            if task_type == "gather_content":
+                result = self._gather_content(state)
+            elif task_type == "plan_chapters":
+                result = self._plan_chapters(state)
+            elif task_type == "generate_chapters":
+                result = self._generate_chapters(state)
+            elif task_type == "compile_references":
+                result = self._compile_references(state)
+            elif task_type == "generate_book":
+                result = self._generate_book(state)
+            else:
+                result = {
+                    "current_task_index": current_task_index + 1,
+                    "status": "executing"
+                }
+            
+            progress.show_task(task_type, "completed")
+            
+            return result
     
     def _gather_content(self, state: AgentState) -> Dict[str, Any]:
         """Gather content from all source files."""
         files = state.get("files", [])
         gathered_content = {}
         
-        for file_info in files:
+        progress.show_thought(f"Need to process {len(files)} source file(s) and extract their content")
+        
+        for i, file_info in enumerate(files, 1):
             file_path = file_info.get("path", "")
+            file_name = file_info.get("name", "")
             extension = file_info.get("extension", "").lower()
+            
+            progress.show_action(f"Processing file {i}/{len(files)}: {file_name}")
             
             try:
                 if extension in [".txt", ".md", ".rst"]:
                     # Read text file
+                    progress.show_observation(f"Reading text file: {file_name}")
                     result = self.text_reader.run(file_path)
                     gathered_content[file_path] = {
                         "type": "text",
@@ -98,6 +122,7 @@ class ExecutorAgent:
                     }
                 elif extension in [".mp3", ".wav", ".m4a", ".flac"]:
                     # Transcribe audio
+                    progress.show_observation(f"Transcribing audio file: {file_name}")
                     result = self.audio_transcriber.run(file_path)
                     gathered_content[file_path] = {
                         "type": "audio_transcription",
@@ -105,16 +130,32 @@ class ExecutorAgent:
                     }
                 elif extension in [".mp4", ".avi", ".mov", ".mkv"]:
                     # Transcribe video
+                    progress.show_observation(f"Transcribing video file: {file_name}")
                     result = self.video_transcriber.run(file_path)
                     gathered_content[file_path] = {
                         "type": "video_transcription",
                         "content": result.get("transcription", "")
                     }
+                else:
+                    # Unsupported file type
+                    progress.show_observation(f"⚠ Skipping unsupported file type: {file_name} ({extension})")
+                    gathered_content[file_path] = {
+                        "type": "unsupported",
+                        "content": f"File type {extension} is not supported"
+                    }
+                    continue
+                
+                content_length = len(gathered_content.get(file_path, {}).get("content", ""))
+                progress.show_observation(f"✓ Processed {file_name} ({content_length} characters)")
+                
             except Exception as e:
+                progress.show_observation(f"✗ Error processing {file_name}: {str(e)}")
                 gathered_content[file_path] = {
                     "type": "error",
                     "content": f"Error processing file: {str(e)}"
                 }
+        
+        progress.show_observation(f"Content gathering complete: {len(gathered_content)} file(s) processed")
         
         return {
             "gathered_content": gathered_content,
@@ -127,8 +168,12 @@ class ExecutorAgent:
         gathered_content = state.get("gathered_content", {})
         language = state.get("language", "en-US")
         
+        progress.show_thought("Analyzing gathered content to determine optimal chapter structure")
+        
         # Create content summary
         content_summary = self._summarize_content(gathered_content)
+        
+        progress.show_action("Using AI to plan book chapters")
         
         # Load prompts from YAML and format with placeholders
         system_prompt_template = self.prompts['executor']['chapter_planning_system_prompt']
@@ -147,7 +192,12 @@ class ExecutorAgent:
         # Parse chapter list (simplified)
         chapter_list = self._parse_chapter_list(response.content)
         
+        progress.show_observation(f"Planned {len(chapter_list)} chapter(s) for the book")
+        for chapter in chapter_list:
+            progress.show_observation(f"  • Chapter {chapter.get('number')}: {chapter.get('title')}")
+        
         # Save chapter list
+        progress.show_action("Saving chapter plan to disk")
         self.chapter_list_writer.run(chapter_list)
         
         return {
@@ -162,12 +212,17 @@ class ExecutorAgent:
         gathered_content = state.get("gathered_content", {})
         language = state.get("language", "en-US")
         
+        progress.show_thought(f"Ready to generate {len(chapter_list)} chapter(s) using gathered content")
+        
         chapters = []
         
-        for chapter_info in chapter_list:
+        for i, chapter_info in enumerate(chapter_list, 1):
             chapter_num = chapter_info.get("number", 0)
             chapter_title = chapter_info.get("title", "Untitled")
             chapter_desc = chapter_info.get("description", "")
+            
+            progress.show_chapter_info(chapter_num, chapter_title, "generating")
+            progress.show_action(f"Generating content for Chapter {chapter_num}: {chapter_title}")
             
             # Generate chapter content
             content = self._generate_chapter_content(
@@ -181,11 +236,16 @@ class ExecutorAgent:
             # Save chapter
             self.chapter_writer.run(chapter_num, chapter_title, content)
             
+            word_count = len(content.split())
+            progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
+            
             chapters.append({
                 "number": chapter_num,
                 "title": chapter_title,
                 "content": content
             })
+        
+        progress.show_observation(f"All {len(chapters)} chapter(s) generated successfully")
         
         return {
             "chapters": chapters,
@@ -240,11 +300,15 @@ class ExecutorAgent:
         """Compile list of references."""
         files = state.get("files", [])
         
+        progress.show_action("Compiling list of source file references")
+        
         references = []
         for file_info in files:
             file_path = file_info.get("path", "")
             file_name = file_info.get("name", "")
             references.append(f"{file_name} - Source file: {file_path}")
+        
+        progress.show_observation(f"Compiled {len(references)} reference(s)")
         
         return {
             "references": references,
@@ -259,6 +323,9 @@ class ExecutorAgent:
         chapters = state.get("chapters", [])
         references = state.get("references", [])
         
+        progress.show_action(f"Generating final book: '{title}' by {author}")
+        progress.show_observation(f"Compiling {len(chapters)} chapters and {len(references)} references into RTF format")
+        
         result = self.book_generator.run(
             title=title,
             author=author,
@@ -266,8 +333,11 @@ class ExecutorAgent:
             references=references
         )
         
+        output_path = result.get("file_path")
+        progress.show_observation(f"✓ Book generated successfully: {output_path}")
+        
         return {
-            "final_output_path": result.get("file_path"),
+            "final_output_path": output_path,
             "current_task_index": state.get("current_task_index", 0) + 1,
             "status": "book_generated"
         }

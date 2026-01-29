@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..llm import get_llm
 from ..config import load_prompts
+from ..progress_display import progress
 from .state import AgentState
 
 
@@ -24,30 +25,45 @@ class PlannerAgent:
         Returns:
             Updated state with plan
         """
-        files = state.get("files", [])
-        language = state.get("language", "en-US")
-        
-        # Build file summary
-        file_summary = self._summarize_files(files)
-        
-        # Load prompts from YAML and format with placeholders
-        system_prompt = self.prompts['planner']['system_prompt']
-        user_prompt_template = self.prompts['planner']['user_prompt']
-        
-        user_prompt = user_prompt_template.format(
-            file_summary=file_summary,
-            language=language
-        )
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ]
-        
-        response = self.llm.invoke(messages)
-        
-        # Parse the plan (simplified - in production, use structured output)
-        plan = self._parse_plan(response.content, files)
+        with progress.agent_context(
+            "Planner",
+            "Analyzing source files and creating a structured plan for book generation"
+        ):
+            files = state.get("files", [])
+            language = state.get("language", "en-US")
+            
+            progress.show_thought(
+                f"Analyzing {len(files)} source file(s) to determine optimal book structure"
+            )
+            
+            # Build file summary
+            file_summary = self._summarize_files(files)
+            
+            progress.show_action("Generating comprehensive book plan with AI")
+            
+            # Load prompts from YAML and format with placeholders
+            system_prompt = self.prompts['planner']['system_prompt']
+            user_prompt_template = self.prompts['planner']['user_prompt']
+            
+            user_prompt = user_prompt_template.format(
+                file_summary=file_summary,
+                language=language
+            )
+            
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
+            ]
+            
+            response = self.llm.invoke(messages)
+            
+            progress.show_observation("Received plan from AI, parsing into structured tasks")
+            
+            # Parse the plan (simplified - in production, use structured output)
+            plan = self._parse_plan(response.content, files)
+            
+            progress.show_plan(plan)
+            progress.show_observation(f"Plan created with {len(plan)} major tasks")
         
         return {
             "plan": plan,
