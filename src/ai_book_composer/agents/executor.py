@@ -16,6 +16,13 @@ from ..tools import (
 )
 from .state import AgentState
 
+# Constants
+MIN_SUBSTANTIAL_CONTENT_LENGTH = 100
+MAX_CONTENT_PREVIEW_LENGTH = 500
+CONTENT_PREVIEW_LENGTH = 200
+MIN_CHAPTER_COUNT = 3
+MAX_CHAPTER_COUNT = 10
+
 
 class ExecutorAgent:
     """The Executor (Worker) - performs tasks using available tools."""
@@ -208,8 +215,8 @@ Create a chapter list for the book."""
         all_content = []
         for file_path, content_info in gathered_content.items():
             content = content_info.get("content", "")
-            if content and len(content) > 100:  # Only include substantial content
-                all_content.append(f"From {Path(file_path).name}:\n{content[:500]}...")
+            if content and len(content) > MIN_SUBSTANTIAL_CONTENT_LENGTH:  # Only include substantial content
+                all_content.append(f"From {Path(file_path).name}:\n{content[:MAX_CONTENT_PREVIEW_LENGTH]}...")
         
         content_text = "\n\n".join(all_content)
         
@@ -284,7 +291,7 @@ Generate the chapter content now."""
         for file_path, content_info in gathered_content.items():
             content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
-            preview = content[:200] if content else "No content"
+            preview = content[:CONTENT_PREVIEW_LENGTH] if content else "No content"
             summary.append(f"- {Path(file_path).name} ({content_type}): {preview}...")
         return "\n".join(summary)
     
@@ -315,8 +322,8 @@ Generate the chapter content now."""
                 })
                 chapter_num += 1
         
-        # Ensure we have at least 3 chapters
-        while len(chapters) < 3:
+        # Ensure we have at least minimum chapters
+        while len(chapters) < MIN_CHAPTER_COUNT:
             chapters.append({
                 "number": len(chapters) + 1,
                 "title": f"Chapter {len(chapters) + 1}",
@@ -324,4 +331,4 @@ Generate the chapter content now."""
                 "key_points": []
             })
         
-        return chapters[:10]  # Max 10 chapters
+        return chapters[:MAX_CHAPTER_COUNT]

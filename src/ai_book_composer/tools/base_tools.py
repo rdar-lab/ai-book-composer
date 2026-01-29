@@ -2,6 +2,7 @@
 
 import os
 import json
+import tempfile
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 import ffmpeg
@@ -155,8 +156,9 @@ class VideoTranscriptionTool:
             Dictionary with transcription and metadata
         """
         try:
-            # Extract audio from video
-            audio_path = f"/tmp/{Path(file_path).stem}_audio.wav"
+            # Extract audio from video to temporary file
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+                audio_path = tmp_file.name
             
             stream = ffmpeg.input(file_path)
             stream = ffmpeg.output(stream, audio_path, acodec='pcm_s16le', ac=1, ar='16k')
@@ -199,7 +201,10 @@ class ChapterWriterTool:
             Dictionary with file path and status
         """
         try:
-            filename = f"chapter_{chapter_number:02d}_{title.replace(' ', '_')}.txt"
+            # Sanitize title for filename - remove invalid characters
+            safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
+            safe_title = safe_title.replace(' ', '_')
+            filename = f"chapter_{chapter_number:02d}_{safe_title}.txt"
             file_path = self.output_directory / filename
             
             with open(file_path, 'w', encoding='utf-8') as f:

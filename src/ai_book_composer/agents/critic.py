@@ -6,6 +6,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..llm import get_llm
 from .state import AgentState
 
+# Constants
+CHAPTER_PREVIEW_LENGTH = 200
+
 
 class CriticAgent:
     """The Critic - validates quality and provides feedback."""
@@ -102,7 +105,7 @@ Provide your critique."""
             title = chapter.get("title", "Untitled")
             content = chapter.get("content", "")
             word_count = len(content.split())
-            preview = content[:200] if content else "No content"
+            preview = content[:CHAPTER_PREVIEW_LENGTH] if content else "No content"
             
             summaries.append(
                 f"Chapter {num}: {title} ({word_count} words)\n"
