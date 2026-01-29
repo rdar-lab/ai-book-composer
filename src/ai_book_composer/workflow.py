@@ -11,6 +11,7 @@ from .agents import (
     CriticAgent
 )
 from .tools import FileListingTool
+from .progress_display import progress, show_workflow_start, show_node_transition
 
 
 class BookComposerWorkflow:
@@ -101,23 +102,56 @@ class BookComposerWorkflow:
     
     def _list_files_node(self, state: AgentState) -> Dict[str, Any]:
         """Node to list all files in input directory."""
+        show_node_transition(None, "list_files", "Starting workflow")
+        progress.show_phase(
+            "File Discovery",
+            "Scanning input directory for source files"
+        )
+        
+        progress.show_action(f"Listing files in: {self.input_directory}")
         files = self.file_lister.run()
+        
+        progress.show_observation(f"Found {len(files)} file(s) to process")
+        if files:
+            progress.show_files(files)
+        
         return {"files": files, "status": "files_listed"}
     
     def _plan_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for planning phase."""
+        show_node_transition("list_files", "plan", "Files discovered")
         return self.planner.plan(state)
     
     def _execute_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for execution phase."""
+        prev_node = "plan" if state.get("current_task_index", 0) == 0 else "execute"
+        show_node_transition(prev_node, "execute", "Executing next task")
         return self.executor.execute(state)
     
     def _critique_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for critique phase."""
+        show_node_transition("execute", "critique", "Execution complete, evaluating quality")
         return self.critic.critique(state)
     
     def _finalize_node(self, state: AgentState) -> Dict[str, Any]:
         """Node to finalize the workflow."""
+        show_node_transition("critique", "finalize", "Quality approved")
+        
+        progress.show_phase(
+            "Finalization",
+            "Completing workflow and preparing final output"
+        )
+        
+        # Show completion summary
+        stats = {
+            "Chapters": len(state.get("chapters", [])),
+            "References": len(state.get("references", [])),
+            "Iterations": state.get("iterations", 0),
+            "Quality Score": f"{state.get('quality_score', 0):.2%}" if state.get('quality_score') else "N/A"
+        }
+        
+        progress.show_completion(state.get("final_output_path"), stats)
+        
         return {"status": "completed"}
     
     def _should_continue_execution(self, state: AgentState) -> str:
@@ -162,6 +196,17 @@ class BookComposerWorkflow:
         Returns:
             Final state
         """
+        # Show workflow start
+        show_workflow_start(
+            self.input_directory,
+            self.output_directory,
+            {
+                "book_title": self.book_title,
+                "book_author": self.book_author,
+                "language": self.language
+            }
+        )
+        
         # Create initial state
         initial_state = create_initial_state(
             input_directory=self.input_directory,

@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..llm import get_llm
 from ..config import load_prompts
+from ..progress_display import progress
 from .state import AgentState
 
 # Constants
@@ -28,48 +29,70 @@ class CriticAgent:
         Returns:
             Updated state with critique feedback
         """
-        chapters = state.get("chapters", [])
-        references = state.get("references", [])
-        book_title = state.get("book_title", "")
-        language = state.get("language", "en-US")
-        
-        if not chapters:
-            return {
-                "critic_feedback": "No chapters generated yet",
-                "quality_score": 0.0,
-                "status": "needs_revision"
-            }
-        
-        # Build critique prompt
-        chapter_summaries = self._summarize_chapters(chapters)
-        
-        # Load prompts from YAML and format with placeholders
-        system_prompt = self.prompts['critic']['system_prompt']
-        user_prompt_template = self.prompts['critic']['user_prompt']
-        
-        user_prompt = user_prompt_template.format(
-            book_title=book_title,
-            language=language,
-            chapter_count=len(chapters),
-            reference_count=len(references),
-            chapter_summaries=chapter_summaries
-        )
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ]
-        
-        response = self.llm.invoke(messages)
-        
-        # Parse critique (simplified)
-        quality_score, feedback, decision = self._parse_critique(response.content)
-        
-        # Determine next status
-        if decision == "approve" or quality_score >= self.quality_threshold:
-            status = "approved"
-        else:
-            status = "needs_revision"
+        with progress.agent_context(
+            "Critic",
+            "Evaluating book quality and providing constructive feedback"
+        ):
+            chapters = state.get("chapters", [])
+            references = state.get("references", [])
+            book_title = state.get("book_title", "")
+            language = state.get("language", "en-US")
+            
+            if not chapters:
+                progress.show_observation("No chapters found to critique")
+                return {
+                    "critic_feedback": "No chapters generated yet",
+                    "quality_score": 0.0,
+                    "status": "needs_revision"
+                }
+            
+            progress.show_thought(
+                f"Analyzing {len(chapters)} chapter(s) for quality, coherence, and completeness"
+            )
+            
+            # Build critique prompt
+            chapter_summaries = self._summarize_chapters(chapters)
+            
+            progress.show_action("Requesting AI critique of the generated book")
+            
+            # Load prompts from YAML and format with placeholders
+            system_prompt = self.prompts['critic']['system_prompt']
+            user_prompt_template = self.prompts['critic']['user_prompt']
+            
+            user_prompt = user_prompt_template.format(
+                book_title=book_title,
+                language=language,
+                chapter_count=len(chapters),
+                reference_count=len(references),
+                chapter_summaries=chapter_summaries
+            )
+            
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
+            ]
+            
+            response = self.llm.invoke(messages)
+            
+            progress.show_observation("Received critique feedback, analyzing results")
+            
+            # Parse critique (simplified)
+            quality_score, feedback, decision = self._parse_critique(response.content)
+            
+            # Show critique summary
+            progress.show_critique_summary(quality_score, feedback)
+            
+            # Determine next status
+            if decision == "approve" or quality_score >= self.quality_threshold:
+                status = "approved"
+                progress.show_observation(
+                    f"✓ Book approved! Quality score ({quality_score:.2%}) meets threshold ({self.quality_threshold:.2%})"
+                )
+            else:
+                status = "needs_revision"
+                progress.show_observation(
+                    f"⚠ Book needs revision. Quality score ({quality_score:.2%}) below threshold ({self.quality_threshold:.2%})"
+                )
         
         return {
             "critic_feedback": feedback,
