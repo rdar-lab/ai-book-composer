@@ -136,6 +136,14 @@ class ExecutorAgent:
                         "type": "video_transcription",
                         "content": result.get("transcription", "")
                     }
+                else:
+                    # Unsupported file type
+                    progress.show_observation(f"⚠ Skipping unsupported file type: {file_name} ({extension})")
+                    gathered_content[file_path] = {
+                        "type": "unsupported",
+                        "content": f"File type {extension} is not supported"
+                    }
+                    continue
                 
                 content_length = len(gathered_content.get(file_path, {}).get("content", ""))
                 progress.show_observation(f"✓ Processed {file_name} ({content_length} characters)")

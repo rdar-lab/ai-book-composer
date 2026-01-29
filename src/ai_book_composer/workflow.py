@@ -147,7 +147,7 @@ class BookComposerWorkflow:
             "Chapters": len(state.get("chapters", [])),
             "References": len(state.get("references", [])),
             "Iterations": state.get("iterations", 0),
-            "Quality Score": f"{state.get('quality_score', 0):.2%}" if state.get('quality_score') else "N/A"
+            "Quality Score": f"{state.get('quality_score', 0):.2%}" if state.get('quality_score') is not None else "N/A"
         }
         
         progress.show_completion(state.get("final_output_path"), stats)

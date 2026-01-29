@@ -6,8 +6,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
-from rich.live import Live
-from rich.spinner import Spinner
 from rich.text import Text
 
 
@@ -36,7 +34,7 @@ class ProgressDisplay:
         self.console.print(Panel(
             f"[{style}]{phase_name}[/{style}]\n{description}",
             border_style=style.split()[-1] if " " in style else style,
-            title=f"⚙️  Phase: {phase_name}",
+            title=f"⚙️ Phase: {phase_name}",
             title_align="left"
         ))
     
@@ -286,7 +284,7 @@ def show_workflow_start(input_dir: str, output_dir: str, config: Dict[str, Any])
     table.add_row("📂 Input Directory", input_dir)
     table.add_row("📁 Output Directory", output_dir)
     table.add_row("📖 Book Title", config.get("book_title", "N/A"))
-    table.add_row("✍️  Author", config.get("book_author", "N/A"))
+    table.add_row("✏️ Author", config.get("book_author", "N/A"))
     table.add_row("🌍 Language", config.get("language", "N/A"))
     
     console.print(table)
