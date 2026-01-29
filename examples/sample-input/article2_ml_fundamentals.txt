@@ -1,0 +1,86 @@
+# Machine Learning Fundamentals
+
+Machine Learning (ML) is a subset of artificial intelligence that focuses on the development of algorithms and statistical models that enable computers to improve their performance on tasks through experience.
+
+## Core Concepts
+
+### Training Data
+The foundation of any machine learning model is training data. This data is used to teach the model to recognize patterns and make predictions. The quality and quantity of training data significantly impact model performance.
+
+### Features
+Features are the individual measurable properties or characteristics of the phenomena being observed. In a dataset about houses, features might include:
+- Square footage
+- Number of bedrooms
+- Location
+- Age of the building
+
+### Labels
+In supervised learning, labels are the outcomes or targets that we want the model to predict. For example, the price of a house would be the label when predicting real estate values.
+
+## Learning Paradigms
+
+### Supervised Learning
+The model learns from labeled training data. Common algorithms include:
+- Linear Regression
+- Decision Trees
+- Support Vector Machines
+- Neural Networks
+
+### Unsupervised Learning
+The model finds patterns in unlabeled data. Techniques include:
+- Clustering (K-means, DBSCAN)
+- Dimensionality Reduction (PCA, t-SNE)
+- Association Rule Learning
+
+### Reinforcement Learning
+The model learns through interaction with an environment, receiving rewards or penalties based on its actions. Applications include:
+- Game playing (AlphaGo, game AI)
+- Robotics
+- Autonomous vehicles
+- Resource optimization
+
+## Model Evaluation
+
+Evaluating model performance is crucial. Common metrics include:
+
+For Classification:
+- Accuracy
+- Precision
+- Recall
+- F1 Score
+- ROC-AUC
+
+For Regression:
+- Mean Squared Error (MSE)
+- Root Mean Squared Error (RMSE)
+- Mean Absolute Error (MAE)
+- R-squared
+
+## Overfitting and Underfitting
+
+- Overfitting: Model performs well on training data but poorly on new data
+- Underfitting: Model performs poorly on both training and test data
+
+Techniques to prevent overfitting:
+- Cross-validation
+- Regularization (L1, L2)
+- Early stopping
+- Dropout (for neural networks)
+
+## Feature Engineering
+
+The process of creating new features or transforming existing ones to improve model performance. This often involves:
+- Domain knowledge
+- Statistical transformations
+- Feature scaling and normalization
+- Encoding categorical variables
+- Creating interaction features
+
+## Best Practices
+
+1. Start with a simple model and iterate
+2. Use cross-validation for model evaluation
+3. Monitor for data leakage
+4. Document your experiments
+5. Consider the bias-variance tradeoff
+6. Regularly update models with new data
