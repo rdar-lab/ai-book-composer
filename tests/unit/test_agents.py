@@ -3,9 +3,11 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+import tempfile
 
 from ai_book_composer.agents.state import AgentState, create_initial_state
 from ai_book_composer.agents.planner import PlannerAgent
+from ai_book_composer.agents.executor import ExecutorAgent
 from ai_book_composer.agents.critic import CriticAgent
 
 
@@ -130,3 +132,130 @@ class TestCriticAgent:
         assert result["quality_score"] == 0.0
         assert result["status"] == "needs_revision"
         assert not mock_llm.invoke.called  # Should not call LLM if no chapters
+
+
+class TestExecutorAgent:
+    """Test executor agent with focus on content summarization."""
+    
+    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
+    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
+    def test_summarize_content_includes_full_content(self, mock_video, mock_audio, mock_llm):
+        """Test that _summarize_content includes full file content for chapter planning."""
+        # Mock the tools to avoid initialization issues
+        mock_audio.return_value = Mock()
+        mock_video.return_value = Mock()
+        mock_llm.return_value = Mock()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            executor = ExecutorAgent(
+                input_directory=tmpdir,
+                output_directory=tmpdir
+            )
+            
+            # Create test content with more than 200 characters to ensure full content is used
+            long_content = "A" * 500 + "\n" + "B" * 500 + "\n" + "C" * 200
+            
+            gathered_content = {
+                "/tmp/file1.txt": {
+                    "type": "text",
+                    "content": long_content
+                },
+                "/tmp/file2.txt": {
+                    "type": "text",
+                    "content": "Short content"
+                }
+            }
+            
+            summary = executor._summarize_content(gathered_content)
+            
+            # Verify that full content is included, not just a preview
+            assert long_content in summary, "Full content should be included in summary"
+            assert "Short content" in summary
+            assert len(summary) > 1200, "Summary should contain full content from both files"
+            
+            # Verify file information is included
+            assert "file1.txt" in summary
+            assert "file2.txt" in summary
+            assert "text" in summary.lower()
+    
+    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
+    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
+    def test_summarize_content_with_multiple_files(self, mock_video, mock_audio, mock_llm):
+        """Test that _summarize_content handles multiple files correctly."""
+        # Mock the tools to avoid initialization issues
+        mock_audio.return_value = Mock()
+        mock_video.return_value = Mock()
+        mock_llm.return_value = Mock()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            executor = ExecutorAgent(
+                input_directory=tmpdir,
+                output_directory=tmpdir
+            )
+            
+            # Create multiple files with different content types
+            gathered_content = {
+                "/tmp/doc1.txt": {
+                    "type": "text",
+                    "content": "Document 1 has important content about machine learning algorithms and neural networks."
+                },
+                "/tmp/audio1.mp3": {
+                    "type": "audio_transcription",
+                    "content": "This is a transcription of the audio file discussing artificial intelligence topics."
+                },
+                "/tmp/video1.mp4": {
+                    "type": "video_transcription",
+                    "content": "Video transcription covering deep learning and computer vision applications."
+                }
+            }
+            
+            summary = executor._summarize_content(gathered_content)
+            
+            # Verify all content is included
+            assert "machine learning algorithms and neural networks" in summary
+            assert "artificial intelligence topics" in summary
+            assert "deep learning and computer vision applications" in summary
+            
+            # Verify file names and types are included
+            assert "doc1.txt" in summary
+            assert "audio1.mp3" in summary
+            assert "video1.mp4" in summary
+    
+    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
+    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
+    def test_summarize_content_truncates_large_files(self, mock_video, mock_audio, mock_llm):
+        """Test that _summarize_content truncates very large files to manage token limits."""
+        # Mock the tools to avoid initialization issues
+        mock_audio.return_value = Mock()
+        mock_video.return_value = Mock()
+        mock_llm.return_value = Mock()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            executor = ExecutorAgent(
+                input_directory=tmpdir,
+                output_directory=tmpdir
+            )
+            
+            # Import the constant to use in test
+            from ai_book_composer.agents.executor import MAX_CONTENT_FOR_CHAPTER_PLANNING
+            
+            # Create content that exceeds the limit
+            very_long_content = "X" * (MAX_CONTENT_FOR_CHAPTER_PLANNING + 5000)
+            
+            gathered_content = {
+                "/tmp/large_file.txt": {
+                    "type": "text",
+                    "content": very_long_content
+                }
+            }
+            
+            summary = executor._summarize_content(gathered_content)
+            
+            # Verify content is truncated
+            assert "Content truncated" in summary
+            assert len(summary) < len(very_long_content), "Summary should be truncated"
+            # Verify first part is included
+            assert "X" * 100 in summary, "Beginning of content should be included"

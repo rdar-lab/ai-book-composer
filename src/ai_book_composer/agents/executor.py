@@ -21,7 +21,8 @@ from .state import AgentState
 # Constants
 MIN_SUBSTANTIAL_CONTENT_LENGTH = 100
 MAX_CONTENT_PREVIEW_LENGTH = 500
-CONTENT_PREVIEW_LENGTH = 200
+# Maximum content length per file when planning chapters (to manage LLM token limits)
+MAX_CONTENT_FOR_CHAPTER_PLANNING = 10000
 MIN_CHAPTER_COUNT = 3
 MAX_CHAPTER_COUNT = 10
 
@@ -343,13 +344,28 @@ class ExecutorAgent:
         }
     
     def _summarize_content(self, gathered_content: Dict[str, Any]) -> str:
-        """Summarize gathered content."""
+        """Summarize gathered content with full content for chapter planning.
+        
+        Includes full content from each file (up to MAX_CONTENT_FOR_CHAPTER_PLANNING chars)
+        so the LLM can understand all available material when planning chapters.
+        For very large files, content is truncated to manage token limits.
+        """
         summary = []
         for file_path, content_info in gathered_content.items():
             content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
-            preview = content[:CONTENT_PREVIEW_LENGTH] if content else "No content"
-            summary.append(f"- {Path(file_path).name} ({content_type}): {preview}...")
+            
+            # Include full content so LLM can understand all files when planning chapters
+            # Truncate extremely large files to manage token limits
+            if content:
+                if len(content) > MAX_CONTENT_FOR_CHAPTER_PLANNING:
+                    file_content = content[:MAX_CONTENT_FOR_CHAPTER_PLANNING] + f"\n\n[Content truncated - {len(content) - MAX_CONTENT_FOR_CHAPTER_PLANNING} more characters]"
+                else:
+                    file_content = content
+            else:
+                file_content = "No content"
+            
+            summary.append(f"File: {Path(file_path).name} ({content_type})\nContent:\n{file_content}\n")
         return "\n".join(summary)
     
     def _parse_chapter_list(self, response_content: str) -> List[Dict[str, Any]]:
