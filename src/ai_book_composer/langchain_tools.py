@@ -82,11 +82,12 @@ class ToolRegistry:
         logger.debug(f"Tool: read_text_file returned {len(result.get('content', ''))} characters")
         return result
     
-    def transcribe_audio(self, file_path: str) -> Dict[str, Any]:
+    def transcribe_audio(self, file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
         """Transcribe audio file to text.
         
         Args:
             file_path: Path to the audio file
+            language: Optional language code (e.g., 'en', 'he' for Hebrew). If None, auto-detects.
         
         Returns:
             Dictionary with transcription, segments, language, and duration
@@ -94,16 +95,17 @@ class ToolRegistry:
         if self.audio_transcriber is None:
             raise RuntimeError("Audio transcription not available (skip_transcription=True)")
         
-        logger.info(f"Tool: transcribe_audio called for {file_path}")
-        result = self.audio_transcriber.run(file_path)
+        logger.info(f"Tool: transcribe_audio called for {file_path}, language: {language or 'auto-detect'}")
+        result = self.audio_transcriber.run(file_path, language)
         logger.info(f"Tool: transcribe_audio completed for {file_path}")
         return result
     
-    def transcribe_video(self, file_path: str) -> Dict[str, Any]:
+    def transcribe_video(self, file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
         """Transcribe video file to text.
         
         Args:
             file_path: Path to the video file
+            language: Optional language code (e.g., 'en', 'he' for Hebrew). If None, auto-detects.
         
         Returns:
             Dictionary with transcription, segments, language, and duration
@@ -111,8 +113,8 @@ class ToolRegistry:
         if self.video_transcriber is None:
             raise RuntimeError("Video transcription not available (skip_transcription=True)")
         
-        logger.info(f"Tool: transcribe_video called for {file_path}")
-        result = self.video_transcriber.run(file_path)
+        logger.info(f"Tool: transcribe_video called for {file_path}, language: {language or 'auto-detect'}")
+        result = self.video_transcriber.run(file_path, language)
         logger.info(f"Tool: transcribe_video completed for {file_path}")
         return result
     
@@ -224,14 +226,14 @@ class ToolRegistry:
             tools.append(StructuredTool.from_function(
                 func=self.transcribe_audio,
                 name="transcribe_audio",
-                description="Transcribe audio files (mp3, wav, m4a, flac, ogg) to text using Whisper. Returns transcription with segments, language, and duration."
+                description="Transcribe audio files (mp3, wav, m4a, flac, ogg) to text using Whisper. Supports multiple languages including Hebrew ('he'). Returns transcription with segments, language, and duration. Results are cached."
             ))
         
         if self.video_transcriber is not None:
             tools.append(StructuredTool.from_function(
                 func=self.transcribe_video,
                 name="transcribe_video",
-                description="Transcribe video files (mp4, avi, mov, mkv) to text by extracting audio and using Whisper. Supports chunking for large files."
+                description="Transcribe video files (mp4, avi, mov, mkv) to text by extracting audio and using Whisper. Supports chunking for large files and multiple languages including Hebrew ('he'). Results are cached."
             ))
         
         # Book generation tools

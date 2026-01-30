@@ -30,6 +30,7 @@ providers:
 whisper:
   mode: local  # Options: local, remote
   model_size: base  # Options: tiny, base, small, medium, large
+  language: null  # Optional: Force specific language (e.g., 'en', 'he', 'es'). If null, auto-detects.
   # For remote mode (containerized):
   remote:
     endpoint: http://localhost:9000

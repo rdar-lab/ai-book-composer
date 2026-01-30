@@ -5,12 +5,15 @@ from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 import tempfile
 import shutil
+import json
 
 from ai_book_composer.tools.base_tools import (
     FileListingTool,
     TextFileReaderTool,
     ChapterWriterTool,
     ChapterListWriterTool,
+    AudioTranscriptionTool,
+    VideoTranscriptionTool,
     is_path_safe,
     check_file_size
 )
@@ -172,3 +175,207 @@ class TestChapterListWriterTool:
             saved_chapters = json.load(f)
         assert len(saved_chapters) == 2
         assert saved_chapters[0]["title"] == "Chapter 1"
+
+
+class TestAudioTranscriptionTool:
+    """Test AudioTranscriptionTool with caching and language support."""
+    
+    @patch('ai_book_composer.tools.base_tools.WhisperModel')
+    @patch('ai_book_composer.tools.base_tools.settings')
+    def test_transcribe_audio_with_cache(self, mock_settings, mock_whisper_model, tmp_path):
+        """Test audio transcription with caching."""
+        # Setup mock settings
+        mock_settings.whisper.mode = "local"
+        mock_settings.whisper.model_size = "base"
+        mock_settings.whisper.local = {"device": "cpu", "compute_type": "int8"}
+        mock_settings.security.max_file_size_mb = 500
+        
+        # Create test audio file
+        test_audio = tmp_path / "test.mp3"
+        test_audio.write_text("fake audio content")
+        
+        # Setup mock Whisper model
+        mock_model_instance = Mock()
+        mock_segment = Mock()
+        mock_segment.start = 0.0
+        mock_segment.end = 5.0
+        mock_segment.text = "Hello world"
+        
+        mock_info = Mock()
+        mock_info.language = "en"
+        mock_info.duration = 5.0
+        
+        mock_model_instance.transcribe.return_value = ([mock_segment], mock_info)
+        mock_whisper_model.return_value = mock_model_instance
+        
+        # First call - should transcribe and cache
+        tool = AudioTranscriptionTool()
+        result1 = tool.run(str(test_audio))
+        
+        assert result1["transcription"] == "Hello world"
+        assert result1["language"] == "en"
+        assert result1["duration"] == 5.0
+        assert len(result1["segments"]) == 1
+        
+        # Check cache file was created
+        cache_path = tmp_path / ".test.mp3.txt"
+        assert cache_path.exists()
+        
+        # Verify cache content
+        with open(cache_path, 'r') as f:
+            cached_data = json.load(f)
+        assert cached_data["transcription"] == "Hello world"
+        assert cached_data["language"] == "en"
+        
+        # Second call - should use cache (transcribe should not be called again)
+        mock_model_instance.transcribe.reset_mock()
+        result2 = tool.run(str(test_audio))
+        
+        assert result2 == result1
+        mock_model_instance.transcribe.assert_not_called()
+    
+    @patch('ai_book_composer.tools.base_tools.WhisperModel')
+    @patch('ai_book_composer.tools.base_tools.settings')
+    def test_transcribe_audio_with_hebrew(self, mock_settings, mock_whisper_model, tmp_path):
+        """Test audio transcription with Hebrew language specification."""
+        # Setup mock settings
+        mock_settings.whisper.mode = "local"
+        mock_settings.whisper.model_size = "base"
+        mock_settings.whisper.local = {"device": "cpu", "compute_type": "int8"}
+        mock_settings.security.max_file_size_mb = 500
+        
+        # Create test audio file
+        test_audio = tmp_path / "test_hebrew.mp3"
+        test_audio.write_text("fake audio content")
+        
+        # Setup mock Whisper model
+        mock_model_instance = Mock()
+        mock_segment = Mock()
+        mock_segment.start = 0.0
+        mock_segment.end = 5.0
+        mock_segment.text = "שלום עולם"
+        
+        mock_info = Mock()
+        mock_info.language = "he"
+        mock_info.duration = 5.0
+        
+        mock_model_instance.transcribe.return_value = ([mock_segment], mock_info)
+        mock_whisper_model.return_value = mock_model_instance
+        
+        # Transcribe with Hebrew language
+        tool = AudioTranscriptionTool()
+        result = tool.run(str(test_audio), language="he")
+        
+        assert result["transcription"] == "שלום עולם"
+        assert result["language"] == "he"
+        
+        # Verify language parameter was passed to Whisper
+        mock_model_instance.transcribe.assert_called_once()
+        call_kwargs = mock_model_instance.transcribe.call_args[1]
+        assert call_kwargs["language"] == "he"
+    
+    @patch('ai_book_composer.tools.base_tools.WhisperModel')
+    @patch('ai_book_composer.tools.base_tools.settings')
+    def test_transcribe_audio_file_not_found(self, mock_settings, mock_whisper_model):
+        """Test audio transcription with non-existent file."""
+        mock_settings.whisper.mode = "local"
+        mock_settings.whisper.model_size = "base"
+        mock_settings.whisper.local = {"device": "cpu", "compute_type": "int8"}
+        mock_settings.security.max_file_size_mb = 500
+        
+        tool = AudioTranscriptionTool()
+        result = tool.run("/nonexistent/file.mp3")
+        
+        assert "error" in result
+        assert result["transcription"] == ""
+
+
+class TestVideoTranscriptionTool:
+    """Test VideoTranscriptionTool with caching and language support."""
+    
+    @patch('ai_book_composer.tools.base_tools.ffmpeg')
+    @patch('ai_book_composer.tools.base_tools.AudioTranscriptionTool')
+    @patch('ai_book_composer.tools.base_tools.settings')
+    def test_transcribe_video_with_cache(self, mock_settings, mock_audio_tool_class, mock_ffmpeg, tmp_path):
+        """Test video transcription with caching."""
+        # Setup mock settings
+        mock_settings.media_processing.chunk_duration = 300
+        mock_settings.security.max_file_size_mb = 500
+        
+        # Create test video file
+        test_video = tmp_path / "test.mp4"
+        test_video.write_text("fake video content")
+        
+        # Setup mock ffmpeg probe
+        mock_ffmpeg.probe.return_value = {
+            'format': {'duration': '10.0'}
+        }
+        
+        # Setup mock audio transcription tool
+        mock_audio_tool = Mock()
+        mock_audio_tool.mode = "local"
+        mock_audio_tool._transcribe_local.return_value = {
+            "transcription": "Video content",
+            "segments": [{"start": 0.0, "end": 10.0, "text": "Video content"}],
+            "language": "en",
+            "duration": 10.0
+        }
+        mock_audio_tool_class.return_value = mock_audio_tool
+        
+        # First call - should transcribe and cache
+        tool = VideoTranscriptionTool()
+        result1 = tool.run(str(test_video))
+        
+        assert result1["transcription"] == "Video content"
+        assert result1["language"] == "en"
+        
+        # Check cache file was created
+        cache_path = tmp_path / ".test.mp4.txt"
+        assert cache_path.exists()
+        
+        # Second call - should use cache
+        result2 = tool.run(str(test_video))
+        assert result2 == result1
+    
+    @patch('ai_book_composer.tools.base_tools.ffmpeg')
+    @patch('ai_book_composer.tools.base_tools.AudioTranscriptionTool')
+    @patch('ai_book_composer.tools.base_tools.settings')
+    def test_transcribe_video_with_language(self, mock_settings, mock_audio_tool_class, mock_ffmpeg, tmp_path):
+        """Test video transcription with Hebrew language specification."""
+        # Setup mock settings
+        mock_settings.media_processing.chunk_duration = 300
+        mock_settings.security.max_file_size_mb = 500
+        
+        # Create test video file
+        test_video = tmp_path / "test_hebrew.mp4"
+        test_video.write_text("fake video content")
+        
+        # Setup mock ffmpeg probe
+        mock_ffmpeg.probe.return_value = {
+            'format': {'duration': '10.0'}
+        }
+        
+        # Setup mock audio transcription tool
+        mock_audio_tool = Mock()
+        mock_audio_tool.mode = "local"
+        mock_audio_tool._transcribe_local.return_value = {
+            "transcription": "תוכן וידאו",
+            "segments": [{"start": 0.0, "end": 10.0, "text": "תוכן וידאו"}],
+            "language": "he",
+            "duration": 10.0
+        }
+        mock_audio_tool_class.return_value = mock_audio_tool
+        
+        # Transcribe with Hebrew language
+        tool = VideoTranscriptionTool()
+        result = tool.run(str(test_video), language="he")
+        
+        assert result["transcription"] == "תוכן וידאו"
+        assert result["language"] == "he"
+        
+        # Verify language parameter was passed
+        mock_audio_tool._transcribe_local.assert_called_once()
+        call_args = mock_audio_tool._transcribe_local.call_args[0]
+        call_kwargs = mock_audio_tool._transcribe_local.call_args[1] if len(mock_audio_tool._transcribe_local.call_args) > 1 else {}
+        # Language should be either in args or kwargs
+        assert call_kwargs.get('language') == "he" or (len(call_args) > 1 and call_args[1] == "he")

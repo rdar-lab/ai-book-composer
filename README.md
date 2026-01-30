@@ -167,12 +167,76 @@ print(f"Quality Score: {final_state['quality_score']}")
 - `.wav` - WAV audio
 - `.m4a` - M4A audio
 - `.flac` - FLAC audio
+- `.ogg` - OGG audio
 
 ### Video Files
 - `.mp4` - MP4 video
 - `.avi` - AVI video
 - `.mov` - MOV video
 - `.mkv` - MKV video
+
+## Audio and Video Transcription
+
+The system uses OpenAI's Whisper model via the `faster-whisper` library for transcribing audio and video files. The transcription feature includes:
+
+### Multi-Language Support
+- **Automatic Language Detection**: The system automatically detects the language of audio/video content
+- **Hebrew Support**: Fully tested and validated for Hebrew language transcription (language code: `he`)
+- **100+ Languages**: Supports all languages recognized by Whisper including English, Spanish, French, German, Arabic, Chinese, Japanese, and many more
+
+### Caching Mechanism
+To improve performance and avoid re-transcribing the same files:
+- **Automatic Caching**: Transcription results are automatically cached in hidden files (`.{original-filename}.txt`)
+- **Cache Location**: Cache files are stored in the same directory as the source audio/video file
+- **Cache Reuse**: If a cached transcription exists, it will be used instead of re-transcribing
+- **Example**: Transcribing `interview.mp3` creates a cache file `.interview.mp3.txt`
+
+### Configuration
+
+Configure transcription in `config.yaml`:
+
+```yaml
+# Whisper Configuration (for audio/video transcription)
+whisper:
+  mode: local  # Options: local, remote
+  model_size: base  # Options: tiny, base, small, medium, large
+  language: null  # Optional: Force specific language (e.g., 'en', 'he', 'es'). If null, auto-detects.
+  # For local mode:
+  local:
+    device: cpu  # Options: cpu, cuda
+    compute_type: int8
+
+# Audio/Video Processing Configuration
+media_processing:
+  chunk_duration: 300  # Chunk size for large files (in seconds)
+  max_file_duration: 3600  # Max 1 hour per file
+```
+
+### Language Specification
+
+You can specify the language when transcribing to improve accuracy:
+
+```python
+# Auto-detect language
+result = audio_transcriber.run("file.mp3")
+
+# Force Hebrew transcription
+result = audio_transcriber.run("hebrew_audio.mp3", language="he")
+
+# Force English transcription
+result = audio_transcriber.run("english_audio.mp3", language="en")
+```
+
+Common language codes:
+- `en` - English
+- `he` - Hebrew (עברית)
+- `es` - Spanish
+- `fr` - French
+- `de` - German
+- `ar` - Arabic
+- `zh` - Chinese
+- `ja` - Japanese
+- `ru` - Russian
 
 ## Output Format
 
