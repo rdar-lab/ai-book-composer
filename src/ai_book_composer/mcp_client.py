@@ -56,7 +56,7 @@ def get_tools_sync(mcp_client):
     return loop.run_until_complete(mcp_client.get_tools())
 
 
-def _unwrap_mcp_result(result: Any) -> Any:
+def unwrap_mcp_result(result: Any) -> Any:
     """Unwrap MCP tool result from LangChain format.
     
     LangChain MCP adapters wrap tool results in formats like:
@@ -83,19 +83,19 @@ def _unwrap_mcp_result(result: Any) -> Any:
         # For other types, return as-is (this might be a regular dict, not a wrapper)
         # since we can't be certain it's a wrapped result without type='text'
         return result
-    
+
     # Handle list of wrapped items
     if isinstance(result, list) and len(result) > 0:
         # Check if all items look like wrapped results
         all_wrapped = all(
-            isinstance(item, dict) and 
-            'text' in item and 
-            'type' in item and 
-            'id' in item and 
+            isinstance(item, dict) and
+            'text' in item and
+            'type' in item and
+            'id' in item and
             item.get('type') == 'text'
             for item in result
         )
-        
+
         if all_wrapped:
             # All items are wrapped - unwrap each one
             unwrapped = []
@@ -106,30 +106,9 @@ def _unwrap_mcp_result(result: Any) -> Any:
                     # If parsing fails, keep the text as-is
                     unwrapped.append(item['text'])
             return unwrapped
-    
+
     # If it's not wrapped, return as-is
     return result
-
-
-def _wrap_tool_with_unwrap(tool):
-    """Wrap a tool's ainvoke method to automatically unwrap MCP results.
-    
-    Args:
-        tool: LangChain tool from MCP adapter
-        
-    Returns:
-        Tool with wrapped ainvoke method
-    """
-    original_ainvoke = tool.ainvoke
-    
-    async def unwrapping_ainvoke(*args, **kwargs):
-        """Wrapped ainvoke that unwraps MCP results."""
-        result = await original_ainvoke(*args, **kwargs)
-        return _unwrap_mcp_result(result)
-    
-    # Replace the ainvoke method
-    tool.ainvoke = unwrapping_ainvoke
-    return tool
 
 
 def get_tools(settings, input_directory: str, output_directory: str):
@@ -142,14 +121,38 @@ def get_tools(settings, input_directory: str, output_directory: str):
         settings: Application settings
         input_directory: Input directory path
         output_directory: Output directory path
-        
+
     Returns:
         List of tools with unwrapping applied
     """
     mcp_client = init_mcp_client(settings, input_directory, output_directory)
     tools = get_tools_sync(mcp_client)
-    
-    # Wrap each tool's ainvoke method with unwrapping logic
-    wrapped_tools = [_wrap_tool_with_unwrap(tool) for tool in tools]
-    
-    return wrapped_tools
+
+    return tools
+
+
+def invoke_tool(tool, **kwargs) -> Any:
+    """Invoke a tool by name with arguments.
+
+    Args:
+        tool: The tool to invoke
+        **kwargs: Tool arguments
+
+    Returns:
+        Tool result
+    """
+
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is already running, we need to use a different approach
+            import nest_asyncio
+            nest_asyncio.apply()
+            result = loop.run_until_complete(tool.ainvoke(kwargs))
+        else:
+            raise RuntimeError("Event loop not running")
+    except RuntimeError:
+        result = asyncio.run(tool.ainvoke(kwargs))
+
+    return unwrap_mcp_result(result)

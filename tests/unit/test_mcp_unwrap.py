@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 from ai_book_composer import mcp_client
 
@@ -37,7 +37,7 @@ class TestMCPResultUnwrapping:
         ]
 
         # Unwrap
-        result = mcp_client._unwrap_mcp_result(wrapped_result)
+        result = mcp_client.unwrap_mcp_result(wrapped_result)
 
         # Verify
         assert isinstance(result, list)
@@ -57,7 +57,7 @@ class TestMCPResultUnwrapping:
         }
 
         # Unwrap
-        result = mcp_client._unwrap_mcp_result(wrapped_result)
+        result = mcp_client.unwrap_mcp_result(wrapped_result)
 
         # Verify
         assert isinstance(result, dict)
@@ -73,7 +73,7 @@ class TestMCPResultUnwrapping:
         ]
 
         # Process
-        result = mcp_client._unwrap_mcp_result(unwrapped_result)
+        result = mcp_client.unwrap_mcp_result(unwrapped_result)
 
         # Should be unchanged
         assert result == unwrapped_result
@@ -84,7 +84,7 @@ class TestMCPResultUnwrapping:
         unwrapped_result = {"success": True, "count": 5}
 
         # Process
-        result = mcp_client._unwrap_mcp_result(unwrapped_result)
+        result = mcp_client.unwrap_mcp_result(unwrapped_result)
 
         # Should be unchanged
         assert result == unwrapped_result
@@ -99,7 +99,7 @@ class TestMCPResultUnwrapping:
         }
 
         # Unwrap
-        result = mcp_client._unwrap_mcp_result(wrapped_result)
+        result = mcp_client.unwrap_mcp_result(wrapped_result)
 
         # Should return the plain text
         assert result == 'This is a plain text response'
@@ -110,6 +110,7 @@ class TestMCPResultUnwrapping:
         # Create mock tool that returns wrapped result
         mock_tool = Mock()
         mock_tool.name = "list_files"
+        mock_tool.ainvoke = AsyncMock()
         
         # Simulate wrapped result from langchain-mcp-adapters
         wrapped_result = [
@@ -119,17 +120,9 @@ class TestMCPResultUnwrapping:
                 'type': 'text'
             }
         ]
-        
-        async def mock_ainvoke(*args, **kwargs):
-            return wrapped_result
-            
-        mock_tool.ainvoke = mock_ainvoke
 
-        # Wrap the tool
-        wrapped_tool = mcp_client._wrap_tool_with_unwrap(mock_tool)
-
-        # Invoke tool
-        result = await wrapped_tool.ainvoke({})
+        mock_tool.ainvoke.return_value = wrapped_result
+        result = mcp_client.invoke_tool(mock_tool)
 
         # Verify result is unwrapped
         assert isinstance(result, list)
@@ -143,7 +136,7 @@ class TestMCPResultUnwrapping:
 
     def test_unwrap_empty_list(self):
         """Test that empty list passes through unchanged."""
-        result = mcp_client._unwrap_mcp_result([])
+        result = mcp_client.unwrap_mcp_result([])
         assert result == []
 
     def test_unwrap_partial_wrapped_list(self):
@@ -155,7 +148,7 @@ class TestMCPResultUnwrapping:
         ]
         
         # Should return as-is since not all items are wrapped
-        result = mcp_client._unwrap_mcp_result(mixed_result)
+        result = mcp_client.unwrap_mcp_result(mixed_result)
         assert result == mixed_result
 
     def test_unwrap_dict_with_non_text_type(self):
@@ -167,6 +160,6 @@ class TestMCPResultUnwrapping:
         }
         
         # Should return as-is
-        result = mcp_client._unwrap_mcp_result(wrapped_result)
+        result = mcp_client.unwrap_mcp_result(wrapped_result)
         assert result == wrapped_result
 

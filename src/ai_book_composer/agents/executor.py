@@ -44,14 +44,14 @@ class ExecutorAgent:
             **kwargs: Tool arguments
             
         Returns:
-            Tool result (unwrapped automatically by mcp_client)
+            Tool result
         """
         if tool_name not in self.tools_map:
             raise ValueError(f"Tool {tool_name} not found")
 
         tool = self.tools_map[tool_name]
 
-        return asyncio.run(tool.ainvoke(kwargs))
+        return mcp_client.invoke_tool(tool, **kwargs)
 
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.
