@@ -1,22 +1,24 @@
 """Test chapter-by-chapter generation feature."""
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from ai_book_composer.agents.state import create_initial_state
+from ai_book_composer.config import Settings
 from ai_book_composer.agents.executor import ExecutorAgent
+from ai_book_composer.agents.state import create_initial_state
 
 
 class TestChapterByChapterGeneration:
     """Test that chapters are generated one at a time."""
-    
+
     @patch('ai_book_composer.agents.executor.load_prompts')
-    @patch('ai_book_composer.agents.executor.ToolRegistry')
+    @patch('ai_book_composer.mcp_client.get_tools')
     @patch('ai_book_composer.agents.executor.get_llm')
     def test_plan_chapters_creates_individual_tasks(
-        self, 
-        mock_get_llm,
-        mock_tool_registry,
-        mock_load_prompts
+            self,
+            mock_get_llm,
+            get_tools_mock,
+            mock_load_prompts
     ):
         """Test that plan_chapters creates individual chapter generation tasks."""
         # Mock prompts
@@ -28,7 +30,7 @@ class TestChapterByChapterGeneration:
                 'chapter_generation_user_prompt': 'Generate chapter {chapter_number}'
             }
         }
-        
+
         # Mock LLM response for chapter planning
         mock_llm = Mock()
         mock_response = Mock()
@@ -39,20 +41,26 @@ Chapter 2: Core Concepts
 Chapter 3: Applications
 """
         mock_llm.invoke.return_value = mock_response
+        mock_llm.bind_tools.return_value = mock_llm
         mock_get_llm.return_value = mock_llm
-        
+
         # Mock ToolRegistry
-        mock_registry_instance = Mock()
-        mock_registry_instance.get_langchain_tools.return_value = []
-        mock_registry_instance.write_chapter_list.return_value = {"success": True}
-        mock_tool_registry.return_value = mock_registry_instance
-        
+        write_chapter_list_instance = Mock()
+        write_chapter_list_instance.name = "write_chapter_list"
+        write_chapter_list_instance.invoke.return_value = {"success": True}
+
+        get_tools_mock.return_value = [write_chapter_list_instance]
+
+        settings = Settings()
+        settings.parallel.parallel_execution = False  # Disable parallel execution for this test
+
         # Create executor
         executor = ExecutorAgent(
+            settings,
             input_directory="/tmp/test_input",
             output_directory="/tmp/test_output"
         )
-        
+
         # Create initial state with existing plan
         state = create_initial_state(
             input_directory="/tmp/test_input",
@@ -72,38 +80,38 @@ Chapter 3: Applications
             {"task": "generate_book", "description": "Generate book", "status": "pending"}
         ]
         state["current_task_index"] = 1  # Currently on plan_chapters
-        
+
         # Execute plan_chapters
         result = executor._plan_chapters(state)
-        
+
         # Verify that individual chapter tasks were created
         assert "plan" in result
         new_plan = result["plan"]
-        
+
         # Check that generate_chapters was replaced with individual tasks
         chapter_tasks = [task for task in new_plan if task.get("task") == "generate_single_chapter"]
         assert len(chapter_tasks) >= 3, f"Expected at least 3 individual chapter tasks, got {len(chapter_tasks)}"
-        
+
         # Verify each chapter task has required fields
         for chapter_task in chapter_tasks:
             assert "chapter_number" in chapter_task
             assert "chapter_title" in chapter_task
             assert "chapter_description" in chapter_task
             assert chapter_task["status"] == "pending"
-        
+
         # Verify other tasks are still present
         other_tasks = [task for task in new_plan if task.get("task") != "generate_single_chapter"]
         assert any(task.get("task") == "compile_references" for task in other_tasks)
         assert any(task.get("task") == "generate_book" for task in other_tasks)
-        
+
     @patch('ai_book_composer.agents.executor.load_prompts')
-    @patch('ai_book_composer.agents.executor.ToolRegistry')
+    @patch('ai_book_composer.mcp_client.get_tools')
     @patch('ai_book_composer.agents.executor.get_llm')
     def test_generate_single_chapter_adds_to_chapters_list(
-        self,
-        mock_get_llm,
-        mock_tool_registry,
-        mock_load_prompts
+            self,
+            mock_get_llm,
+            get_tools_mock,
+            mock_load_prompts
     ):
         """Test that generate_single_chapter adds chapter to the list."""
         # Mock prompts
@@ -113,26 +121,28 @@ Chapter 3: Applications
                 'chapter_generation_user_prompt': 'Generate chapter {chapter_number}'
             }
         }
-        
+
         # Mock LLM response for chapter content
         mock_llm = Mock()
         mock_response = Mock()
         mock_response.content = "This is the generated chapter content."
         mock_llm.invoke.return_value = mock_response
         mock_get_llm.return_value = mock_llm
-        
-        # Mock ToolRegistry
-        mock_registry_instance = Mock()
-        mock_registry_instance.get_langchain_tools.return_value = []
-        mock_registry_instance.write_chapter.return_value = {"success": True}
-        mock_tool_registry.return_value = mock_registry_instance
-        
+        mock_llm.bind_tools.return_value = mock_llm
+
+        write_chapter = Mock()
+        write_chapter.name = "write_chapter"
+        write_chapter.invoke.return_value = {"success": True}
+
+        get_tools_mock.return_value = [write_chapter]
+
         # Create executor
         executor = ExecutorAgent(
+            Settings(),
             input_directory="/tmp/test_input",
             output_directory="/tmp/test_output"
         )
-        
+
         # Create state
         state = create_initial_state(
             input_directory="/tmp/test_input",
@@ -146,7 +156,7 @@ Chapter 3: Applications
         }
         state["chapters"] = []
         state["current_task_index"] = 2
-        
+
         # Create a chapter task
         chapter_task = {
             "task": "generate_single_chapter",
@@ -155,10 +165,10 @@ Chapter 3: Applications
             "chapter_title": "Introduction",
             "chapter_description": "Introduction chapter"
         }
-        
+
         # Execute generate_single_chapter
         result = executor._generate_single_chapter(state, chapter_task)
-        
+
         # Verify chapter was added
         assert "chapters" in result
         assert len(result["chapters"]) == 1

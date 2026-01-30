@@ -1,13 +1,12 @@
 """Progress display utilities for showing execution steps, thoughts, and actions."""
 
-from typing import Optional, Any, Dict, List
 from contextlib import contextmanager
+from typing import Optional, Any, Dict, List
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
-from rich.text import Text
-
 
 # Global console instance
 console = Console()
@@ -15,12 +14,12 @@ console = Console()
 
 class ProgressDisplay:
     """Manages the display of execution progress, thoughts, and actions."""
-    
+
     def __init__(self):
         self.console = Console()
         self._current_phase = None
         self._live = None
-    
+
     def show_phase(self, phase_name: str, description: str, style: str = "bold cyan"):
         """Display the current execution phase.
         
@@ -37,7 +36,7 @@ class ProgressDisplay:
             title=f"⚙️ Phase: {phase_name}",
             title_align="left"
         ))
-    
+
     def show_thought(self, thought: str, emoji: str = "💭"):
         """Display an agent's thought process.
         
@@ -46,7 +45,7 @@ class ProgressDisplay:
             emoji: Emoji to use as prefix
         """
         self.console.print(f"{emoji} [italic yellow]Thought:[/italic yellow] {thought}")
-    
+
     def show_action(self, action: str, emoji: str = "🔧"):
         """Display an action being taken.
         
@@ -55,7 +54,7 @@ class ProgressDisplay:
             emoji: Emoji to use as prefix
         """
         self.console.print(f"{emoji} [bold green]Action:[/bold green] {action}")
-    
+
     def show_observation(self, observation: str, emoji: str = "👁️"):
         """Display an observation or result.
         
@@ -64,7 +63,7 @@ class ProgressDisplay:
             emoji: Emoji to use as prefix
         """
         self.console.print(f"{emoji} [blue]Observation:[/blue] {observation}")
-    
+
     def show_step(self, step_num: int, total_steps: int, description: str):
         """Display a step in a multi-step process.
         
@@ -77,7 +76,7 @@ class ProgressDisplay:
         self.console.print(
             f"📊 [cyan]Step {step_num}/{total_steps}[/cyan] {progress_bar} - {description}"
         )
-    
+
     def show_task(self, task_name: str, status: str = "started"):
         """Display a task being executed.
         
@@ -97,11 +96,11 @@ class ProgressDisplay:
             "failed": "red",
             "in_progress": "cyan"
         }
-        
+
         emoji = emoji_map.get(status, "➡️")
         color = color_map.get(status, "white")
         self.console.print(f"{emoji} [{color}]Task: {task_name}[/{color}]")
-    
+
     def show_plan(self, plan: List[Dict[str, Any]]):
         """Display a structured plan.
         
@@ -110,19 +109,19 @@ class ProgressDisplay:
         """
         self.console.print()
         tree = Tree("📋 [bold]Generated Plan[/bold]")
-        
+
         for i, task in enumerate(plan, 1):
             task_name = task.get("task", "Unknown Task")
             description = task.get("description", "")
             status = task.get("status", "pending")
-            
+
             status_emoji = "⏳" if status == "pending" else "✓" if status == "completed" else "▶️"
             task_node = tree.add(f"{status_emoji} Step {i}: [cyan]{task_name}[/cyan]")
             if description:
                 task_node.add(f"[dim]{description}[/dim]")
-        
+
         self.console.print(tree)
-    
+
     def show_files(self, files: List[Dict[str, Any]], title: str = "Files to Process"):
         """Display a list of files.
         
@@ -134,12 +133,12 @@ class ProgressDisplay:
         table.add_column("File Name", style="white")
         table.add_column("Type", style="yellow")
         table.add_column("Size", justify="right", style="green")
-        
+
         for file_info in files[:10]:  # Show first 10 files
             name = file_info.get("name", "unknown")
             extension = file_info.get("extension", "").lstrip(".")
             size = file_info.get("size", 0)
-            
+
             # Format size
             if size < 1024:
                 size_str = f"{size} B"
@@ -147,14 +146,14 @@ class ProgressDisplay:
                 size_str = f"{size / 1024:.1f} KB"
             else:
                 size_str = f"{size / (1024 * 1024):.1f} MB"
-            
+
             table.add_row(name, extension.upper() if extension else "unknown", size_str)
-        
+
         if len(files) > 10:
             table.add_row("...", "...", f"... and {len(files) - 10} more files")
-        
+
         self.console.print(table)
-    
+
     def show_chapter_info(self, chapter_num: int, title: str, status: str = "generating"):
         """Display information about a chapter being generated.
         
@@ -165,7 +164,7 @@ class ProgressDisplay:
         """
         emoji = "📝" if status == "generating" else "✅" if status == "completed" else "📖"
         self.console.print(f"{emoji} [bold]Chapter {chapter_num}:[/bold] [cyan]{title}[/cyan]")
-    
+
     def show_critique_summary(self, quality_score: Optional[float], feedback: str):
         """Display critique feedback summary.
         
@@ -174,7 +173,7 @@ class ProgressDisplay:
             feedback: Feedback text
         """
         self.console.print()
-        
+
         if quality_score is not None:
             score_percent = quality_score * 100
             if quality_score >= 0.8:
@@ -186,11 +185,11 @@ class ProgressDisplay:
             else:
                 score_color = "red"
                 emoji = "📊"
-            
+
             self.console.print(
                 f"{emoji} [bold]Quality Score:[/bold] [{score_color}]{score_percent:.1f}%[/{score_color}]"
             )
-        
+
         if feedback:
             self.console.print(Panel(
                 feedback,
@@ -198,7 +197,7 @@ class ProgressDisplay:
                 border_style="yellow",
                 padding=(1, 2)
             ))
-    
+
     def show_completion(self, output_path: Optional[str], stats: Dict[str, Any]):
         """Display completion summary.
         
@@ -211,21 +210,21 @@ class ProgressDisplay:
             "[bold green]✨ Book Composition Completed! ✨[/bold green]",
             border_style="green"
         ))
-        
+
         if output_path:
             self.console.print(f"📖 [bold]Output File:[/bold] [cyan]{output_path}[/cyan]")
-        
+
         if stats:
             self.console.print()
             table = Table(show_header=False, box=None)
             table.add_column("Metric", style="cyan")
             table.add_column("Value", style="white")
-            
+
             for key, value in stats.items():
                 table.add_row(f"  {key}:", str(value))
-            
+
             self.console.print(table)
-    
+
     @contextmanager
     def agent_context(self, agent_name: str, phase_description: str):
         """Context manager for agent execution.
@@ -242,16 +241,16 @@ class ProgressDisplay:
             "Executor": ("bold green", "⚙️"),
             "Critic": ("bold yellow", "🔍")
         }
-        
+
         style, emoji = style_map.get(agent_name, ("bold cyan", "🤖"))
-        
+
         self.console.print()
         self.console.print(Panel(
             f"[{style}]{emoji} {agent_name} Agent[/{style}]\n{phase_description}",
             border_style=style.split()[-1] if " " in style else style,
             expand=False
         ))
-        
+
         try:
             yield self
         finally:
@@ -276,17 +275,17 @@ def show_workflow_start(input_dir: str, output_dir: str, config: Dict[str, Any])
         "Generating comprehensive books using AI",
         border_style="cyan"
     ))
-    
+
     table = Table(title="Configuration", show_header=False)
     table.add_column("Setting", style="cyan")
     table.add_column("Value", style="white")
-    
+
     table.add_row("📂 Input Directory", input_dir)
     table.add_row("📁 Output Directory", output_dir)
     table.add_row("📖 Book Title", config.get("book_title", "N/A"))
     table.add_row("✏️ Author", config.get("book_author", "N/A"))
     table.add_row("🌍 Language", config.get("language", "N/A"))
-    
+
     console.print(table)
     console.print()
 

@@ -408,17 +408,6 @@ llm_with_tools = llm.bind_tools(tools)
 
 The executor agent automatically binds these tools to its LLM instance, allowing the AI to discover and use them during task execution. This architecture makes it easy to add new tools without modifying the core workflow.
 
-### MCP Server (Optional)
-
-For external integrations, tools can also be exposed through the **Model Context Protocol (MCP)** as a standalone server. This is useful for testing tools independently or integrating with other MCP-compatible clients:
-
-```bash
-# Run standalone MCP server (optional)
-python run_mcp_server.py /path/to/input /path/to/output
-```
-
-The MCP server provides the same tools through a standardized protocol but is **not required** for normal operation. The main workflow uses tools directly through LangChain's embedded tool system.
-
 ## Development
 
 ### Project Structure

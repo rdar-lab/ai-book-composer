@@ -1,9 +1,10 @@
 """Configuration management for AI Book Composer."""
 
 import os
-import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+import yaml
 from pydantic import BaseModel, Field
 
 
@@ -84,18 +85,9 @@ class SecurityConfig(BaseModel):
     max_file_size_mb: int = 500
 
 
-class MCPServerConfig(BaseModel):
-    """MCP Server configuration."""
-    host: str = "127.0.0.1"
-    port: int = 8000
-    name: str = "ai-book-composer"
-    debug: bool = False
-    log_level: str = "INFO"
-
-
 class Settings:
     """Application settings loaded from YAML."""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         """Initialize settings from YAML file.
         
@@ -108,22 +100,26 @@ class Settings:
                 config_path = "config.yaml"
             else:
                 config_path = Path(__file__).parent.parent.parent / "config.yaml"
-        
+
         self.config_path = Path(config_path)
         self._load_config()
-    
+
     def _load_config(self):
         """Load configuration from YAML file."""
+
+        config_data = None
+
         if not self.config_path.exists():
             # Use defaults if config file doesn't exist
-            self._config = self._get_defaults()
+            config_data = self._get_defaults()
         else:
             with open(self.config_path, 'r') as f:
                 config_data = yaml.safe_load(f)
-                # Replace environment variable placeholders
-                config_data = self._replace_env_vars(config_data)
-                self._config = config_data
-        
+
+        # Replace environment variable placeholders
+        config_data = self._replace_env_vars(config_data)
+        self._config = config_data
+
         # Initialize config objects
         self.llm = LLMConfig(**self._config.get('llm', {}))
         self.whisper = WhisperConfig(**self._config.get('whisper', {}))
@@ -133,12 +129,34 @@ class Settings:
         self.book = BookConfig(**self._config.get('book', {}))
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
-        self.mcp_server = MCPServerConfig(**self._config.get('mcp_server', {}))
         self.parallel = ParallelConfig(**self._config.get('parallel', {}))
-        
+
         # Store provider configurations
         self.providers = self._config.get('providers', {})
-    
+
+    def save_config(self, path: Optional[str] = None):
+        # Save current configuration to YAML file.
+        if path is None:
+            path = self.config_path
+
+        self._sync_config_state()
+
+        with open(path, 'w') as f:
+            yaml.dump(self._config, f)
+
+    def _sync_config_state(self):
+        # Reflect the state back to the self._config dictionary
+        self._config['llm'] = self.llm.dict()
+        self._config['whisper'] = self.whisper.dict()
+        self._config['text_reading'] = self.text_reading.dict()
+        self._config['media_processing'] = self.media_processing.dict()
+        self._config['image_processing'] = self.image_processing.dict()
+        self._config['book'] = self.book.dict()
+        self._config['logging'] = self.logging.dict()
+        self._config['security'] = self.security.dict()
+        self._config['parallel'] = self.parallel.dict()
+        self._config['providers'] = self.providers
+
     def _replace_env_vars(self, data: Any) -> Any:
         """Recursively replace ${VAR} with environment variables."""
         if isinstance(data, dict):
@@ -149,7 +167,7 @@ class Settings:
             var_name = data[2:-1]
             return os.environ.get(var_name, data)
         return data
-    
+
     def _get_defaults(self) -> Dict[str, Any]:
         """Get default configuration."""
         return {
@@ -223,14 +241,10 @@ class Settings:
                 }
             }
         }
-    
+
     def get_provider_config(self, provider: str) -> Dict[str, Any]:
         """Get configuration for a specific provider."""
         return self.providers.get(provider, {})
-
-
-# Global settings instance
-settings = Settings()
 
 
 def load_prompts(prompts_path: Optional[str] = None) -> Dict[str, Any]:
@@ -247,11 +261,10 @@ def load_prompts(prompts_path: Optional[str] = None) -> Dict[str, Any]:
             prompts_path = "prompts.yaml"
         else:
             prompts_path = Path(__file__).parent.parent.parent / "prompts.yaml"
-    
+
     prompts_path = Path(prompts_path)
     if not prompts_path.exists():
         raise FileNotFoundError(f"Prompts file not found: {prompts_path}")
-    
+
     with open(prompts_path, 'r') as f:
         return yaml.safe_load(f)
-

@@ -113,13 +113,3 @@ security:
   allow_directory_traversal: false
   max_file_size_mb: 500
 
-# MCP Server Configuration
-mcp_server:
-  host: 127.0.0.1
-  port: 8000
-  name: ai-book-composer
-  # Enable debug mode for development
-  debug: false
-  # Log level for MCP server
-  log_level: INFO
-
