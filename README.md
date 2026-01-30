@@ -186,10 +186,14 @@ The system uses OpenAI's Whisper model via the `faster-whisper` library for tran
 
 ### Caching Mechanism
 To improve performance and avoid re-transcribing the same files:
-- **Automatic Caching**: Transcription results are automatically cached in hidden files (`.{original-filename}.txt`)
+- **Automatic Caching**: Transcription results are automatically cached in hidden files
+- **Cache Format**: `.{original-filename}[_language].txt` (e.g., `.audio.mp3.txt` or `.audio.mp3_he.txt` for Hebrew)
+- **Language-Aware**: Different language transcriptions are cached separately
 - **Cache Location**: Cache files are stored in the same directory as the source audio/video file
-- **Cache Reuse**: If a cached transcription exists, it will be used instead of re-transcribing
-- **Example**: Transcribing `interview.mp3` creates a cache file `.interview.mp3.txt`
+- **Cache Reuse**: If a cached transcription exists for the same file and language, it will be used instead of re-transcribing
+- **Example**: 
+  - Transcribing `interview.mp3` (auto-detect) creates `.interview.mp3.txt`
+  - Transcribing `interview.mp3` (Hebrew) creates `.interview.mp3_he.txt`
 
 ### Configuration
 

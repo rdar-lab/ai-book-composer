@@ -214,16 +214,19 @@ class AudioTranscriptionTool:
             self.api_key = settings.whisper.remote["api_key"]
             logger.info(f"Using remote Whisper at {self.endpoint}")
     
-    def _get_cache_path(self, file_path: Path) -> Path:
+    def _get_cache_path(self, file_path: Path, language: Optional[str] = None) -> Path:
         """Get cache file path for a given audio file.
         
         Args:
             file_path: Path to the audio file
+            language: Language code used for transcription (affects cache key)
             
         Returns:
             Path to the cache file
         """
-        cache_filename = f".{file_path.name}.txt"
+        # Include language in cache filename to handle different language transcriptions
+        lang_suffix = f"_{language}" if language else ""
+        cache_filename = f".{file_path.name}{lang_suffix}.txt"
         return file_path.parent / cache_filename
     
     def _read_cache(self, cache_path: Path) -> Optional[Dict[str, Any]]:
@@ -280,8 +283,8 @@ class AudioTranscriptionTool:
         if not check_file_size(file_path):
             return {"error": "File too large", "transcription": ""}
         
-        # Check for cached transcription
-        cache_path = self._get_cache_path(file_path)
+        # Check for cached transcription (including language in cache key)
+        cache_path = self._get_cache_path(file_path, language)
         cached_result = self._read_cache(cache_path)
         if cached_result is not None:
             return cached_result
@@ -376,16 +379,19 @@ class VideoTranscriptionTool:
         self.chunk_duration = settings.media_processing.chunk_duration
         logger.info(f"VideoTranscriptionTool initialized with {self.chunk_duration}s chunks")
     
-    def _get_cache_path(self, file_path: Path) -> Path:
+    def _get_cache_path(self, file_path: Path, language: Optional[str] = None) -> Path:
         """Get cache file path for a given video file.
         
         Args:
             file_path: Path to the video file
+            language: Language code used for transcription (affects cache key)
             
         Returns:
             Path to the cache file
         """
-        cache_filename = f".{file_path.name}.txt"
+        # Include language in cache filename to handle different language transcriptions
+        lang_suffix = f"_{language}" if language else ""
+        cache_filename = f".{file_path.name}{lang_suffix}.txt"
         return file_path.parent / cache_filename
     
     def _read_cache(self, cache_path: Path) -> Optional[Dict[str, Any]]:
@@ -442,8 +448,8 @@ class VideoTranscriptionTool:
         if not check_file_size(file_path):
             return {"error": "File too large", "transcription": ""}
         
-        # Check for cached transcription
-        cache_path = self._get_cache_path(file_path)
+        # Check for cached transcription (including language in cache key)
+        cache_path = self._get_cache_path(file_path, language)
         cached_result = self._read_cache(cache_path)
         if cached_result is not None:
             return cached_result

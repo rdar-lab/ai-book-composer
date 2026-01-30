@@ -269,6 +269,10 @@ class TestAudioTranscriptionTool:
         assert result["transcription"] == "שלום עולם"
         assert result["language"] == "he"
         
+        # Check cache file was created with language suffix
+        cache_path = tmp_path / ".test_hebrew.mp3_he.txt"
+        assert cache_path.exists()
+        
         # Verify language parameter was passed to Whisper
         mock_model_instance.transcribe.assert_called_once()
         call_kwargs = mock_model_instance.transcribe.call_args[1]
@@ -372,6 +376,10 @@ class TestVideoTranscriptionTool:
         
         assert result["transcription"] == "תוכן וידאו"
         assert result["language"] == "he"
+        
+        # Check cache file was created with language suffix
+        cache_path = tmp_path / ".test_hebrew.mp4_he.txt"
+        assert cache_path.exists()
         
         # Verify language parameter was passed
         mock_audio_tool._transcribe_local.assert_called_once()

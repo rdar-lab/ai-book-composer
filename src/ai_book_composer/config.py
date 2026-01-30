@@ -22,7 +22,6 @@ class WhisperConfig(BaseModel):
     """Whisper configuration."""
     mode: str = "local"
     model_size: str = "base"
-    language: Optional[str] = None
     remote: Dict[str, Optional[str]] = Field(default_factory=lambda: {
         "endpoint": "http://localhost:9000",
         "api_key": None
@@ -145,7 +144,6 @@ class Settings:
             'whisper': {
                 'mode': 'local',
                 'model_size': 'base',
-                'language': None,
                 'remote': {'endpoint': 'http://localhost:9000', 'api_key': None},
                 'local': {'device': 'cpu', 'compute_type': 'int8'}
             },
