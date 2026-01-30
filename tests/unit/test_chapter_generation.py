@@ -1,6 +1,6 @@
 """Test chapter-by-chapter generation feature."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
 from ai_book_composer.config import Settings
@@ -47,7 +47,7 @@ Chapter 3: Applications
         # Mock ToolRegistry
         write_chapter_list_instance = Mock()
         write_chapter_list_instance.name = "write_chapter_list"
-        write_chapter_list_instance.invoke.return_value = {"success": True}
+        write_chapter_list_instance.ainvoke = AsyncMock(return_value={"success": True})
 
         get_tools_mock.return_value = [write_chapter_list_instance]
 
@@ -132,7 +132,7 @@ Chapter 3: Applications
 
         write_chapter = Mock()
         write_chapter.name = "write_chapter"
-        write_chapter.invoke.return_value = {"success": True}
+        write_chapter.ainvoke = AsyncMock(return_value={"success": True})
 
         get_tools_mock.return_value = [write_chapter]
 

@@ -1,5 +1,5 @@
 """Executor agent - Phase 2 of Deep-Agent architecture."""
-
+import asyncio
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -50,7 +50,8 @@ class ExecutorAgent:
             raise ValueError(f"Tool {tool_name} not found")
 
         tool = self.tools_map[tool_name]
-        return tool.invoke(kwargs)
+
+        return asyncio.run(tool.ainvoke(kwargs))
 
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.

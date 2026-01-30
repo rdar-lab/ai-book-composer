@@ -94,14 +94,11 @@ class Settings:
         Args:
             config_path: Path to configuration file. If None, uses default config.yaml
         """
-        if config_path is None:
-            # Look for config.yaml in current directory, then in package directory
-            if Path("config.yaml").exists():
-                config_path = "config.yaml"
-            else:
-                config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        if config_path is not None:
+            self.config_path = Path(config_path)
+        else:
+            self.config_path = None
 
-        self.config_path = Path(config_path)
         self._load_config()
 
     def _load_config(self):
@@ -109,9 +106,11 @@ class Settings:
 
         config_data = None
 
-        if not self.config_path.exists():
-            # Use defaults if config file doesn't exist
+        if self.config_path is None:
+            # Use defaults
             config_data = self._get_defaults()
+        elif not self.config_path.exists():
+            raise Exception("Configuration file not found: {}".format(self.config_path))
         else:
             with open(self.config_path, 'r') as f:
                 config_data = yaml.safe_load(f)

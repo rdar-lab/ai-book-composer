@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 from pathlib import Path
 
@@ -9,7 +8,7 @@ from langchain_mcp_adapters.sessions import StdioConnection
 
 def init_mcp_client(settings, input_directory: str, output_directory: str):
     # Get the path to the source directory for running as module
-    src_path = Path(__file__).parent.parent # Go up to SRC root
+    src_path = Path(__file__).parent.parent  # Go up to SRC root
 
     # Get a location for a temporary file for the configuration path
     temp_location = str(Path.cwd() / ".temp_mcp_config.yml")
