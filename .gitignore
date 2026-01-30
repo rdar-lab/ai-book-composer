@@ -54,3 +54,4 @@ temp/
 # Logs
 logs/
 *.log
+**/.temp_mcp_config.yml
