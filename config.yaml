@@ -97,7 +97,7 @@ book:
 
 # Parallel Execution Configuration
 parallel:
-  parallel_execution: 1  # 1 = enabled, 0 = disabled
+  parallel_execution: true  # true = enabled, false = disabled
   parallel_workers: 4  # Number of worker threads/processes for parallel execution
 
 # Logging Configuration

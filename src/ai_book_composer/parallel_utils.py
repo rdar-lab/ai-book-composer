@@ -12,9 +12,9 @@ def is_parallel_enabled() -> bool:
     """Check if parallel execution is enabled.
     
     Returns:
-        True if parallel execution is enabled (parallel_execution != 0), False otherwise
+        True if parallel execution is enabled, False otherwise
     """
-    return settings.parallel.parallel_execution != 0
+    return settings.parallel.parallel_execution
 
 
 def get_worker_count() -> int:
@@ -43,7 +43,9 @@ def execute_parallel(
         **kwargs: Additional keyword arguments to pass to func
         
     Returns:
-        List of results in the same order as input items
+        List of results in the same order as input items. If an item fails to process,
+        the corresponding result will be a dictionary with 'error' and 'item' keys
+        instead of the normal return value.
     """
     if not items:
         return []
@@ -59,8 +61,8 @@ def execute_parallel(
                 result = func(item, *args, **kwargs)
                 results.append(result)
             except Exception as e:
-                logger.error(f"Error processing item {item}: {e}")
-                results.append({"error": str(e), "item": item})
+                logger.error(f"Error processing item: {e}")
+                results.append({"error": str(e), "item": str(item)[:100]})  # Limit item string to 100 chars
         return results
     
     # Execute in parallel with ThreadPoolExecutor
@@ -82,7 +84,7 @@ def execute_parallel(
                 results[index] = result
             except Exception as e:
                 logger.error(f"Error processing item at index {index}: {e}")
-                results[index] = {"error": str(e), "item": items[index]}
+                results[index] = {"error": str(e), "item": str(items[index])[:100]}  # Limit item string to 100 chars
     
     return results
 

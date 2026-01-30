@@ -141,16 +141,13 @@ To configure parallel execution:
 
 ```yaml
 parallel:
-  parallel_execution: 1  # Set to 0 to disable parallel execution
-  parallel_workers: 4    # Number of worker threads (adjust based on your CPU cores)
+  parallel_execution: true  # Set to false to disable parallel execution
+  parallel_workers: 4       # Number of worker threads (adjust based on your CPU cores)
 ```
 
 **Performance Impact**: With a 400-file directory, parallel execution can reduce processing time from ~4 hours to significantly less, depending on your hardware and the number of workers configured.
 
 **Note**: For optimal performance, set `parallel_workers` to match the number of CPU cores available on your system.
-  quality_threshold: 0.7
-  max_iterations: 3
-```
 
 You can specify a custom config file using the `--config` parameter:
 

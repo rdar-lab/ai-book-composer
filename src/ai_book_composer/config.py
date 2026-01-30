@@ -65,8 +65,8 @@ class BookConfig(BaseModel):
 
 class ParallelConfig(BaseModel):
     """Parallel execution configuration."""
-    parallel_execution: int = 1  # 1=enabled, 0=disabled
-    parallel_workers: int = 4
+    parallel_execution: bool = True  # true=enabled, false=disabled
+    parallel_workers: int = Field(default=4, ge=1, le=32)  # 1-32 workers
 
 
 class LoggingConfig(BaseModel):
@@ -197,7 +197,7 @@ class Settings:
                 'max_file_size_mb': 500
             },
             'parallel': {
-                'parallel_execution': 1,
+                'parallel_execution': True,
                 'parallel_workers': 4
             },
             'providers': {
