@@ -91,51 +91,71 @@ class TestLLMProvider:
             assert call_kwargs['temperature'] == 0.7
             assert call_kwargs['base_url'] == 'http://localhost:11434'
     
+    @patch('ai_book_composer.llm.hf_hub_download')
     @patch('ai_book_composer.llm.ChatLlamaCpp')
-    def test_embedded_ollama_provider(self, mock_llamacpp):
+    def test_embedded_ollama_provider(self, mock_llamacpp, mock_download):
         """Test embedded ollama provider initialization."""
+        mock_download.return_value = '/path/to/downloaded/model.gguf'
+        
         with patch('ai_book_composer.llm.settings') as mock_settings:
             mock_settings.llm.provider = 'ollama_embedded'
-            mock_settings.llm.model = 'llama-3.2-1b-instruct'
+            mock_settings.llm.model = 'llama-3.2-3b-instruct'
             mock_settings.get_provider_config.return_value = {
-                'model_path': 'models/test-model.gguf',
+                'model_name': 'llama-3.2-3b-instruct',
                 'n_ctx': 2048,
                 'n_threads': 4,
-                'n_gpu_layers': 0,
+                'run_on_gpu': False,
                 'verbose': False
             }
             
-            # Mock Path to make it look like the file exists
-            with patch('ai_book_composer.llm.Path') as mock_path:
-                mock_path_obj = MagicMock()
-                mock_path_obj.is_absolute.return_value = False
-                mock_path_obj.exists.return_value = True
-                mock_path_obj.__str__.return_value = 'models/test-model.gguf'
-                mock_path.return_value = mock_path_obj
-                
-                get_llm(temperature=0.7, provider='ollama_embedded')
+            get_llm(temperature=0.7, provider='ollama_embedded')
             
+            # Verify download was called
+            mock_download.assert_called_once()
+            
+            # Verify ChatLlamaCpp was called with correct parameters
             mock_llamacpp.assert_called_once()
             call_kwargs = mock_llamacpp.call_args[1]
             assert 'model_path' in call_kwargs
             assert call_kwargs['temperature'] == 0.7
             assert call_kwargs['n_ctx'] == 2048
             assert call_kwargs['n_threads'] == 4
-            assert call_kwargs['n_gpu_layers'] == 0
+            assert call_kwargs['n_gpu_layers'] == 0  # False -> 0
     
-    def test_embedded_ollama_missing_model_file(self):
-        """Test that embedded ollama raises error when model file doesn't exist."""
-        with patch('ai_book_composer.llm.settings') as mock_settings:
+    def test_embedded_ollama_with_gpu(self):
+        """Test that run_on_gpu=True sets n_gpu_layers=-1."""
+        with patch('ai_book_composer.llm.settings') as mock_settings, \
+             patch('ai_book_composer.llm.hf_hub_download') as mock_download, \
+             patch('ai_book_composer.llm.ChatLlamaCpp') as mock_llamacpp:
+            
+            mock_download.return_value = '/path/to/model.gguf'
             mock_settings.llm.provider = 'ollama_embedded'
             mock_settings.get_provider_config.return_value = {
-                'model_path': 'models/nonexistent-model.gguf',
+                'model_name': 'llama-3.2-3b-instruct',
                 'n_ctx': 2048,
                 'n_threads': 4,
-                'n_gpu_layers': 0,
+                'run_on_gpu': True,
                 'verbose': False
             }
             
-            with pytest.raises(FileNotFoundError, match="model file not found"):
+            get_llm(provider='ollama_embedded')
+            
+            call_kwargs = mock_llamacpp.call_args[1]
+            assert call_kwargs['n_gpu_layers'] == -1  # True -> -1
+    
+    def test_embedded_ollama_unknown_model(self):
+        """Test that unknown model name raises error."""
+        with patch('ai_book_composer.llm.settings') as mock_settings:
+            mock_settings.llm.provider = 'ollama_embedded'
+            mock_settings.get_provider_config.return_value = {
+                'model_name': 'nonexistent-model',
+                'n_ctx': 2048,
+                'n_threads': 4,
+                'run_on_gpu': False,
+                'verbose': False
+            }
+            
+            with pytest.raises(ValueError, match="Unknown embedded model"):
                 get_llm(provider='ollama_embedded')
     
     def test_unsupported_provider(self):

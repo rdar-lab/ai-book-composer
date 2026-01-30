@@ -147,7 +147,7 @@ class Settings:
         return {
             'llm': {
                 'provider': 'ollama_embedded',
-                'model': 'llama-3.2-1b-instruct',
+                'model': 'llama-3.2-3b-instruct',
                 'temperature': {'planning': 0.3, 'execution': 0.7, 'critique': 0.2}
             },
             'whisper': {
@@ -202,10 +202,10 @@ class Settings:
                     'model': 'llama2'
                 },
                 'ollama_embedded': {
-                    'model_path': 'models/llama-3.2-1b-instruct.gguf',
+                    'model_name': 'llama-3.2-3b-instruct',
                     'n_ctx': 2048,
                     'n_threads': 4,
-                    'n_gpu_layers': 0,
+                    'run_on_gpu': False,
                     'verbose': False
                 }
             }

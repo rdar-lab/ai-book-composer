@@ -85,7 +85,7 @@ The project uses YAML configuration files. Copy `config.yaml` and customize as n
 # LLM Configuration
 llm:
   provider: ollama_embedded  # Options: openai, gemini, azure, ollama, ollama_embedded
-  model: llama-3.2-1b-instruct
+  model: llama-3.2-3b-instruct
 
 # Provider-specific settings (use environment variables for API keys)
 providers:
@@ -102,10 +102,10 @@ providers:
     model: llama2  # Specify Ollama model name
   ollama_embedded:
     # Embedded (in-process) ollama execution using llama.cpp
-    model_path: models/llama-3.2-1b-instruct.gguf  # Path to GGUF model file
+    model_name: llama-3.2-3b-instruct  # Model will be auto-downloaded
     n_ctx: 2048  # Context window size
     n_threads: 4  # Number of CPU threads to use
-    n_gpu_layers: 0  # Number of layers to offload to GPU (0 for CPU only)
+    run_on_gpu: false  # Use GPU acceleration if available
 
 # Whisper Configuration (for audio/video transcription)
 whisper:
@@ -438,37 +438,12 @@ export OLLAMA_BASE_URL=http://localhost:11434
 
 ### Embedded Ollama (Default - No Server Required)
 
-The default configuration uses embedded ollama execution, which runs models in-process without requiring an external server or API keys.
+The default configuration uses embedded ollama execution, which runs models in-process without requiring an external server or API keys. Models are automatically downloaded from Hugging Face on first use.
 
 ```bash
-# 1. Download a GGUF model file (e.g., from HuggingFace)
-# For example, download llama-3.2-1b-instruct in GGUF format
-mkdir -p models
-# Download from: https://huggingface.co/models?search=gguf
-
-# 2. Update config.yaml with the model path
-# providers:
-#   ollama_embedded:
-#     model_path: models/llama-3.2-1b-instruct.gguf
-
-# 3. Run (no additional setup needed!)
+# Just run - models download automatically!
 ai-book-composer -i input -o output
-
-# Optional: Configure via environment (overrides config.yaml)
-export LLM_PROVIDER=ollama_embedded
 ```
-
-**Advantages of Embedded Ollama:**
-- ✅ No external server required
-- ✅ No API keys needed
-- ✅ Runs completely offline
-- ✅ Lower latency (in-process execution)
-
-**Model Requirements:**
-- Models must be in GGUF format (used by llama.cpp)
-- Available from Hugging Face, TheBloke, and other sources
-- Smaller models (1B-7B parameters) work well on CPU
-- Larger models benefit from GPU acceleration
 
 ## Examples
 

@@ -3,7 +3,7 @@
 # LLM Configuration
 llm:
   provider: ollama_embedded  # Options: openai, gemini, azure, ollama, ollama_embedded
-  model: llama-3.2-1b-instruct
+  model: llama-3.2-3b-instruct
   temperature:
     planning: 0.3
     execution: 0.7
@@ -28,10 +28,10 @@ providers:
   
   ollama_embedded:
     # Embedded (in-process) ollama execution using llama.cpp
-    model_path: models/llama-3.2-1b-instruct.gguf  # Path to GGUF model file
+    model_name: llama-3.2-3b-instruct  # Model name to download from HuggingFace
     n_ctx: 2048  # Context window size
     n_threads: 4  # Number of CPU threads to use
-    n_gpu_layers: 0  # Number of layers to offload to GPU (0 for CPU only)
+    run_on_gpu: false  # Use GPU acceleration if available
     verbose: false  # Enable verbose output
 
 # Whisper Configuration (for audio/video transcription)
