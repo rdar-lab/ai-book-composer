@@ -9,15 +9,16 @@ AI Book Composer is a tool that automatically generates high-quality books from 
 ## Features
 
 - **Multi-format Support**: Process text files, audio files (with transcription), and video files (with transcription)
-- **Deep-Agent Architecture**: Implements Plan → Execute → Iterate → Verify workflow
+- **Image Support**: Extract images from PDF files and embed them in generated books
+- **Deep-Agent Architecture**: Implements Plan → Execute → Decorate → Iterate → Verify workflow
 - **Multiple LLM Providers**: Supports OpenAI GPT, Google Gemini, Azure OpenAI, and Ollama
 - **LangGraph Orchestration**: Uses LangGraph for robust workflow management
 - **Quality-Focused**: Iterative refinement with critic feedback for high-quality output
-- **Comprehensive Output**: Generates books with title page, table of contents, chapters, and references in RTF format
+- **Comprehensive Output**: Generates books with title page, table of contents, chapters, references, and embedded images in RTF format
 
 ## Architecture
 
-The system follows the Deep-Agent pattern with three phases:
+The system follows the Deep-Agent pattern with four phases:
 
 ### Phase 1: The Planner (Product Manager)
 - Analyzes input files
@@ -28,11 +29,19 @@ The system follows the Deep-Agent pattern with three phases:
 - Executes tasks using specialized tools:
   - File listing and reading
   - Audio/video transcription (ffmpeg + faster-whisper)
+  - Image extraction from PDFs
+  - Image listing from input directory
   - Chapter generation
   - Book compilation
 - Generates content based on the plan
 
-### Phase 3: The Critic (Quality Assurance)
+### Phase 3: The Decorator (Visual Content Specialist)
+- Analyzes chapter content and available images
+- Decides optimal image placement in chapters
+- Ensures images enhance reader understanding
+- Limits images per chapter to maintain readability
+
+### Phase 4: The Critic (Quality Assurance)
 - Evaluates generated content quality
 - Provides constructive feedback
 - Decides whether to approve or request revisions
@@ -242,13 +251,61 @@ Common language codes:
 - `ja` - Japanese
 - `ru` - Russian
 
+## Image Processing
+
+The system can extract images from PDF files and embed them into the generated book:
+
+### Features
+- **Automatic Image Extraction**: Extracts images from PDF files during content gathering
+- **Existing Image Support**: Recognizes and uses existing image files in the input directory
+- **AI-Powered Placement**: The Decorator agent uses AI to determine optimal image placement in chapters
+- **Format Support**: Supports JPG, JPEG, PNG, GIF, and BMP image formats
+- **Smart Positioning**: Places images at start, middle, or end of chapters based on content relevance
+
+### Configuration
+
+Configure image processing in `config.yaml`:
+
+```yaml
+# Image Processing Configuration
+image_processing:
+  supported_formats:
+    - jpg
+    - jpeg
+    - png
+    - gif
+    - bmp
+  extract_from_pdf: true  # Extract images from PDF files
+  max_image_size_mb: 10  # Maximum size per image
+  max_images_per_chapter: 5  # Maximum images to place per chapter
+```
+
+### How It Works
+
+1. **Image Gathering**: During the content gathering phase, the system:
+   - Lists all existing image files in the input directory
+   - Extracts images from PDF files
+   - Stores image metadata (path, format, source)
+
+2. **Image Decoration**: After chapters are generated, the Decorator agent:
+   - Analyzes each chapter's content
+   - Reviews available images
+   - Decides which images are relevant to each chapter
+   - Determines optimal placement positions (start, middle, or end)
+   - Provides reasoning for each placement decision
+
+3. **Book Generation**: The final RTF book embeds images:
+   - Images are inserted at the determined positions
+   - Captions are added with the reasoning for each image
+   - Images are properly formatted for RTF output
+
 ## Output Format
 
 The tool generates an RTF (Rich Text Format) book with:
 
 1. **Title Page**: Book title, author, and date
 2. **Table of Contents**: List of all chapters
-3. **Chapters**: Generated content organized by chapters
+3. **Chapters**: Generated content organized by chapters with embedded images
 4. **References**: List of source files used
 
 ## Tools
@@ -256,6 +313,8 @@ The tool generates an RTF (Rich Text Format) book with:
 The system uses the following specialized tools:
 
 - **FileListingTool**: Lists all files in input directory
+- **ImageListingTool**: Lists all image files in input directory
+- **ImageExtractorTool**: Extracts images from PDF files
 - **TextFileReaderTool**: Reads text files with line range support
 - **AudioTranscriptionTool**: Transcribes audio using faster-whisper
 - **VideoTranscriptionTool**: Extracts and transcribes video audio

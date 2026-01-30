@@ -6,7 +6,9 @@ from .base_tools import (
     AudioTranscriptionTool,
     VideoTranscriptionTool,
     ChapterWriterTool,
-    ChapterListWriterTool
+    ChapterListWriterTool,
+    ImageExtractorTool,
+    ImageListingTool
 )
 from .book_generator import BookGeneratorTool
 
@@ -17,5 +19,7 @@ __all__ = [
     "VideoTranscriptionTool",
     "ChapterWriterTool",
     "ChapterListWriterTool",
+    "ImageExtractorTool",
+    "ImageListingTool",
     "BookGeneratorTool"
 ]

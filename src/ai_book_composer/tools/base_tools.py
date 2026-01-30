@@ -652,3 +652,149 @@ class ChapterListWriterTool:
         except Exception as e:
             logger.error(f"Error writing chapter list: {e}")
             return {"success": False, "error": str(e)}
+
+
+class ImageExtractorTool:
+    """Tool to extract images from PDF files."""
+    
+    name = "extract_images_from_pdf"
+    description = "Extract images from PDF files and save them to output directory"
+    
+    def __init__(self, output_directory: str):
+        self.output_directory = Path(output_directory).resolve()
+        self.images_directory = self.output_directory / "extracted_images"
+        self.images_directory.mkdir(parents=True, exist_ok=True)
+        logger.info(f"ImageExtractorTool initialized for directory: {self.images_directory}")
+    
+    def run(self, file_path: str) -> Dict[str, Any]:
+        """Extract images from a PDF file.
+        
+        Args:
+            file_path: Path to the PDF file
+            
+        Returns:
+            Dictionary with extracted image paths and metadata
+        """
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            logger.error("PyMuPDF not installed. Cannot extract images from PDF.")
+            return {"error": "PyMuPDF not installed", "images": []}
+        
+        file_path = Path(file_path).resolve()
+        logger.info(f"Extracting images from PDF: {file_path}")
+        
+        if not file_path.exists():
+            logger.error(f"PDF file not found: {file_path}")
+            return {"error": "File not found", "images": []}
+        
+        if not check_file_size(file_path):
+            return {"error": "File too large", "images": []}
+        
+        try:
+            doc = fitz.open(file_path)
+            extracted_images = []
+            
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                image_list = page.get_images()
+                
+                for img_index, img in enumerate(image_list):
+                    xref = img[0]
+                    base_image = doc.extract_image(xref)
+                    image_bytes = base_image["image"]
+                    image_ext = base_image["ext"]
+                    
+                    # Create unique filename
+                    safe_filename = file_path.stem.replace(' ', '_')
+                    image_filename = f"{safe_filename}_page{page_num+1}_img{img_index+1}.{image_ext}"
+                    image_path = self.images_directory / image_filename
+                    
+                    # Security check
+                    if not is_path_safe(self.images_directory, image_path):
+                        logger.warning(f"Skipping unsafe image path: {image_path}")
+                        continue
+                    
+                    # Check image size
+                    image_size_mb = len(image_bytes) / (1024 * 1024)
+                    if image_size_mb > settings.image_processing.max_image_size_mb:
+                        logger.warning(f"Image too large: {image_size_mb}MB > {settings.image_processing.max_image_size_mb}MB")
+                        continue
+                    
+                    # Save image
+                    with open(image_path, "wb") as img_file:
+                        img_file.write(image_bytes)
+                    
+                    extracted_images.append({
+                        "path": str(image_path),
+                        "filename": image_filename,
+                        "page": page_num + 1,
+                        "index": img_index + 1,
+                        "format": image_ext,
+                        "source_file": str(file_path)
+                    })
+                    
+                    logger.debug(f"Extracted image: {image_filename}")
+            
+            doc.close()
+            logger.info(f"Extracted {len(extracted_images)} images from {file_path}")
+            
+            return {
+                "success": True,
+                "images": extracted_images,
+                "count": len(extracted_images)
+            }
+        except Exception as e:
+            logger.error(f"Error extracting images from {file_path}: {e}")
+            return {"error": str(e), "images": []}
+
+
+class ImageListingTool:
+    """Tool to list existing images in input directory."""
+    
+    name = "list_images"
+    description = "List all image files in the input directory"
+    
+    def __init__(self, input_directory: str):
+        self.input_directory = Path(input_directory).resolve()
+        logger.info(f"ImageListingTool initialized for directory: {self.input_directory}")
+    
+    def run(self, **kwargs) -> List[Dict[str, Any]]:
+        """List image files in the directory.
+        
+        Returns:
+            List of image file information dictionaries
+        """
+        logger.debug(f"Listing images in {self.input_directory}")
+        images = []
+        
+        try:
+            supported_formats = set(settings.image_processing.supported_formats)
+            
+            for file_path in self.input_directory.rglob("*"):
+                if file_path.is_file():
+                    extension = file_path.suffix.lower().lstrip('.')
+                    
+                    if extension in supported_formats:
+                        # Security check
+                        if not is_path_safe(self.input_directory, file_path):
+                            logger.warning(f"Skipping file outside base directory: {file_path}")
+                            continue
+                        
+                        # Check image size
+                        if not check_file_size(file_path):
+                            logger.warning(f"Skipping large image: {file_path}")
+                            continue
+                        
+                        images.append({
+                            "path": str(file_path),
+                            "filename": file_path.name,
+                            "format": extension,
+                            "size": file_path.stat().st_size
+                        })
+            
+            logger.info(f"Found {len(images)} image files")
+            return images
+        except Exception as e:
+            logger.error(f"Error listing images: {e}")
+            raise

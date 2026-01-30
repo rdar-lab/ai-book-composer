@@ -13,7 +13,7 @@ class BookGeneratorTool:
     """Tool to generate final book in RTF format."""
     
     name = "generate_final_book"
-    description = "Generate the final book in RTF format"
+    description = "Generate the final book in RTF format with embedded images"
     
     def __init__(self, output_directory: str):
         self.output_directory = Path(output_directory).resolve()
@@ -24,7 +24,7 @@ class BookGeneratorTool:
         self,
         title: str,
         author: str,
-        chapters: List[Dict[str, str]],
+        chapters: List[Dict[str, Any]],
         references: List[str],
         output_filename: str = "book.rtf"
     ) -> Dict[str, Any]:
@@ -33,7 +33,7 @@ class BookGeneratorTool:
         Args:
             title: Book title
             author: Book author
-            chapters: List of chapter dictionaries with 'title' and 'content'
+            chapters: List of chapter dictionaries with 'title', 'content', and optionally 'images'
             references: List of reference strings
             output_filename: Output filename
             
@@ -89,22 +89,59 @@ class BookGeneratorTool:
             section.append(PAGE_BREAK)
             
             # Chapters
+            total_images_added = 0
             for i, chapter in enumerate(chapters, 1):
                 chapter_title = chapter.get("title", f"Chapter {i}")
                 chapter_content = chapter.get("content", "")
+                chapter_images = chapter.get("images", [])
                 
                 # Chapter heading
                 ch_heading = Paragraph(ss.ParagraphStyles.Heading1)
                 ch_heading.append(f"Chapter {i}: {chapter_title}", heading1_style)
                 section.append(ch_heading)
                 
+                # Categorize images by position
+                start_images = []
+                middle_images = []
+                end_images = []
+                
+                for img in chapter_images:
+                    position = img.get("position", "middle").lower()
+                    if position == "start":
+                        start_images.append(img)
+                    elif position == "end":
+                        end_images.append(img)
+                    else:
+                        middle_images.append(img)
+                
+                # Add start images
+                for img in start_images:
+                    self._add_image_to_section(section, img, ss)
+                    total_images_added += 1
+                
                 # Chapter content - split into paragraphs
                 paragraphs = chapter_content.split('\n\n')
-                for para_text in paragraphs:
+                num_paragraphs = len([p for p in paragraphs if p.strip()])
+                
+                # Determine where to insert middle images
+                middle_insert_point = num_paragraphs // 2 if num_paragraphs > 0 else 0
+                
+                for para_idx, para_text in enumerate(paragraphs):
                     if para_text.strip():
                         para = Paragraph(ss.ParagraphStyles.Normal)
                         para.append(para_text.strip(), normal_style)
                         section.append(para)
+                        
+                        # Insert middle images at approximately the middle of the chapter
+                        if para_idx == middle_insert_point and middle_images:
+                            for img in middle_images:
+                                self._add_image_to_section(section, img, ss)
+                                total_images_added += 1
+                
+                # Add end images
+                for img in end_images:
+                    self._add_image_to_section(section, img, ss)
+                    total_images_added += 1
                 
                 section.append(PAGE_BREAK)
             
@@ -124,13 +161,14 @@ class BookGeneratorTool:
             with open(file_path, 'w', encoding='utf-8') as f:
                 renderer.Write(doc, f)
             
-            logger.info(f"Book generated successfully: {file_path}")
+            logger.info(f"Book generated successfully: {file_path} with {total_images_added} images")
             
             return {
                 "success": True,
                 "file_path": str(file_path),
                 "chapter_count": len(chapters),
-                "reference_count": len(references)
+                "reference_count": len(references),
+                "image_count": total_images_added
             }
         except Exception as e:
             logger.error(f"Error generating book: {e}")
@@ -138,3 +176,41 @@ class BookGeneratorTool:
                 "success": False,
                 "error": str(e)
             }
+    
+    def _add_image_to_section(self, section, img_info: Dict[str, Any], style_sheet) -> None:
+        """Add an image to the document section.
+        
+        Args:
+            section: RTF section to add image to
+            img_info: Dictionary with image information (path, reasoning, etc.)
+            style_sheet: Document style sheet
+        """
+        try:
+            image_path = img_info.get("image_path", "")
+            reasoning = img_info.get("reasoning", "")
+            
+            if not image_path or not Path(image_path).exists():
+                logger.warning(f"Image not found: {image_path}")
+                return
+            
+            # Add image to document
+            # PyRTF3 Image takes the file path
+            try:
+                image = Image(image_path)
+                para = Paragraph()
+                para.append(image)
+                section.append(para)
+                
+                # Add caption if reasoning is provided
+                if reasoning:
+                    caption_para = Paragraph(style_sheet.ParagraphStyles.Normal)
+                    caption_style = TextStyle(TextPropertySet(font=style_sheet.Fonts.Arial, size=20, italic=True))
+                    caption_para.append(f"Figure: {reasoning}", caption_style)
+                    section.append(caption_para)
+                
+                logger.debug(f"Added image to document: {image_path}")
+            except Exception as img_error:
+                logger.warning(f"Could not add image {image_path}: {img_error}")
+        
+        except Exception as e:
+            logger.warning(f"Error processing image: {e}")

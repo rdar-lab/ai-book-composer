@@ -18,6 +18,8 @@ from .tools import (
     VideoTranscriptionTool,
     ChapterWriterTool,
     ChapterListWriterTool,
+    ImageExtractorTool,
+    ImageListingTool,
     BookGeneratorTool
 )
 from .logging_config import logger
@@ -32,12 +34,14 @@ This server provides tools for composing books from various source files includi
 
 Available tools:
 - list_files: List all files in the input directory
+- list_images: List all image files in the input directory
 - read_text_file: Read content from text files (txt, md, rst, docx, rtf, pdf)
+- extract_images_from_pdf: Extract images from PDF files
 - transcribe_audio: Transcribe audio files (mp3, wav, m4a, flac, ogg)
 - transcribe_video: Transcribe video files (mp4, avi, mov, mkv)
 - write_chapter: Write a chapter to a file
 - write_chapter_list: Write the list of planned chapters
-- generate_book: Generate the final book in RTF format
+- generate_book: Generate the final book in RTF format with embedded images
 """,
 )
 
@@ -50,6 +54,8 @@ _audio_transcriber: Optional[AudioTranscriptionTool] = None
 _video_transcriber: Optional[VideoTranscriptionTool] = None
 _chapter_writer: Optional[ChapterWriterTool] = None
 _chapter_list_writer: Optional[ChapterListWriterTool] = None
+_image_extractor: Optional[ImageExtractorTool] = None
+_image_lister: Optional[ImageListingTool] = None
 _book_generator: Optional[BookGeneratorTool] = None
 
 
@@ -63,13 +69,15 @@ def initialize_tools(input_directory: str, output_directory: str, skip_transcrip
     """
     global _input_directory, _output_directory
     global _file_lister, _text_reader, _audio_transcriber, _video_transcriber
-    global _chapter_writer, _chapter_list_writer, _book_generator
+    global _chapter_writer, _chapter_list_writer, _image_extractor, _image_lister, _book_generator
     
     _input_directory = input_directory
     _output_directory = output_directory
     
     _file_lister = FileListingTool(input_directory)
     _text_reader = TextFileReaderTool()
+    _image_lister = ImageListingTool(input_directory)
+    _image_extractor = ImageExtractorTool(output_directory)
     
     # Check if we should skip transcription (via environment variable or parameter)
     skip_transcription = skip_transcription or os.getenv("SKIP_TRANSCRIPTION", "").lower() in ("1", "true", "yes")
@@ -98,6 +106,41 @@ async def list_files() -> List[Dict[str, Any]]:
     logger.debug("MCP: list_files called")
     result = _file_lister.run()
     logger.debug(f"MCP: list_files returned {len(result)} files")
+    return result
+
+
+@mcp.tool(description="List all image files in the input directory")
+async def list_images() -> List[Dict[str, Any]]:
+    """List all image files in the input directory.
+    
+    Returns:
+        List of image file information dictionaries with path, filename, format, and size.
+    """
+    if _image_lister is None:
+        raise RuntimeError("Tools not initialized. Call initialize_tools() first.")
+    
+    logger.debug("MCP: list_images called")
+    result = _image_lister.run()
+    logger.debug(f"MCP: list_images returned {len(result)} images")
+    return result
+
+
+@mcp.tool(description="Extract images from PDF files and save them to output directory")
+async def extract_images_from_pdf(file_path: str) -> Dict[str, Any]:
+    """Extract images from a PDF file.
+    
+    Args:
+        file_path: Path to the PDF file
+    
+    Returns:
+        Dictionary with extracted image paths and metadata
+    """
+    if _image_extractor is None:
+        raise RuntimeError("Tools not initialized. Call initialize_tools() first.")
+    
+    logger.info(f"MCP: extract_images_from_pdf called for {file_path}")
+    result = _image_extractor.run(file_path)
+    logger.info(f"MCP: extract_images_from_pdf extracted {result.get('count', 0)} images")
     return result
 
 

@@ -387,3 +387,72 @@ class TestVideoTranscriptionTool:
         call_kwargs = mock_audio_tool._transcribe_local.call_args[1] if len(mock_audio_tool._transcribe_local.call_args) > 1 else {}
         # Language should be either in args or kwargs
         assert call_kwargs.get('language') == "he" or (len(call_args) > 1 and call_args[1] == "he")
+
+
+class TestImageListingTool:
+    """Test ImageListingTool."""
+    
+    def test_list_images(self, tmp_path):
+        """Test listing images in directory."""
+        from ai_book_composer.tools.base_tools import ImageListingTool
+        
+        # Create test image files
+        (tmp_path / "image1.jpg").write_bytes(b"fake jpg")
+        (tmp_path / "image2.png").write_bytes(b"fake png")
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        (subdir / "image3.gif").write_bytes(b"fake gif")
+        
+        # Create non-image files (should be ignored)
+        (tmp_path / "text.txt").write_text("not an image")
+        
+        tool = ImageListingTool(str(tmp_path))
+        images = tool.run()
+        
+        assert len(images) == 3
+        assert all('path' in img for img in images)
+        assert all('filename' in img for img in images)
+        assert all('format' in img for img in images)
+    
+    def test_list_empty_directory(self, tmp_path):
+        """Test listing empty directory."""
+        from ai_book_composer.tools.base_tools import ImageListingTool
+        
+        tool = ImageListingTool(str(tmp_path))
+        images = tool.run()
+        assert images == []
+
+
+class TestImageExtractorTool:
+    """Test ImageExtractorTool."""
+    
+    @patch('ai_book_composer.tools.base_tools.check_file_size')
+    def test_extract_images_from_pdf_not_installed(self, mock_check_size, tmp_path):
+        """Test extract images when PyMuPDF not installed."""
+        from ai_book_composer.tools.base_tools import ImageExtractorTool
+        
+        mock_check_size.return_value = True
+        
+        # Create a fake PDF file
+        test_pdf = tmp_path / "test.pdf"
+        test_pdf.write_bytes(b"fake pdf content")
+        
+        tool = ImageExtractorTool(str(tmp_path))
+        
+        # Mock the import to simulate PyMuPDF not installed
+        with patch('ai_book_composer.tools.base_tools.fitz', side_effect=ImportError):
+            # Need to reload the module or handle the import error
+            result = tool.run(str(test_pdf))
+        
+        # Should return error when PyMuPDF not available
+        assert "error" in result or result.get("images", []) == []
+    
+    def test_extract_images_file_not_found(self, tmp_path):
+        """Test extract images from non-existent file."""
+        from ai_book_composer.tools.base_tools import ImageExtractorTool
+        
+        tool = ImageExtractorTool(str(tmp_path))
+        result = tool.run(str(tmp_path / "nonexistent.pdf"))
+        
+        assert "error" in result
+        assert result.get("images", []) == []

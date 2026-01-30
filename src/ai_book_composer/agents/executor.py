@@ -206,10 +206,40 @@ class ExecutorAgent:
                     "content": f"Error processing file: {str(e)}"
                 }
         
-        progress.show_observation(f"Content gathering complete: {len(gathered_content)} file(s) processed")
+        # Gather images from input directory and extract from PDFs
+        progress.show_thought("Gathering images from input directory")
+        
+        all_images = []
+        
+        try:
+            # List existing images in input directory
+            progress.show_action("Listing existing images in input directory")
+            existing_images = self._invoke_tool("list_images")
+            all_images.extend(existing_images)
+            progress.show_observation(f"✓ Found {len(existing_images)} existing image(s)")
+        except Exception as e:
+            progress.show_observation(f"⚠ Error listing images: {str(e)}")
+        
+        # Extract images from PDF files
+        pdf_files = [f for f in files if f.get("extension", "").lower() == ".pdf"]
+        if pdf_files:
+            progress.show_action(f"Extracting images from {len(pdf_files)} PDF file(s)")
+            for pdf_file in pdf_files:
+                pdf_path = pdf_file.get("path", "")
+                try:
+                    result = self._invoke_tool("extract_images_from_pdf", file_path=pdf_path)
+                    if result.get("success"):
+                        extracted = result.get("images", [])
+                        all_images.extend(extracted)
+                        progress.show_observation(f"✓ Extracted {len(extracted)} image(s) from {pdf_file.get('name')}")
+                except Exception as e:
+                    progress.show_observation(f"⚠ Error extracting images from {pdf_file.get('name')}: {str(e)}")
+        
+        progress.show_observation(f"Image gathering complete: {len(all_images)} total image(s) available")
         
         return {
             "gathered_content": gathered_content,
+            "images": all_images,
             "current_task_index": state.get("current_task_index", 0) + 1,
             "status": "executing"
         }
