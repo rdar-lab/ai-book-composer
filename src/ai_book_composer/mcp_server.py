@@ -126,12 +126,13 @@ async def read_text_file(
     return result
 
 
-@mcp.tool(description="Transcribe audio files (mp3, wav, m4a, flac, ogg)")
-async def transcribe_audio(file_path: str) -> Dict[str, Any]:
+@mcp.tool(description="Transcribe audio files (mp3, wav, m4a, flac, ogg) with optional language specification")
+async def transcribe_audio(file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
     """Transcribe audio file to text.
     
     Args:
         file_path: Path to the audio file
+        language: Optional language code (e.g., 'en', 'he' for Hebrew). If None, auto-detects.
     
     Returns:
         Dictionary with transcription, segments, language, and duration
@@ -139,18 +140,19 @@ async def transcribe_audio(file_path: str) -> Dict[str, Any]:
     if _audio_transcriber is None:
         raise RuntimeError("Tools not initialized. Call initialize_tools() first.")
     
-    logger.info(f"MCP: transcribe_audio called for {file_path}")
-    result = _audio_transcriber.run(file_path)
+    logger.info(f"MCP: transcribe_audio called for {file_path}, language: {language or 'auto-detect'}")
+    result = _audio_transcriber.run(file_path, language)
     logger.info(f"MCP: transcribe_audio completed for {file_path}")
     return result
 
 
-@mcp.tool(description="Transcribe video files (mp4, avi, mov, mkv)")
-async def transcribe_video(file_path: str) -> Dict[str, Any]:
+@mcp.tool(description="Transcribe video files (mp4, avi, mov, mkv) with optional language specification")
+async def transcribe_video(file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
     """Transcribe video file to text.
     
     Args:
         file_path: Path to the video file
+        language: Optional language code (e.g., 'en', 'he' for Hebrew). If None, auto-detects.
     
     Returns:
         Dictionary with transcription, segments, language, and duration
@@ -158,8 +160,8 @@ async def transcribe_video(file_path: str) -> Dict[str, Any]:
     if _video_transcriber is None:
         raise RuntimeError("Tools not initialized. Call initialize_tools() first.")
     
-    logger.info(f"MCP: transcribe_video called for {file_path}")
-    result = _video_transcriber.run(file_path)
+    logger.info(f"MCP: transcribe_video called for {file_path}, language: {language or 'auto-detect'}")
+    result = _video_transcriber.run(file_path, language)
     logger.info(f"MCP: transcribe_video completed for {file_path}")
     return result
 

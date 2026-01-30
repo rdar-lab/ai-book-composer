@@ -214,17 +214,67 @@ class AudioTranscriptionTool:
             self.api_key = settings.whisper.remote["api_key"]
             logger.info(f"Using remote Whisper at {self.endpoint}")
     
-    def run(self, file_path: str) -> Dict[str, Any]:
+    def _get_cache_path(self, file_path: Path, language: Optional[str] = None) -> Path:
+        """Get cache file path for a given audio file.
+        
+        Args:
+            file_path: Path to the audio file
+            language: Language code used for transcription (affects cache key)
+            
+        Returns:
+            Path to the cache file
+        """
+        # Include language in cache filename to handle different language transcriptions
+        lang_suffix = f"_{language}" if language else ""
+        cache_filename = f".{file_path.name}{lang_suffix}.txt"
+        return file_path.parent / cache_filename
+    
+    def _read_cache(self, cache_path: Path) -> Optional[Dict[str, Any]]:
+        """Read cached transcription if it exists.
+        
+        Args:
+            cache_path: Path to the cache file
+            
+        Returns:
+            Cached transcription data or None
+        """
+        if cache_path.exists():
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                logger.info(f"Using cached transcription from {cache_path}")
+                return data
+            except Exception as e:
+                logger.warning(f"Failed to read cache {cache_path}: {e}")
+                return None
+        return None
+    
+    def _write_cache(self, cache_path: Path, data: Dict[str, Any]) -> None:
+        """Write transcription result to cache.
+        
+        Args:
+            cache_path: Path to the cache file
+            data: Transcription data to cache
+        """
+        try:
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logger.info(f"Cached transcription to {cache_path}")
+        except Exception as e:
+            logger.warning(f"Failed to write cache {cache_path}: {e}")
+    
+    def run(self, file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
         """Transcribe audio file.
         
         Args:
             file_path: Path to the audio file
+            language: Optional language code (e.g., 'en', 'he' for Hebrew). If None, auto-detects.
             
         Returns:
             Dictionary with transcription and metadata
         """
         file_path = Path(file_path).resolve()
-        logger.info(f"Transcribing audio file: {file_path}")
+        logger.info(f"Transcribing audio file: {file_path}, language: {language or 'auto-detect'}")
         
         if not file_path.exists():
             logger.error(f"Audio file not found: {file_path}")
@@ -233,18 +283,40 @@ class AudioTranscriptionTool:
         if not check_file_size(file_path):
             return {"error": "File too large", "transcription": ""}
         
+        # Check for cached transcription (including language in cache key)
+        cache_path = self._get_cache_path(file_path, language)
+        cached_result = self._read_cache(cache_path)
+        if cached_result is not None:
+            return cached_result
+        
         try:
             if self.mode == "local":
-                return self._transcribe_local(file_path)
+                result = self._transcribe_local(file_path, language)
             else:
-                return self._transcribe_remote(file_path)
+                result = self._transcribe_remote(file_path, language)
+            
+            # Cache the result if successful
+            if "error" not in result:
+                self._write_cache(cache_path, result)
+            
+            return result
         except Exception as e:
             logger.error(f"Error transcribing audio {file_path}: {e}")
             return {"error": str(e), "transcription": ""}
     
-    def _transcribe_local(self, file_path: Path) -> Dict[str, Any]:
-        """Transcribe using local Whisper model."""
-        segments, info = self.model.transcribe(str(file_path), beam_size=5)
+    def _transcribe_local(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
+        """Transcribe using local Whisper model.
+        
+        Args:
+            file_path: Path to the audio file
+            language: Optional language code for transcription
+        """
+        # Prepare transcription parameters
+        transcribe_kwargs = {"beam_size": 5}
+        if language:
+            transcribe_kwargs["language"] = language
+        
+        segments, info = self.model.transcribe(str(file_path), **transcribe_kwargs)
         
         transcription = []
         for segment in segments:
@@ -255,7 +327,7 @@ class AudioTranscriptionTool:
             })
         
         full_text = " ".join([seg["text"] for seg in transcription])
-        logger.info(f"Transcription complete: {len(transcription)} segments, {info.duration}s")
+        logger.info(f"Transcription complete: {len(transcription)} segments, {info.duration}s, language: {info.language}")
         
         return {
             "transcription": full_text,
@@ -264,17 +336,27 @@ class AudioTranscriptionTool:
             "duration": info.duration
         }
     
-    def _transcribe_remote(self, file_path: Path) -> Dict[str, Any]:
-        """Transcribe using remote Whisper service."""
+    def _transcribe_remote(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
+        """Transcribe using remote Whisper service.
+        
+        Args:
+            file_path: Path to the audio file
+            language: Optional language code for transcription
+        """
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         
         with open(file_path, 'rb') as f:
             files = {'file': f}
+            data = {}
+            if language:
+                data['language'] = language
+            
             response = requests.post(
                 f"{self.endpoint}/transcribe",
                 files=files,
+                data=data,
                 headers=headers,
                 timeout=600
             )
@@ -297,17 +379,67 @@ class VideoTranscriptionTool:
         self.chunk_duration = settings.media_processing.chunk_duration
         logger.info(f"VideoTranscriptionTool initialized with {self.chunk_duration}s chunks")
     
-    def run(self, file_path: str) -> Dict[str, Any]:
+    def _get_cache_path(self, file_path: Path, language: Optional[str] = None) -> Path:
+        """Get cache file path for a given video file.
+        
+        Args:
+            file_path: Path to the video file
+            language: Language code used for transcription (affects cache key)
+            
+        Returns:
+            Path to the cache file
+        """
+        # Include language in cache filename to handle different language transcriptions
+        lang_suffix = f"_{language}" if language else ""
+        cache_filename = f".{file_path.name}{lang_suffix}.txt"
+        return file_path.parent / cache_filename
+    
+    def _read_cache(self, cache_path: Path) -> Optional[Dict[str, Any]]:
+        """Read cached transcription if it exists.
+        
+        Args:
+            cache_path: Path to the cache file
+            
+        Returns:
+            Cached transcription data or None
+        """
+        if cache_path.exists():
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                logger.info(f"Using cached transcription from {cache_path}")
+                return data
+            except Exception as e:
+                logger.warning(f"Failed to read cache {cache_path}: {e}")
+                return None
+        return None
+    
+    def _write_cache(self, cache_path: Path, data: Dict[str, Any]) -> None:
+        """Write transcription result to cache.
+        
+        Args:
+            cache_path: Path to the cache file
+            data: Transcription data to cache
+        """
+        try:
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logger.info(f"Cached transcription to {cache_path}")
+        except Exception as e:
+            logger.warning(f"Failed to write cache {cache_path}: {e}")
+    
+    def run(self, file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
         """Transcribe video file.
         
         Args:
             file_path: Path to the video file
+            language: Optional language code (e.g., 'en', 'he' for Hebrew). If None, auto-detects.
             
         Returns:
             Dictionary with transcription and metadata
         """
         file_path = Path(file_path).resolve()
-        logger.info(f"Transcribing video file: {file_path}")
+        logger.info(f"Transcribing video file: {file_path}, language: {language or 'auto-detect'}")
         
         if not file_path.exists():
             logger.error(f"Video file not found: {file_path}")
@@ -315,6 +447,12 @@ class VideoTranscriptionTool:
         
         if not check_file_size(file_path):
             return {"error": "File too large", "transcription": ""}
+        
+        # Check for cached transcription (including language in cache key)
+        cache_path = self._get_cache_path(file_path, language)
+        cached_result = self._read_cache(cache_path)
+        if cached_result is not None:
+            return cached_result
         
         try:
             # Get video duration
@@ -324,15 +462,26 @@ class VideoTranscriptionTool:
             
             # Check if we need to chunk
             if duration > self.chunk_duration:
-                return self._transcribe_chunked(file_path, duration)
+                result = self._transcribe_chunked(file_path, duration, language)
             else:
-                return self._transcribe_single(file_path)
+                result = self._transcribe_single(file_path, language)
+            
+            # Cache the result if successful
+            if "error" not in result:
+                self._write_cache(cache_path, result)
+            
+            return result
         except Exception as e:
             logger.error(f"Error transcribing video {file_path}: {e}")
             return {"error": str(e), "transcription": ""}
     
-    def _transcribe_single(self, file_path: Path) -> Dict[str, Any]:
-        """Transcribe entire video at once."""
+    def _transcribe_single(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
+        """Transcribe entire video at once.
+        
+        Args:
+            file_path: Path to the video file
+            language: Optional language code for transcription
+        """
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
             audio_path = tmp_file.name
         
@@ -342,19 +491,27 @@ class VideoTranscriptionTool:
             stream = ffmpeg.output(stream, audio_path, acodec='pcm_s16le', ac=1, ar='16k')
             ffmpeg.run(stream, overwrite_output=True, quiet=True)
             
-            # Transcribe
-            result = self.audio_tool.run(audio_path)
+            # Transcribe - note: we bypass cache here since video has its own cache
+            # Call the internal method directly to avoid double-caching
+            result = self.audio_tool._transcribe_local(Path(audio_path), language) if self.audio_tool.mode == "local" else self.audio_tool._transcribe_remote(Path(audio_path), language)
             return result
         finally:
             if os.path.exists(audio_path):
                 os.remove(audio_path)
     
-    def _transcribe_chunked(self, file_path: Path, duration: float) -> Dict[str, Any]:
-        """Transcribe video in chunks."""
+    def _transcribe_chunked(self, file_path: Path, duration: float, language: Optional[str] = None) -> Dict[str, Any]:
+        """Transcribe video in chunks.
+        
+        Args:
+            file_path: Path to the video file
+            duration: Duration of the video in seconds
+            language: Optional language code for transcription
+        """
         logger.info(f"Transcribing video in chunks of {self.chunk_duration}s")
         
         all_segments = []
         num_chunks = int(duration / self.chunk_duration) + 1
+        detected_language = None
         
         for i in range(num_chunks):
             start_time = i * self.chunk_duration
@@ -371,8 +528,12 @@ class VideoTranscriptionTool:
                 stream = ffmpeg.output(stream, audio_path, acodec='pcm_s16le', ac=1, ar='16k')
                 ffmpeg.run(stream, overwrite_output=True, quiet=True)
                 
-                # Transcribe chunk
-                result = self.audio_tool.run(audio_path)
+                # Transcribe chunk - bypass cache for temporary audio files
+                result = self.audio_tool._transcribe_local(Path(audio_path), language) if self.audio_tool.mode == "local" else self.audio_tool._transcribe_remote(Path(audio_path), language)
+                
+                # Store detected language from first chunk
+                if detected_language is None and "language" in result:
+                    detected_language = result["language"]
                 
                 if "segments" in result:
                     # Adjust timestamps
@@ -385,12 +546,12 @@ class VideoTranscriptionTool:
                     os.remove(audio_path)
         
         full_text = " ".join([seg["text"] for seg in all_segments])
-        logger.info(f"Video transcription complete: {len(all_segments)} segments")
+        logger.info(f"Video transcription complete: {len(all_segments)} segments, language: {detected_language}")
         
         return {
             "transcription": full_text,
             "segments": all_segments,
-            "language": all_segments[0].get("language") if all_segments else "unknown",
+            "language": detected_language or "unknown",
             "duration": duration
         }
 
