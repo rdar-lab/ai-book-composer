@@ -138,13 +138,13 @@ class TestExecutorAgent:
     """Test executor agent with focus on content summarization."""
     
     @patch('ai_book_composer.agents.executor.get_llm')
-    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
-    def test_summarize_content_includes_full_content(self, mock_video, mock_audio, mock_llm):
+    @patch('ai_book_composer.agents.executor.ToolRegistry')
+    def test_summarize_content_includes_full_content(self, mock_tool_registry, mock_llm):
         """Test that _summarize_content includes full file content for chapter planning."""
-        # Mock the tools to avoid initialization issues
-        mock_audio.return_value = Mock()
-        mock_video.return_value = Mock()
+        # Mock the ToolRegistry to avoid initialization issues
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_langchain_tools.return_value = []
+        mock_tool_registry.return_value = mock_registry_instance
         mock_llm.return_value = Mock()
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -180,13 +180,13 @@ class TestExecutorAgent:
             assert "text" in summary.lower()
     
     @patch('ai_book_composer.agents.executor.get_llm')
-    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
-    def test_summarize_content_with_multiple_files(self, mock_video, mock_audio, mock_llm):
+    @patch('ai_book_composer.agents.executor.ToolRegistry')
+    def test_summarize_content_with_multiple_files(self, mock_tool_registry, mock_llm):
         """Test that _summarize_content handles multiple files correctly."""
-        # Mock the tools to avoid initialization issues
-        mock_audio.return_value = Mock()
-        mock_video.return_value = Mock()
+        # Mock the ToolRegistry to avoid initialization issues
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_langchain_tools.return_value = []
+        mock_tool_registry.return_value = mock_registry_instance
         mock_llm.return_value = Mock()
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -224,13 +224,13 @@ class TestExecutorAgent:
             assert "video1.mp4" in summary
     
     @patch('ai_book_composer.agents.executor.get_llm')
-    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
-    def test_summarize_content_truncates_large_files(self, mock_video, mock_audio, mock_llm):
+    @patch('ai_book_composer.agents.executor.ToolRegistry')
+    def test_summarize_content_truncates_large_files(self, mock_tool_registry, mock_llm):
         """Test that _summarize_content truncates very large files to manage token limits."""
-        # Mock the tools to avoid initialization issues
-        mock_audio.return_value = Mock()
-        mock_video.return_value = Mock()
+        # Mock the ToolRegistry to avoid initialization issues
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_langchain_tools.return_value = []
+        mock_tool_registry.return_value = mock_registry_instance
         mock_llm.return_value = Mock()
         
         with tempfile.TemporaryDirectory() as tmpdir:

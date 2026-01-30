@@ -9,26 +9,26 @@ from ai_book_composer.agents.executor import ExecutorAgent
 class TestChapterByChapterGeneration:
     """Test that chapters are generated one at a time."""
     
-    @patch('ai_book_composer.agents.executor.BookGeneratorTool')
-    @patch('ai_book_composer.agents.executor.ChapterListWriterTool')
-    @patch('ai_book_composer.agents.executor.ChapterWriterTool')
-    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.TextFileReaderTool')
-    @patch('ai_book_composer.agents.executor.FileListingTool')
+    @patch('ai_book_composer.agents.executor.load_prompts')
+    @patch('ai_book_composer.agents.executor.ToolRegistry')
     @patch('ai_book_composer.agents.executor.get_llm')
     def test_plan_chapters_creates_individual_tasks(
         self, 
         mock_get_llm,
-        mock_file_listing,
-        mock_text_reader,
-        mock_audio,
-        mock_video,
-        mock_chapter_writer,
-        mock_chapter_list_writer,
-        mock_book_generator
+        mock_tool_registry,
+        mock_load_prompts
     ):
         """Test that plan_chapters creates individual chapter generation tasks."""
+        # Mock prompts
+        mock_load_prompts.return_value = {
+            'executor': {
+                'chapter_planning_system_prompt': 'Plan chapters in {language}',
+                'chapter_planning_user_prompt': 'Content: {content_summary}',
+                'chapter_generation_system_prompt': 'Generate chapter',
+                'chapter_generation_user_prompt': 'Generate chapter {chapter_number}'
+            }
+        }
+        
         # Mock LLM response for chapter planning
         mock_llm = Mock()
         mock_response = Mock()
@@ -41,9 +41,11 @@ Chapter 3: Applications
         mock_llm.invoke.return_value = mock_response
         mock_get_llm.return_value = mock_llm
         
-        # Mock chapter list writer
-        mock_chapter_list_writer_instance = Mock()
-        mock_chapter_list_writer.return_value = mock_chapter_list_writer_instance
+        # Mock ToolRegistry
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_langchain_tools.return_value = []
+        mock_registry_instance.write_chapter_list.return_value = {"success": True}
+        mock_tool_registry.return_value = mock_registry_instance
         
         # Create executor
         executor = ExecutorAgent(
@@ -94,26 +96,24 @@ Chapter 3: Applications
         assert any(task.get("task") == "compile_references" for task in other_tasks)
         assert any(task.get("task") == "generate_book" for task in other_tasks)
         
-    @patch('ai_book_composer.agents.executor.BookGeneratorTool')
-    @patch('ai_book_composer.agents.executor.ChapterListWriterTool')
-    @patch('ai_book_composer.agents.executor.ChapterWriterTool')
-    @patch('ai_book_composer.agents.executor.VideoTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.AudioTranscriptionTool')
-    @patch('ai_book_composer.agents.executor.TextFileReaderTool')
-    @patch('ai_book_composer.agents.executor.FileListingTool')
+    @patch('ai_book_composer.agents.executor.load_prompts')
+    @patch('ai_book_composer.agents.executor.ToolRegistry')
     @patch('ai_book_composer.agents.executor.get_llm')
     def test_generate_single_chapter_adds_to_chapters_list(
         self,
         mock_get_llm,
-        mock_file_listing,
-        mock_text_reader,
-        mock_audio,
-        mock_video,
-        mock_chapter_writer,
-        mock_chapter_list_writer,
-        mock_book_generator
+        mock_tool_registry,
+        mock_load_prompts
     ):
         """Test that generate_single_chapter adds chapter to the list."""
+        # Mock prompts
+        mock_load_prompts.return_value = {
+            'executor': {
+                'chapter_generation_system_prompt': 'Generate chapter',
+                'chapter_generation_user_prompt': 'Generate chapter {chapter_number}'
+            }
+        }
+        
         # Mock LLM response for chapter content
         mock_llm = Mock()
         mock_response = Mock()
@@ -121,9 +121,11 @@ Chapter 3: Applications
         mock_llm.invoke.return_value = mock_response
         mock_get_llm.return_value = mock_llm
         
-        # Mock chapter writer
-        mock_chapter_writer_instance = Mock()
-        mock_chapter_writer.return_value = mock_chapter_writer_instance
+        # Mock ToolRegistry
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_langchain_tools.return_value = []
+        mock_registry_instance.write_chapter.return_value = {"success": True}
+        mock_tool_registry.return_value = mock_registry_instance
         
         # Create executor
         executor = ExecutorAgent(
