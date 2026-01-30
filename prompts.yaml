@@ -30,6 +30,7 @@ executor:
     You are an expert book editor. Based on the gathered content, create a structured list of chapters for a comprehensive book.
 
     Target language: {language}
+    {style_instructions_section}
 
     For each chapter, provide:
     - number: Chapter number
@@ -53,6 +54,7 @@ executor:
     Chapter number: {chapter_number}
     Chapter title: {title}
     Chapter description: {description}
+    {style_instructions_section}
 
     Write a well-structured, informative chapter that:
     - Has clear introduction and conclusion

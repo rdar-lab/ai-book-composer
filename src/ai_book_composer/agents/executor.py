@@ -343,6 +343,7 @@ class ExecutorAgent:
         """Plan the book chapters based on gathered content."""
         gathered_content = state.get("gathered_content", {})
         language = state.get("language", "en-US")
+        style_instructions = state.get("style_instructions", "")
         
         progress.show_thought("Analyzing gathered content to determine optimal chapter structure")
         
@@ -355,7 +356,15 @@ class ExecutorAgent:
         system_prompt_template = self.prompts['executor']['chapter_planning_system_prompt']
         user_prompt_template = self.prompts['executor']['chapter_planning_user_prompt']
         
-        system_prompt = system_prompt_template.format(language=language)
+        # Format style instructions section
+        style_instructions_section = ""
+        if style_instructions:
+            style_instructions_section = f"Style Instructions: {style_instructions}\nPlease ensure the chapter structure and organization reflects this style."
+        
+        system_prompt = system_prompt_template.format(
+            language=language,
+            style_instructions_section=style_instructions_section
+        )
         user_prompt = user_prompt_template.format(content_summary=content_summary)
         
         messages = [
@@ -436,6 +445,7 @@ class ExecutorAgent:
         chapter_desc = task.get("chapter_description", "")
         gathered_content = state.get("gathered_content", {})
         language = state.get("language", "en-US")
+        style_instructions = state.get("style_instructions", "")
         
         progress.show_thought(f"Generating Chapter {chapter_num}: {chapter_title}")
         progress.show_chapter_info(chapter_num, chapter_title, "generating")
@@ -447,7 +457,8 @@ class ExecutorAgent:
             chapter_title,
             chapter_desc,
             gathered_content,
-            language
+            language,
+            style_instructions
         )
         
         # Save chapter
@@ -479,6 +490,7 @@ class ExecutorAgent:
         chapter_list = state.get("chapter_list", [])
         gathered_content = state.get("gathered_content", {})
         language = state.get("language", "en-US")
+        style_instructions = state.get("style_instructions", "")
         
         if not chapter_list:
             progress.show_observation("⚠ No chapters to generate")
@@ -506,7 +518,8 @@ class ExecutorAgent:
                     chapter_title,
                     chapter_desc,
                     gathered_content,
-                    language
+                    language,
+                    style_instructions
                 )
                 
                 # Save chapter
@@ -563,7 +576,8 @@ class ExecutorAgent:
         title: str,
         description: str,
         gathered_content: Dict[str, Any],
-        language: str
+        language: str,
+        style_instructions: str = ""
     ) -> str:
         """Generate content for a single chapter."""
         # Prepare content summary
@@ -579,11 +593,17 @@ class ExecutorAgent:
         system_prompt_template = self.prompts['executor']['chapter_generation_system_prompt']
         user_prompt_template = self.prompts['executor']['chapter_generation_user_prompt']
         
+        # Format style instructions section
+        style_instructions_section = ""
+        if style_instructions:
+            style_instructions_section = f"Style Instructions: {style_instructions}\nPlease write this chapter in accordance with these style guidelines."
+        
         system_prompt = system_prompt_template.format(
             language=language,
             chapter_number=chapter_num,
             title=title,
-            description=description
+            description=description,
+            style_instructions_section=style_instructions_section
         )
         
         user_prompt = user_prompt_template.format(

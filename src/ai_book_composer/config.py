@@ -61,6 +61,7 @@ class BookConfig(BaseModel):
     default_author: str = "AI Book Composer"
     quality_threshold: float = 0.7
     max_iterations: int = 3
+    style_instructions: str = ""  # Optional instructions to guide AI on book style
 
 
 class ParallelConfig(BaseModel):
@@ -184,7 +185,8 @@ class Settings:
                 'default_title': 'Composed Book',
                 'default_author': 'AI Book Composer',
                 'quality_threshold': 0.7,
-                'max_iterations': 3
+                'max_iterations': 3,
+                'style_instructions': ''
             },
             'logging': {
                 'level': 'INFO',
