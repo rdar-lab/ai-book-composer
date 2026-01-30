@@ -46,6 +46,10 @@ def test_config(tmp_path):
             'level': 'INFO',
             'file': str(tmp_path / 'test.log'),
             'console_output': True
+        },
+        'parallel': {
+            'parallel_execution': False,
+            'parallel_workers': 1
         }
     }
 

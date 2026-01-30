@@ -1,6 +1,7 @@
 """Enhanced tools with security, logging, and additional format support."""
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -12,11 +13,11 @@ from PyPDF2 import PdfReader
 from docx import Document as DocxDocument
 from faster_whisper import WhisperModel
 from striprtf.striprtf import rtf_to_text
-import logging
 
 from ..config import Settings
 
 logger = logging.getLogger(__name__)
+
 
 def is_path_safe(settings: Settings, base_path: Path, target_path: Path) -> bool:
     """Check if target path is within base path (prevent directory traversal).
@@ -70,7 +71,7 @@ class FileListingTool:
         self.input_directory = Path(input_directory).resolve()
         logger.info(f"FileListingTool initialized for directory: {self.input_directory}")
 
-    def run(self, **kwargs) -> List[Dict[str, str]]:
+    def run(self) -> List[Dict[str, str]]:
         """List files in the directory.
         
         Returns:
@@ -110,7 +111,6 @@ class TextFileReaderTool:
     def __init__(self, settings: Settings):
         super().__init__()
         self.settings = settings
-
 
     def run(self, file_path: str, start_line: int = 1, end_line: Optional[int] = None) -> Dict[str, Any]:
         """Read text file content.
@@ -780,7 +780,7 @@ class ImageListingTool:
         self.input_directory = Path(input_directory).resolve()
         logger.info(f"ImageListingTool initialized for directory: {self.input_directory}")
 
-    def run(self, **kwargs) -> List[Dict[str, Any]]:
+    def run(self) -> List[Dict[str, Any]]:
         """List image files in the directory.
         
         Returns:
