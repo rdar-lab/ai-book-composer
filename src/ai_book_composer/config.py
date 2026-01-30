@@ -69,6 +69,15 @@ class SecurityConfig(BaseModel):
     max_file_size_mb: int = 500
 
 
+class MCPServerConfig(BaseModel):
+    """MCP Server configuration."""
+    host: str = "127.0.0.1"
+    port: int = 8000
+    name: str = "ai-book-composer"
+    debug: bool = False
+    log_level: str = "INFO"
+
+
 class Settings:
     """Application settings loaded from YAML."""
     
@@ -108,6 +117,7 @@ class Settings:
         self.book = BookConfig(**self._config.get('book', {}))
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
+        self.mcp_server = MCPServerConfig(**self._config.get('mcp_server', {}))
         
         # Store provider configurations
         self.providers = self._config.get('providers', {})

@@ -195,6 +195,36 @@ The system uses the following specialized tools:
 - **ChapterListWriterTool**: Saves chapter planning
 - **BookGeneratorTool**: Generates final RTF book
 
+### Tool Integration with LangChain
+
+Tools are exposed to the LLM through LangChain's tool binding system, making them accessible during the execution flow. The `ToolRegistry` class manages all tools and converts them to LangChain-compatible format:
+
+```python
+from ai_book_composer.langchain_tools import ToolRegistry
+
+# Initialize tools
+registry = ToolRegistry(input_directory, output_directory)
+
+# Get LangChain tools for binding to LLM
+tools = registry.get_langchain_tools()
+
+# Bind tools to LLM
+llm_with_tools = llm.bind_tools(tools)
+```
+
+The executor agent automatically binds these tools to its LLM instance, allowing the AI to discover and use them during task execution. This architecture makes it easy to add new tools without modifying the core workflow.
+
+### MCP Server (Optional)
+
+For external integrations, tools can also be exposed through the **Model Context Protocol (MCP)** as a standalone server. This is useful for testing tools independently or integrating with other MCP-compatible clients:
+
+```bash
+# Run standalone MCP server (optional)
+python run_mcp_server.py /path/to/input /path/to/output
+```
+
+The MCP server provides the same tools through a standardized protocol but is **not required** for normal operation. The main workflow uses tools directly through LangChain's embedded tool system.
+
 ## Development
 
 ### Project Structure

@@ -3,19 +3,14 @@
 from typing import Dict, Any, List
 from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.sessions import StdioConnection
+import os
+import asyncio
 
 from ..llm import get_llm
 from ..config import load_prompts
 from ..progress_display import progress
-from ..tools import (
-    FileListingTool,
-    TextFileReaderTool,
-    AudioTranscriptionTool,
-    VideoTranscriptionTool,
-    ChapterWriterTool,
-    ChapterListWriterTool,
-    BookGeneratorTool
-)
 from .state import AgentState
 
 # Constants
@@ -34,17 +29,72 @@ class ExecutorAgent:
         self.input_directory = input_directory
         self.output_directory = output_directory
         
-        # Initialize tools
-        self.file_lister = FileListingTool(input_directory)
-        self.text_reader = TextFileReaderTool()
-        self.audio_transcriber = AudioTranscriptionTool()
-        self.video_transcriber = VideoTranscriptionTool()
-        self.chapter_writer = ChapterWriterTool(output_directory)
-        self.chapter_list_writer = ChapterListWriterTool(output_directory)
-        self.book_generator = BookGeneratorTool(output_directory)
+        # Get the path to the source directory for running as module
+        src_path = Path(__file__).parent.parent.parent  # Go up to project root
         
-        self.llm = get_llm(temperature=0.7)
+        # Configure MCP server connection via stdio
+        # The server will be launched as a subprocess and communicate via stdio
+        mcp_connections = {
+            "ai_book_composer_tools": StdioConnection(
+                command="python",
+                args=["-m", "ai_book_composer.mcp_server", "--stdio"],
+                env={
+                    "INPUT_DIRECTORY": str(Path(input_directory).resolve()),
+                    "OUTPUT_DIRECTORY": str(Path(output_directory).resolve()),
+                    "PYTHONPATH": str(src_path.resolve()),
+                    "SKIP_TRANSCRIPTION": "1",  # Skip transcription for faster startup
+                    **os.environ  # Include existing environment variables
+                },
+                transport="stdio"
+            )
+        }
+        
+        # Initialize MCP client to connect to the tool server
+        self.mcp_client = MultiServerMCPClient(connections=mcp_connections)
+        
+        # Get tools from MCP server (this will start the server subprocess)
+        # This is an async operation, so we need to run it in an event loop
+        self.langchain_tools = self._get_tools_sync()
+        
+        # Create a tool name to tool object mapping for direct invocation
+        self.tools_map = {tool.name: tool for tool in self.langchain_tools}
+        
+        # Initialize LLM with tools bound
+        self.llm = get_llm(temperature=0.7).bind_tools(self.langchain_tools)
         self.prompts = load_prompts()
+    
+    def _get_tools_sync(self):
+        """Get tools from MCP client synchronously."""
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is already running, we need to use a different approach
+                # This happens in async contexts like Jupyter notebooks
+                import nest_asyncio
+                nest_asyncio.apply()
+        except RuntimeError:
+            # No event loop, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(self.mcp_client.get_tools())
+    
+    def _invoke_tool(self, tool_name: str, **kwargs) -> Any:
+        """Invoke a tool by name with arguments.
+        
+        Args:
+            tool_name: Name of the tool to invoke
+            **kwargs: Tool arguments
+            
+        Returns:
+            Tool result
+        """
+        if tool_name not in self.tools_map:
+            raise ValueError(f"Tool {tool_name} not found")
+        
+        tool = self.tools_map[tool_name]
+        return tool.invoke(kwargs)
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.
@@ -116,7 +166,7 @@ class ExecutorAgent:
                 if extension in [".txt", ".md", ".rst"]:
                     # Read text file
                     progress.show_observation(f"Reading text file: {file_name}")
-                    result = self.text_reader.run(file_path)
+                    result = self._invoke_tool("read_text_file", file_path=file_path)
                     gathered_content[file_path] = {
                         "type": "text",
                         "content": result.get("content", "")
@@ -124,7 +174,7 @@ class ExecutorAgent:
                 elif extension in [".mp3", ".wav", ".m4a", ".flac"]:
                     # Transcribe audio
                     progress.show_observation(f"Transcribing audio file: {file_name}")
-                    result = self.audio_transcriber.run(file_path)
+                    result = self._invoke_tool("transcribe_audio", file_path=file_path)
                     gathered_content[file_path] = {
                         "type": "audio_transcription",
                         "content": result.get("transcription", "")
@@ -132,7 +182,7 @@ class ExecutorAgent:
                 elif extension in [".mp4", ".avi", ".mov", ".mkv"]:
                     # Transcribe video
                     progress.show_observation(f"Transcribing video file: {file_name}")
-                    result = self.video_transcriber.run(file_path)
+                    result = self._invoke_tool("transcribe_video", file_path=file_path)
                     gathered_content[file_path] = {
                         "type": "video_transcription",
                         "content": result.get("transcription", "")
@@ -199,7 +249,7 @@ class ExecutorAgent:
         
         # Save chapter list
         progress.show_action("Saving chapter plan to disk")
-        self.chapter_list_writer.run(chapter_list)
+        self._invoke_tool("write_chapter_list", chapters=chapter_list)
         
         # Dynamically add individual chapter generation tasks to the plan
         plan = state.get("plan", [])
@@ -261,7 +311,7 @@ class ExecutorAgent:
         )
         
         # Save chapter
-        self.chapter_writer.run(chapter_num, chapter_title, content)
+        self._invoke_tool("write_chapter", chapter_number=chapter_num, title=chapter_title, content=content)
         
         word_count = len(content.split())
         progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
@@ -353,9 +403,10 @@ class ExecutorAgent:
         progress.show_action(f"Generating final book: '{title}' by {author}")
         progress.show_observation(f"Compiling {len(chapters)} chapters and {len(references)} references into RTF format")
         
-        result = self.book_generator.run(
-            title=title,
-            author=author,
+        result = self._invoke_tool(
+            "generate_book",
+            book_title=title,
+            book_author=author,
             chapters=chapters,
             references=references
         )
