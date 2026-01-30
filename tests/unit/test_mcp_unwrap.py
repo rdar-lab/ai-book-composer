@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock
 
 from ai_book_composer import mcp_client
 

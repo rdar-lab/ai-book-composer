@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -83,6 +82,7 @@ def _unwrap_mcp_result(result: Any) -> Any:
                 return result['text']
         # For other types, return as-is (this might be a regular dict, not a wrapper)
         # since we can't be certain it's a wrapped result without type='text'
+        return result
     
     # Handle list of wrapped items
     if isinstance(result, list) and len(result) > 0:
