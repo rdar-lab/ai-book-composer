@@ -23,7 +23,7 @@ class AgentState(TypedDict):
     # Execution
     gathered_content: Dict[str, Any]
     chapter_list: List[Dict[str, Any]]
-    chapters: List[Dict[str, str]]  # chapters with images embedded
+    chapters: List[Dict[str, Any]]  # chapters with title, content, and optional images
     references: List[str]
     
     # Iteration and feedback

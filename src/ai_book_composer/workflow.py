@@ -139,7 +139,7 @@ class BookComposerWorkflow:
     
     def _critique_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for critique phase."""
-        show_node_transition("execute", "critique", "Execution complete, evaluating quality")
+        show_node_transition("decorate", "critique", "Image decoration complete, evaluating quality")
         return self.critic.critique(state)
     
     def _finalize_node(self, state: AgentState) -> Dict[str, Any]:

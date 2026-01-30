@@ -710,6 +710,11 @@ class ImageExtractorTool:
                     image_filename = f"{safe_filename}_page{page_num+1}_img{img_index+1}.{image_ext}"
                     image_path = self.images_directory / image_filename
                     
+                    # Security check
+                    if not is_path_safe(self.images_directory, image_path):
+                        logger.warning(f"Skipping unsafe image path: {image_path}")
+                        continue
+                    
                     # Check image size
                     image_size_mb = len(image_bytes) / (1024 * 1024)
                     if image_size_mb > settings.image_processing.max_image_size_mb:

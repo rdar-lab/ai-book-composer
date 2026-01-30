@@ -59,6 +59,7 @@ class DecoratorAgent:
                 chapter_title=chapter_title,
                 chapter_content_preview=content_preview,
                 available_images=images_summary,
+                all_images=images,
                 language=language
             )
             
@@ -108,6 +109,7 @@ class DecoratorAgent:
         chapter_title: str,
         chapter_content_preview: str,
         available_images: str,
+        all_images: List[Dict[str, Any]],
         language: str
     ) -> List[Dict[str, Any]]:
         """Get image placement suggestions from LLM.
@@ -117,6 +119,7 @@ class DecoratorAgent:
             chapter_title: Chapter title
             chapter_content_preview: Preview of chapter content
             available_images: Formatted list of available images
+            all_images: List of all available image dictionaries
             language: Target language
             
         Returns:
@@ -160,12 +163,23 @@ class DecoratorAgent:
                 result = json.loads(json_text)
                 placements = result.get("image_placements", [])
                 
+                # Validate that image paths in placements exist in available images
+                available_image_paths = {img.get("path") for img in all_images}
+                validated_placements = []
+                for placement in placements:
+                    image_path = placement.get("image_path", "")
+                    if image_path in available_image_paths:
+                        validated_placements.append(placement)
+                    else:
+                        # Log warning but don't fail - LLM might have made an error
+                        progress.update_status(f"Warning: Image path not found in available images: {image_path}")
+                
                 # Limit to max images per chapter
                 max_images = settings.image_processing.max_images_per_chapter
-                if len(placements) > max_images:
-                    placements = placements[:max_images]
+                if len(validated_placements) > max_images:
+                    validated_placements = validated_placements[:max_images]
                 
-                return placements
+                return validated_placements
             except json.JSONDecodeError as e:
                 progress.update_status(f"Warning: Could not parse decorator response as JSON: {e}")
                 return []
