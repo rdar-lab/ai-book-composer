@@ -71,6 +71,9 @@ def initialize_tools(input_directory: str, output_directory: str, skip_transcrip
     _file_lister = FileListingTool(input_directory)
     _text_reader = TextFileReaderTool()
     
+    # Check if we should skip transcription (via environment variable or parameter)
+    skip_transcription = skip_transcription or os.getenv("SKIP_TRANSCRIPTION", "").lower() in ("1", "true", "yes")
+    
     if not skip_transcription:
         _audio_transcriber = AudioTranscriptionTool()
         _video_transcriber = VideoTranscriptionTool()
@@ -265,35 +268,65 @@ def get_mcp_server() -> FastMCP:
 
 
 if __name__ == "__main__":
-    """Run the MCP server in standalone mode."""
+    """Run the MCP server in standalone mode (stdio or HTTP)."""
     import sys
     import asyncio
     
-    # Get directories from environment variables or arguments
-    input_dir = os.getenv("INPUT_DIRECTORY", ".")
-    output_dir = os.getenv("OUTPUT_DIRECTORY", "./output")
-    
-    if len(sys.argv) > 1:
-        input_dir = sys.argv[1]
-    if len(sys.argv) > 2:
-        output_dir = sys.argv[2]
-    
-    # Validate and create directories
-    input_path = Path(input_dir)
-    if not input_path.exists():
-        print(f"Error: Input directory does not exist: {input_dir}")
-        sys.exit(1)
-    
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize tools
-    initialize_tools(str(input_path.resolve()), str(output_path.resolve()))
-    
-    # Run the server
-    print(f"Starting AI Book Composer MCP Server")
-    print(f"Input directory: {input_path.resolve()}")
-    print(f"Output directory: {output_path.resolve()}")
-    print(f"Server will be available on http://{settings.mcp_server.host}:{settings.mcp_server.port}")
-    
-    asyncio.run(mcp.run())
+    # Check if running in stdio mode (when launched by MultiServerMCPClient)
+    # In stdio mode, sys.stdin and sys.stdout are used for communication
+    if len(sys.argv) > 1 and sys.argv[1] == "--stdio":
+        # Stdio mode for MCP adapter integration
+        from mcp.server.stdio import stdio_server
+        
+        # Get directories from environment variables
+        input_dir = os.getenv("INPUT_DIRECTORY", ".")
+        output_dir = os.getenv("OUTPUT_DIRECTORY", "./output")
+        
+        # Validate and create directories
+        input_path = Path(input_dir)
+        if not input_path.exists():
+            print(f"Error: Input directory does not exist: {input_dir}", file=sys.stderr)
+            sys.exit(1)
+        
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize tools
+        initialize_tools(str(input_path.resolve()), str(output_path.resolve()))
+        
+        # Run in stdio mode
+        async def main():
+            async with stdio_server() as (read_stream, write_stream):
+                await mcp.run(read_stream, write_stream, mcp.create_initialization_options())
+        
+        asyncio.run(main())
+    else:
+        # HTTP mode for standalone testing
+        # Get directories from environment variables or arguments
+        input_dir = os.getenv("INPUT_DIRECTORY", ".")
+        output_dir = os.getenv("OUTPUT_DIRECTORY", "./output")
+        
+        if len(sys.argv) > 1:
+            input_dir = sys.argv[1]
+        if len(sys.argv) > 2:
+            output_dir = sys.argv[2]
+        
+        # Validate and create directories
+        input_path = Path(input_dir)
+        if not input_path.exists():
+            print(f"Error: Input directory does not exist: {input_dir}")
+            sys.exit(1)
+        
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize tools
+        initialize_tools(str(input_path.resolve()), str(output_path.resolve()))
+        
+        # Run the server
+        print(f"Starting AI Book Composer MCP Server")
+        print(f"Input directory: {input_path.resolve()}")
+        print(f"Output directory: {output_path.resolve()}")
+        print(f"Server will be available on http://{settings.mcp_server.host}:{settings.mcp_server.port}")
+        
+        asyncio.run(mcp.run())

@@ -107,7 +107,7 @@ class BookComposerWorkflow:
         )
         
         progress.show_action(f"Listing files in: {self.input_directory}")
-        files = self.executor.tool_registry.list_files()
+        files = self.executor._invoke_tool("list_files")
         
         progress.show_observation(f"Found {len(files)} file(s) to process")
         if files:
