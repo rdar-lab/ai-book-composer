@@ -95,6 +95,11 @@ book:
   quality_threshold: 0.7
   max_iterations: 3
 
+# Parallel Execution Configuration
+parallel:
+  parallel_execution: 1  # Set to 0 to disable parallel execution, 1 to enable
+  parallel_workers: 4  # Number of worker threads/processes for parallel execution
+
 # Logging Configuration
 logging:
   level: INFO  # Options: DEBUG, INFO, WARNING, ERROR
