@@ -236,3 +236,121 @@ class TestStyleInstructionsIntegration:
             mock_workflow.assert_called_once()
             call_kwargs = mock_workflow.call_args[1]
             assert call_kwargs['style_instructions'] == 'professional reading material'
+
+
+class TestAgentPromptsWithStyleInstructions:
+    """Test that all agent prompts include style instructions."""
+    
+    def test_planner_prompt_includes_style_instructions(self):
+        """Test that planner prompt includes style instructions placeholder."""
+        from ai_book_composer.config import load_prompts
+        
+        prompts = load_prompts()
+        planner_prompt = prompts['planner']['system_prompt']
+        
+        # Check for placeholder
+        assert '{style_instructions_section}' in planner_prompt
+        assert '{language}' in planner_prompt
+        
+        # Test formatting with style instructions
+        style_section = "Style Instructions: I want an academic book\nPlease plan the book structure to match this style."
+        formatted = planner_prompt.format(
+            language='en-US',
+            style_instructions_section=style_section
+        )
+        assert 'I want an academic book' in formatted
+        assert 'Please plan the book structure to match this style.' in formatted
+    
+    def test_critic_prompt_includes_style_instructions(self):
+        """Test that critic prompt includes style instructions placeholder."""
+        from ai_book_composer.config import load_prompts
+        
+        prompts = load_prompts()
+        critic_prompt = prompts['critic']['system_prompt']
+        
+        # Check for placeholder
+        assert '{style_instructions_section}' in critic_prompt
+        assert '{language}' in critic_prompt
+        assert 'Style Adherence' in critic_prompt  # New evaluation criteria
+        
+        # Test formatting with style instructions
+        style_section = "Style Instructions: I want it to be light reading\nEvaluate whether the book adheres to this requested style."
+        formatted = critic_prompt.format(
+            language='en-US',
+            style_instructions_section=style_section
+        )
+        assert 'I want it to be light reading' in formatted
+        assert 'Evaluate whether the book adheres to this requested style.' in formatted
+    
+    def test_decorator_prompt_includes_style_instructions(self):
+        """Test that decorator prompt includes style instructions placeholder."""
+        from ai_book_composer.config import load_prompts
+        
+        prompts = load_prompts()
+        decorator_prompt = prompts['decorator']['system_prompt']
+        
+        # Check for placeholder
+        assert '{style_instructions_section}' in decorator_prompt
+        assert '{language}' in decorator_prompt
+        
+        # Test formatting with style instructions
+        style_section = "Style Instructions: I want professional reading material\nConsider this style when selecting and placing images."
+        formatted = decorator_prompt.format(
+            language='en-US',
+            max_images_per_chapter=5,
+            style_instructions_section=style_section
+        )
+        assert 'I want professional reading material' in formatted
+        assert 'Consider this style when selecting and placing images.' in formatted
+    
+    def test_executor_prompt_already_has_style_instructions(self):
+        """Test that executor prompt already includes style instructions (from previous implementation)."""
+        from ai_book_composer.config import load_prompts
+        
+        prompts = load_prompts()
+        executor_chapter_gen_prompt = prompts['executor']['chapter_generation_system_prompt']
+        
+        # Check for placeholder
+        assert '{style_instructions_section}' in executor_chapter_gen_prompt
+        assert '{language}' in executor_chapter_gen_prompt
+    
+    def test_all_prompts_work_with_empty_style_instructions(self):
+        """Test that all prompts work correctly when style instructions are empty."""
+        from ai_book_composer.config import load_prompts
+        
+        prompts = load_prompts()
+        
+        # Empty style section
+        empty_style = ""
+        
+        # Planner
+        planner_prompt = prompts['planner']['system_prompt'].format(
+            language='en-US',
+            style_instructions_section=empty_style
+        )
+        assert planner_prompt  # Should not be empty
+        
+        # Critic
+        critic_prompt = prompts['critic']['system_prompt'].format(
+            language='en-US',
+            style_instructions_section=empty_style
+        )
+        assert critic_prompt
+        
+        # Decorator
+        decorator_prompt = prompts['decorator']['system_prompt'].format(
+            language='en-US',
+            max_images_per_chapter=5,
+            style_instructions_section=empty_style
+        )
+        assert decorator_prompt
+        
+        # Executor
+        executor_prompt = prompts['executor']['chapter_generation_system_prompt'].format(
+            language='en-US',
+            chapter_number=1,
+            title='Test',
+            description='Test chapter',
+            style_instructions_section=empty_style
+        )
+        assert executor_prompt

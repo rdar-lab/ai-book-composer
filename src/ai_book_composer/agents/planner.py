@@ -31,6 +31,7 @@ class PlannerAgent:
         ):
             files = state.get("files", [])
             language = state.get("language", "en-US")
+            style_instructions = state.get("style_instructions", "")
             
             progress.show_thought(
                 f"Analyzing {len(files)} source file(s) to determine optimal book structure"
@@ -42,12 +43,21 @@ class PlannerAgent:
             progress.show_action("Generating comprehensive book plan with AI")
             
             # Load prompts from YAML and format with placeholders
-            system_prompt = self.prompts['planner']['system_prompt']
+            system_prompt_template = self.prompts['planner']['system_prompt']
             user_prompt_template = self.prompts['planner']['user_prompt']
             
+            # Format style instructions section
+            style_instructions_section = ""
+            if style_instructions:
+                style_instructions_section = f"Style Instructions: {style_instructions}\nPlease plan the book structure to match this style."
+            
+            system_prompt = system_prompt_template.format(
+                language=language,
+                style_instructions_section=style_instructions_section
+            )
+            
             user_prompt = user_prompt_template.format(
-                file_summary=file_summary,
-                language=language
+                file_summary=file_summary
             )
             
             messages = [
