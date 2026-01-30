@@ -165,8 +165,8 @@ class ExecutorAgent:
         extension = file_info.get("extension", "").lower()
         
         try:
-            if extension in [".txt", ".md", ".rst"]:
-                # Read text file
+            if extension in [".txt", ".md", ".rst", ".docx", ".rtf", ".pdf"]:
+                # Read text file (including PDF text content)
                 result = self._invoke_tool("read_text_file", file_path=file_path)
                 return {
                     "file_path": file_path,
