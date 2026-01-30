@@ -4,20 +4,14 @@ import json
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from ai_book_composer.agents.executor import ExecutorAgent
-from ai_book_composer.config import Settings
+from ai_book_composer import mcp_client
 
 
 class TestMCPResultUnwrapping:
-    """Test MCP result unwrapping functionality."""
+    """Test MCP result unwrapping functionality in mcp_client."""
 
     def test_unwrap_list_of_wrapped_items(self):
         """Test unwrapping a list of wrapped MCP results."""
-        # Create executor instance
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = []
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
         # Wrapped list result (as returned by langchain-mcp-adapters)
         wrapped_result = [
             {
@@ -43,7 +37,7 @@ class TestMCPResultUnwrapping:
         ]
 
         # Unwrap
-        result = executor._unwrap_mcp_result(wrapped_result)
+        result = mcp_client._unwrap_mcp_result(wrapped_result)
 
         # Verify
         assert isinstance(result, list)
@@ -55,10 +49,6 @@ class TestMCPResultUnwrapping:
 
     def test_unwrap_single_wrapped_dict(self):
         """Test unwrapping a single wrapped MCP result."""
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = []
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
         # Single wrapped dict result
         wrapped_result = {
             'id': 'lc_123',
@@ -67,7 +57,7 @@ class TestMCPResultUnwrapping:
         }
 
         # Unwrap
-        result = executor._unwrap_mcp_result(wrapped_result)
+        result = mcp_client._unwrap_mcp_result(wrapped_result)
 
         # Verify
         assert isinstance(result, dict)
@@ -76,10 +66,6 @@ class TestMCPResultUnwrapping:
 
     def test_unwrap_already_unwrapped_list(self):
         """Test that already unwrapped results pass through unchanged."""
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = []
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
         # Already unwrapped list
         unwrapped_result = [
             {"name": "file1.txt", "size": 100},
@@ -87,32 +73,24 @@ class TestMCPResultUnwrapping:
         ]
 
         # Process
-        result = executor._unwrap_mcp_result(unwrapped_result)
+        result = mcp_client._unwrap_mcp_result(unwrapped_result)
 
         # Should be unchanged
         assert result == unwrapped_result
 
     def test_unwrap_already_unwrapped_dict(self):
         """Test that already unwrapped dict passes through unchanged."""
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = []
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
         # Already unwrapped dict
         unwrapped_result = {"success": True, "count": 5}
 
         # Process
-        result = executor._unwrap_mcp_result(unwrapped_result)
+        result = mcp_client._unwrap_mcp_result(unwrapped_result)
 
         # Should be unchanged
         assert result == unwrapped_result
 
     def test_unwrap_plain_string_in_text_field(self):
         """Test unwrapping when text field contains plain string (not JSON)."""
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = []
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
         # Wrapped with plain text
         wrapped_result = {
             'id': 'lc_456',
@@ -121,13 +99,14 @@ class TestMCPResultUnwrapping:
         }
 
         # Unwrap
-        result = executor._unwrap_mcp_result(wrapped_result)
+        result = mcp_client._unwrap_mcp_result(wrapped_result)
 
         # Should return the plain text
         assert result == 'This is a plain text response'
 
-    def test_invoke_tool_unwraps_result(self):
-        """Test that _invoke_tool properly unwraps MCP results."""
+    @pytest.mark.asyncio
+    async def test_wrapped_tool_unwraps_result(self):
+        """Test that _wrap_tool_with_unwrap properly wraps tools."""
         # Create mock tool that returns wrapped result
         mock_tool = Mock()
         mock_tool.name = "list_files"
@@ -140,15 +119,17 @@ class TestMCPResultUnwrapping:
                 'type': 'text'
             }
         ]
-        mock_tool.ainvoke = AsyncMock(return_value=wrapped_result)
+        
+        async def mock_ainvoke(*args, **kwargs):
+            return wrapped_result
+            
+        mock_tool.ainvoke = mock_ainvoke
 
-        # Create executor with mock tool
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = [mock_tool]
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
+        # Wrap the tool
+        wrapped_tool = mcp_client._wrap_tool_with_unwrap(mock_tool)
 
         # Invoke tool
-        result = executor._invoke_tool("list_files")
+        result = await wrapped_tool.ainvoke({})
 
         # Verify result is unwrapped
         assert isinstance(result, list)
@@ -160,45 +141,32 @@ class TestMCPResultUnwrapping:
         assert "text" not in result[0]
         assert "type" not in result[0]
 
-    def test_invoke_tool_handles_empty_list(self):
-        """Test that _invoke_tool handles empty list results."""
-        mock_tool = Mock()
-        mock_tool.name = "list_files"
-        mock_tool.ainvoke = AsyncMock(return_value=[])
-
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = [mock_tool]
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
-        # Invoke tool
-        result = executor._invoke_tool("list_files")
-
-        # Should return empty list unchanged
+    def test_unwrap_empty_list(self):
+        """Test that empty list passes through unchanged."""
+        result = mcp_client._unwrap_mcp_result([])
         assert result == []
 
-    def test_unwrap_mixed_content_types(self):
-        """Test unwrapping when list has mixed content types."""
-        with patch('ai_book_composer.agents.executor.mcp_client.get_tools') as mock_get_tools:
-            mock_get_tools.return_value = []
-            executor = ExecutorAgent(Settings(), "/tmp", "/tmp")
-
-        # List with one wrapped item and one non-standard item
-        wrapped_result = [
-            {
-                'id': 'lc_1',
-                'text': json.dumps({"name": "file1.txt"}),
-                'type': 'text'
-            },
-            {
-                'id': 'lc_2',
-                'text': json.dumps({"name": "file2.txt"}),
-                'type': 'text'
-            }
+    def test_unwrap_partial_wrapped_list(self):
+        """Test list where not all items are wrapped (should return as-is)."""
+        # List with mixed content - not all items wrapped
+        mixed_result = [
+            {'id': 'lc_1', 'text': '{"name": "file1.txt"}', 'type': 'text'},
+            {'name': 'file2.txt', 'size': 200}  # Not wrapped
         ]
+        
+        # Should return as-is since not all items are wrapped
+        result = mcp_client._unwrap_mcp_result(mixed_result)
+        assert result == mixed_result
 
-        result = executor._unwrap_mcp_result(wrapped_result)
+    def test_unwrap_dict_with_non_text_type(self):
+        """Test that dicts with type != 'text' are returned as-is."""
+        wrapped_result = {
+            'id': 'lc_123',
+            'text': 'Some content',
+            'type': 'image'  # Not 'text'
+        }
+        
+        # Should return as-is
+        result = mcp_client._unwrap_mcp_result(wrapped_result)
+        assert result == wrapped_result
 
-        assert len(result) == 2
-        assert all(isinstance(item, dict) for item in result)
-        assert result[0]["name"] == "file1.txt"
-        assert result[1]["name"] == "file2.txt"

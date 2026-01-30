@@ -1,6 +1,5 @@
 """Executor agent - Phase 2 of Deep-Agent architecture."""
 import asyncio
-import json
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -37,50 +36,6 @@ class ExecutorAgent:
         self.llm = get_llm(settings, temperature=0.7).bind_tools(list(self.tools_map.values()))
         self.prompts = load_prompts()
 
-    def _unwrap_mcp_result(self, result: Any) -> Any:
-        """Unwrap MCP tool result from LangChain format.
-        
-        LangChain MCP adapters wrap tool results in formats like:
-        - List: [{'id': '...', 'text': '...', 'type': 'text'}, ...]
-        - Single dict: {'id': '...', 'text': '...', 'type': 'text'}
-        
-        This function unwraps them back to the original format.
-        
-        Args:
-            result: Tool result from langchain-mcp-adapters
-            
-        Returns:
-            Unwrapped result in original format
-        """
-        # Handle single wrapped item (dict)
-        if isinstance(result, dict) and 'text' in result and 'type' in result and 'id' in result:
-            if result.get('type') == 'text':
-                try:
-                    return json.loads(result['text'])
-                except (json.JSONDecodeError, TypeError):
-                    return result['text']
-        
-        # Handle list of wrapped items
-        if isinstance(result, list):
-            # Check if this is a wrapped result
-            if len(result) > 0 and isinstance(result[0], dict):
-                # Check if first item looks like a wrapped result
-                if 'text' in result[0] and 'type' in result[0] and 'id' in result[0]:
-                    # It's wrapped - unwrap each item
-                    unwrapped = []
-                    for item in result:
-                        if item.get('type') == 'text' and 'text' in item:
-                            try:
-                                unwrapped.append(json.loads(item['text']))
-                            except (json.JSONDecodeError, TypeError):
-                                unwrapped.append(item['text'])
-                        else:
-                            unwrapped.append(item)
-                    return unwrapped
-        
-        # If it's not wrapped, return as-is
-        return result
-
     def _invoke_tool(self, tool_name: str, **kwargs) -> Any:
         """Invoke a tool by name with arguments.
         
@@ -89,15 +44,14 @@ class ExecutorAgent:
             **kwargs: Tool arguments
             
         Returns:
-            Tool result (unwrapped from LangChain format)
+            Tool result (unwrapped automatically by mcp_client)
         """
         if tool_name not in self.tools_map:
             raise ValueError(f"Tool {tool_name} not found")
 
         tool = self.tools_map[tool_name]
 
-        result = asyncio.run(tool.ainvoke(kwargs))
-        return self._unwrap_mcp_result(result)
+        return asyncio.run(tool.ainvoke(kwargs))
 
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.
