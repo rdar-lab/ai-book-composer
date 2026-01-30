@@ -166,7 +166,7 @@ class ExecutorAgent:
         
         try:
             if extension in [".txt", ".md", ".rst", ".docx", ".rtf", ".pdf"]:
-                # Read text file (including PDF text content)
+                # Read text file (PDF text content extracted here, images extracted separately)
                 result = self._invoke_tool("read_text_file", file_path=file_path)
                 return {
                     "file_path": file_path,
