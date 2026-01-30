@@ -44,7 +44,7 @@ class ExecutorAgent:
             **kwargs: Tool arguments
             
         Returns:
-            Tool result
+            Tool result (unwrapped automatically by mcp_client)
         """
         if tool_name not in self.tools_map:
             raise ValueError(f"Tool {tool_name} not found")

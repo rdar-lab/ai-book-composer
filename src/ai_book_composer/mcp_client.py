@@ -1,6 +1,8 @@
 import asyncio
+import json
 import os
 from pathlib import Path
+from typing import Any
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.sessions import StdioConnection
@@ -54,7 +56,100 @@ def get_tools_sync(mcp_client):
     return loop.run_until_complete(mcp_client.get_tools())
 
 
+def _unwrap_mcp_result(result: Any) -> Any:
+    """Unwrap MCP tool result from LangChain format.
+    
+    LangChain MCP adapters wrap tool results in formats like:
+    - List: [{'id': '...', 'text': '...', 'type': 'text'}, ...]
+    - Single dict: {'id': '...', 'text': '...', 'type': 'text'}
+    
+    This function unwraps them back to the original format.
+    
+    Args:
+        result: Tool result from langchain-mcp-adapters
+        
+    Returns:
+        Unwrapped result in original format
+    """
+    # Handle single wrapped item (dict)
+    if isinstance(result, dict) and 'text' in result and 'type' in result and 'id' in result:
+        # Only unwrap if type is 'text' (standard MCP wrapper format)
+        if result.get('type') == 'text':
+            try:
+                return json.loads(result['text'])
+            except (json.JSONDecodeError, TypeError):
+                # If parsing fails, return the text as-is
+                return result['text']
+        # For other types, return as-is (this might be a regular dict, not a wrapper)
+        # since we can't be certain it's a wrapped result without type='text'
+        return result
+    
+    # Handle list of wrapped items
+    if isinstance(result, list) and len(result) > 0:
+        # Check if all items look like wrapped results
+        all_wrapped = all(
+            isinstance(item, dict) and 
+            'text' in item and 
+            'type' in item and 
+            'id' in item and 
+            item.get('type') == 'text'
+            for item in result
+        )
+        
+        if all_wrapped:
+            # All items are wrapped - unwrap each one
+            unwrapped = []
+            for item in result:
+                try:
+                    unwrapped.append(json.loads(item['text']))
+                except (json.JSONDecodeError, TypeError):
+                    # If parsing fails, keep the text as-is
+                    unwrapped.append(item['text'])
+            return unwrapped
+    
+    # If it's not wrapped, return as-is
+    return result
+
+
+def _wrap_tool_with_unwrap(tool):
+    """Wrap a tool's ainvoke method to automatically unwrap MCP results.
+    
+    Args:
+        tool: LangChain tool from MCP adapter
+        
+    Returns:
+        Tool with wrapped ainvoke method
+    """
+    original_ainvoke = tool.ainvoke
+    
+    async def unwrapping_ainvoke(*args, **kwargs):
+        """Wrapped ainvoke that unwraps MCP results."""
+        result = await original_ainvoke(*args, **kwargs)
+        return _unwrap_mcp_result(result)
+    
+    # Replace the ainvoke method
+    tool.ainvoke = unwrapping_ainvoke
+    return tool
+
+
 def get_tools(settings, input_directory: str, output_directory: str):
+    """Get MCP tools with automatic result unwrapping.
+    
+    Returns tools from the MCP server with their ainvoke methods wrapped
+    to automatically unwrap LangChain's MCP result format.
+    
+    Args:
+        settings: Application settings
+        input_directory: Input directory path
+        output_directory: Output directory path
+        
+    Returns:
+        List of tools with unwrapping applied
+    """
     mcp_client = init_mcp_client(settings, input_directory, output_directory)
     tools = get_tools_sync(mcp_client)
-    return tools
+    
+    # Wrap each tool's ainvoke method with unwrapping logic
+    wrapped_tools = [_wrap_tool_with_unwrap(tool) for tool in tools]
+    
+    return wrapped_tools
