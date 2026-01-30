@@ -5,6 +5,9 @@ langchain-openai>=0.0.5
 langchain-google-genai>=0.0.6
 langchain-community>=0.0.20
 
+# Local LLM support (embedded ollama)
+llama-cpp-python>=0.2.0
+
 # Audio/Video processing
 ffmpeg-python>=0.2.0
 faster-whisper>=0.10.0

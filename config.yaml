@@ -2,8 +2,8 @@
 
 # LLM Configuration
 llm:
-  provider: openai  # Options: openai, gemini, azure, ollama
-  model: gpt-4
+  provider: ollama_embedded  # Options: openai, gemini, azure, ollama, ollama_embedded
+  model: llama-3.2-1b-instruct
   temperature:
     planning: 0.3
     execution: 0.7
@@ -25,6 +25,14 @@ providers:
   ollama:
     base_url: http://localhost:11434
     model: llama2  # Specify the model name for Ollama
+  
+  ollama_embedded:
+    # Embedded (in-process) ollama execution using llama.cpp
+    model_path: models/llama-3.2-1b-instruct.gguf  # Path to GGUF model file
+    n_ctx: 2048  # Context window size
+    n_threads: 4  # Number of CPU threads to use
+    n_gpu_layers: 0  # Number of layers to offload to GPU (0 for CPU only)
+    verbose: false  # Enable verbose output
 
 # Whisper Configuration (for audio/video transcription)
 whisper:

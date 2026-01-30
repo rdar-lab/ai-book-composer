@@ -11,7 +11,8 @@ AI Book Composer is a tool that automatically generates high-quality books from 
 - **Multi-format Support**: Process text files, audio files (with transcription), and video files (with transcription)
 - **Image Support**: Extract images from PDF files and embed them in generated books
 - **Deep-Agent Architecture**: Implements Plan → Execute → Decorate → Iterate → Verify workflow
-- **Multiple LLM Providers**: Supports OpenAI GPT, Google Gemini, Azure OpenAI, and Ollama
+- **Multiple LLM Providers**: Supports OpenAI GPT, Google Gemini, Azure OpenAI, Ollama (server), and Embedded Ollama (in-process)
+- **No API Keys Required**: Default configuration uses embedded ollama and local whisper - runs completely offline
 - **LangGraph Orchestration**: Uses LangGraph for robust workflow management
 - **Quality-Focused**: Iterative refinement with critic feedback for high-quality output
 - **Comprehensive Output**: Generates books with title page, table of contents, chapters, references, and embedded images in RTF format
@@ -83,8 +84,8 @@ The project uses YAML configuration files. Copy `config.yaml` and customize as n
 ```yaml
 # LLM Configuration
 llm:
-  provider: openai  # Options: openai, gemini, azure, ollama
-  model: gpt-4
+  provider: ollama_embedded  # Options: openai, gemini, azure, ollama, ollama_embedded
+  model: llama-3.2-1b-instruct
 
 # Provider-specific settings (use environment variables for API keys)
 providers:
@@ -99,6 +100,16 @@ providers:
   ollama:
     base_url: http://localhost:11434
     model: llama2  # Specify Ollama model name
+  ollama_embedded:
+    # Embedded (in-process) ollama execution using llama.cpp
+    model_path: models/llama-3.2-1b-instruct.gguf  # Path to GGUF model file
+    n_ctx: 2048  # Context window size
+    n_threads: 4  # Number of CPU threads to use
+    n_gpu_layers: 0  # Number of layers to offload to GPU (0 for CPU only)
+
+# Whisper Configuration (for audio/video transcription)
+whisper:
+  mode: local  # Options: local, remote (default: local for no API keys needed)
 
 # Text file reading configuration
 text_reading:
@@ -411,7 +422,7 @@ export AZURE_OPENAI_DEPLOYMENT=your-deployment
 export LLM_PROVIDER=azure
 ```
 
-### Ollama (Local)
+### Ollama (Server-based)
 ```bash
 # Start Ollama server
 ollama serve
@@ -424,6 +435,41 @@ export LLM_PROVIDER=ollama
 export LLM_MODEL=llama2
 export OLLAMA_BASE_URL=http://localhost:11434
 ```
+
+### Embedded Ollama (Default - No Server Required)
+
+The default configuration uses embedded ollama execution, which runs models in-process without requiring an external server or API keys.
+
+```bash
+# 1. Download a GGUF model file (e.g., from HuggingFace)
+# For example, download llama-3.2-1b-instruct in GGUF format
+mkdir -p models
+# Download from: https://huggingface.co/models?search=gguf
+
+# 2. Update config.yaml with the model path
+# providers:
+#   ollama_embedded:
+#     model_path: models/llama-3.2-1b-instruct.gguf
+
+# 3. Run (no additional setup needed!)
+ai-book-composer -i input -o output
+
+# Optional: Configure via environment (overrides config.yaml)
+export LLM_PROVIDER=ollama_embedded
+```
+
+**Advantages of Embedded Ollama:**
+- ✅ No external server required
+- ✅ No API keys needed
+- ✅ Runs completely offline
+- ✅ Default configuration (works out of the box)
+- ✅ Lower latency (in-process execution)
+
+**Model Requirements:**
+- Models must be in GGUF format (used by llama.cpp)
+- Available from HuggingFace, TheBloke, and other sources
+- Smaller models (1B-7B parameters) work well on CPU
+- Larger models benefit from GPU acceleration
 
 ## Examples
 
