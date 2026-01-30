@@ -14,6 +14,7 @@ class AgentState(TypedDict):
     
     # Files information
     files: List[Dict[str, Any]]
+    images: List[Dict[str, Any]]  # Available images
     
     # Planning
     plan: List[Dict[str, Any]]
@@ -22,7 +23,7 @@ class AgentState(TypedDict):
     # Execution
     gathered_content: Dict[str, Any]
     chapter_list: List[Dict[str, Any]]
-    chapters: List[Dict[str, str]]
+    chapters: List[Dict[str, str]]  # chapters with images embedded
     references: List[str]
     
     # Iteration and feedback
@@ -64,6 +65,7 @@ def create_initial_state(
         output_directory=output_directory,
         language=language,
         files=[],
+        images=[],
         plan=[],
         current_task_index=0,
         gathered_content={},

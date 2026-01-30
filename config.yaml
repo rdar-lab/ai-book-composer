@@ -50,6 +50,18 @@ text_reading:
     - rtf
     - pdf
 
+# Image Processing Configuration
+image_processing:
+  supported_formats:
+    - jpg
+    - jpeg
+    - png
+    - gif
+    - bmp
+  extract_from_pdf: true  # Extract images from PDF files
+  max_image_size_mb: 10  # Maximum size per image
+  max_images_per_chapter: 5  # Maximum images to place per chapter
+
 # Audio/Video Processing Configuration
 media_processing:
   audio_formats:

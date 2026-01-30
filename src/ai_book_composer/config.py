@@ -46,6 +46,14 @@ class MediaProcessingConfig(BaseModel):
     max_file_duration: int = 3600
 
 
+class ImageProcessingConfig(BaseModel):
+    """Image processing configuration."""
+    supported_formats: list = Field(default_factory=lambda: ["jpg", "jpeg", "png", "gif", "bmp"])
+    extract_from_pdf: bool = True
+    max_image_size_mb: int = 10
+    max_images_per_chapter: int = 5
+
+
 class BookConfig(BaseModel):
     """Book configuration."""
     output_language: str = "en-US"
@@ -114,6 +122,7 @@ class Settings:
         self.whisper = WhisperConfig(**self._config.get('whisper', {}))
         self.text_reading = TextReadingConfig(**self._config.get('text_reading', {}))
         self.media_processing = MediaProcessingConfig(**self._config.get('media_processing', {}))
+        self.image_processing = ImageProcessingConfig(**self._config.get('image_processing', {}))
         self.book = BookConfig(**self._config.get('book', {}))
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
@@ -156,6 +165,12 @@ class Settings:
                 'video_formats': ['mp4', 'avi', 'mov', 'mkv'],
                 'chunk_duration': 300,
                 'max_file_duration': 3600
+            },
+            'image_processing': {
+                'supported_formats': ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
+                'extract_from_pdf': True,
+                'max_image_size_mb': 10,
+                'max_images_per_chapter': 5
             },
             'book': {
                 'output_language': 'en-US',
