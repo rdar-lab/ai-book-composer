@@ -63,6 +63,12 @@ class BookConfig(BaseModel):
     max_iterations: int = 3
 
 
+class ParallelConfig(BaseModel):
+    """Parallel execution configuration."""
+    parallel_execution: bool = True  # true=enabled, false=disabled
+    parallel_workers: int = Field(default=4, ge=1, le=32)  # 1-32 workers
+
+
 class LoggingConfig(BaseModel):
     """Logging configuration."""
     level: str = "INFO"
@@ -127,6 +133,7 @@ class Settings:
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
         self.mcp_server = MCPServerConfig(**self._config.get('mcp_server', {}))
+        self.parallel = ParallelConfig(**self._config.get('parallel', {}))
         
         # Store provider configurations
         self.providers = self._config.get('providers', {})
@@ -188,6 +195,10 @@ class Settings:
             'security': {
                 'allow_directory_traversal': False,
                 'max_file_size_mb': 500
+            },
+            'parallel': {
+                'parallel_execution': True,
+                'parallel_workers': 4
             },
             'providers': {
                 'openai': {'api_key': os.environ.get('OPENAI_API_KEY', '')},

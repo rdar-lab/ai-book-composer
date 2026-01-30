@@ -12,6 +12,7 @@ from ..llm import get_llm
 from ..config import load_prompts
 from ..progress_display import progress
 from .state import AgentState
+from ..parallel_utils import execute_parallel, is_parallel_enabled
 
 # Constants
 MIN_SUBSTANTIAL_CONTENT_LENGTH = 100
@@ -132,6 +133,8 @@ class ExecutorAgent:
                 result = self._gather_content(state)
             elif task_type == "plan_chapters":
                 result = self._plan_chapters(state)
+            elif task_type == "generate_chapters":
+                result = self._generate_chapters_parallel(state)
             elif task_type == "generate_single_chapter":
                 result = self._generate_single_chapter(state, current_task)
             elif task_type == "compile_references":
@@ -148,6 +151,102 @@ class ExecutorAgent:
             
             return result
     
+    def _process_single_file(self, file_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a single file and return its content.
+        
+        Args:
+            file_info: Dictionary with file information (path, name, extension)
+            
+        Returns:
+            Dictionary with file_path, type, content, and status
+        """
+        file_path = file_info.get("path", "")
+        file_name = file_info.get("name", "")
+        extension = file_info.get("extension", "").lower()
+        
+        try:
+            if extension in [".txt", ".md", ".rst", ".docx", ".rtf", ".pdf"]:
+                # Read text file (PDF text content extracted here, images extracted separately)
+                result = self._invoke_tool("read_text_file", file_path=file_path)
+                return {
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "type": "text",
+                    "content": result.get("content", ""),
+                    "status": "success"
+                }
+            elif extension in [".mp3", ".wav", ".m4a", ".flac"]:
+                # Transcribe audio
+                result = self._invoke_tool("transcribe_audio", file_path=file_path)
+                return {
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "type": "audio_transcription",
+                    "content": result.get("transcription", ""),
+                    "status": "success"
+                }
+            elif extension in [".mp4", ".avi", ".mov", ".mkv"]:
+                # Transcribe video
+                result = self._invoke_tool("transcribe_video", file_path=file_path)
+                return {
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "type": "video_transcription",
+                    "content": result.get("transcription", ""),
+                    "status": "success"
+                }
+            else:
+                # Unsupported file type
+                return {
+                    "file_path": file_path,
+                    "file_name": file_name,
+                    "type": "unsupported",
+                    "content": f"File type {extension} is not supported",
+                    "status": "skipped"
+                }
+        except Exception as e:
+            return {
+                "file_path": file_path,
+                "file_name": file_name,
+                "type": "error",
+                "content": f"Error processing file: {str(e)}",
+                "status": "error"
+            }
+    
+    def _extract_images_from_single_pdf(self, pdf_file: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract images from a single PDF file.
+        
+        Args:
+            pdf_file: Dictionary with PDF file information
+            
+        Returns:
+            Dictionary with images and status
+        """
+        pdf_path = pdf_file.get("path", "")
+        pdf_name = pdf_file.get("name", "")
+        
+        try:
+            result = self._invoke_tool("extract_images_from_pdf", file_path=pdf_path)
+            if result.get("success"):
+                return {
+                    "pdf_name": pdf_name,
+                    "images": result.get("images", []),
+                    "status": "success"
+                }
+            else:
+                return {
+                    "pdf_name": pdf_name,
+                    "images": [],
+                    "status": "no_images"
+                }
+        except Exception as e:
+            return {
+                "pdf_name": pdf_name,
+                "images": [],
+                "status": "error",
+                "error": str(e)
+            }
+    
     def _gather_content(self, state: AgentState) -> Dict[str, Any]:
         """Gather content from all source files."""
         files = state.get("files", [])
@@ -155,56 +254,41 @@ class ExecutorAgent:
         
         progress.show_thought(f"Need to process {len(files)} source file(s) and extract their content")
         
-        for i, file_info in enumerate(files, 1):
-            file_path = file_info.get("path", "")
-            file_name = file_info.get("name", "")
-            extension = file_info.get("extension", "").lower()
+        if is_parallel_enabled():
+            progress.show_observation(f"Parallel execution enabled - processing files in parallel")
+        
+        # Process files (potentially in parallel)
+        file_results = execute_parallel(self._process_single_file, files)
+        
+        # Process results and show progress
+        for i, result in enumerate(file_results, 1):
+            file_path = result.get("file_path", "")
+            file_name = result.get("file_name", "")
+            status = result.get("status", "")
+            content = result.get("content", "")
+            file_type = result.get("type", "")
             
             progress.show_action(f"Processing file {i}/{len(files)}: {file_name}")
             
-            try:
-                if extension in [".txt", ".md", ".rst"]:
-                    # Read text file
-                    progress.show_observation(f"Reading text file: {file_name}")
-                    result = self._invoke_tool("read_text_file", file_path=file_path)
-                    gathered_content[file_path] = {
-                        "type": "text",
-                        "content": result.get("content", "")
-                    }
-                elif extension in [".mp3", ".wav", ".m4a", ".flac"]:
-                    # Transcribe audio
-                    progress.show_observation(f"Transcribing audio file: {file_name}")
-                    result = self._invoke_tool("transcribe_audio", file_path=file_path)
-                    gathered_content[file_path] = {
-                        "type": "audio_transcription",
-                        "content": result.get("transcription", "")
-                    }
-                elif extension in [".mp4", ".avi", ".mov", ".mkv"]:
-                    # Transcribe video
-                    progress.show_observation(f"Transcribing video file: {file_name}")
-                    result = self._invoke_tool("transcribe_video", file_path=file_path)
-                    gathered_content[file_path] = {
-                        "type": "video_transcription",
-                        "content": result.get("transcription", "")
-                    }
-                else:
-                    # Unsupported file type
-                    progress.show_observation(f"⚠ Skipping unsupported file type: {file_name} ({extension})")
-                    gathered_content[file_path] = {
-                        "type": "unsupported",
-                        "content": f"File type {extension} is not supported"
-                    }
-                    continue
-                
-                content_length = len(gathered_content.get(file_path, {}).get("content", ""))
-                progress.show_observation(f"✓ Processed {file_name} ({content_length} characters)")
-                
-            except Exception as e:
-                progress.show_observation(f"✗ Error processing {file_name}: {str(e)}")
+            if status == "success":
                 gathered_content[file_path] = {
-                    "type": "error",
-                    "content": f"Error processing file: {str(e)}"
+                    "type": file_type,
+                    "content": content
                 }
+                content_length = len(content)
+                progress.show_observation(f"✓ Processed {file_name} ({content_length} characters)")
+            elif status == "skipped":
+                gathered_content[file_path] = {
+                    "type": file_type,
+                    "content": content
+                }
+                progress.show_observation(f"⚠ Skipping unsupported file type: {file_name}")
+            else:  # error
+                gathered_content[file_path] = {
+                    "type": file_type,
+                    "content": content
+                }
+                progress.show_observation(f"✗ Error processing {file_name}: {content}")
         
         # Gather images from input directory and extract from PDFs
         progress.show_thought("Gathering images from input directory")
@@ -220,20 +304,31 @@ class ExecutorAgent:
         except Exception as e:
             progress.show_observation(f"⚠ Error listing images: {str(e)}")
         
-        # Extract images from PDF files
+        # Extract images from PDF files (potentially in parallel)
         pdf_files = [f for f in files if f.get("extension", "").lower() == ".pdf"]
         if pdf_files:
             progress.show_action(f"Extracting images from {len(pdf_files)} PDF file(s)")
-            for pdf_file in pdf_files:
-                pdf_path = pdf_file.get("path", "")
-                try:
-                    result = self._invoke_tool("extract_images_from_pdf", file_path=pdf_path)
-                    if result.get("success"):
-                        extracted = result.get("images", [])
-                        all_images.extend(extracted)
-                        progress.show_observation(f"✓ Extracted {len(extracted)} image(s) from {pdf_file.get('name')}")
-                except Exception as e:
-                    progress.show_observation(f"⚠ Error extracting images from {pdf_file.get('name')}: {str(e)}")
+            
+            if is_parallel_enabled():
+                progress.show_observation(f"Parallel execution enabled - extracting images in parallel")
+            
+            # Extract images from PDFs (potentially in parallel)
+            pdf_results = execute_parallel(self._extract_images_from_single_pdf, pdf_files)
+            
+            # Process results
+            for result in pdf_results:
+                pdf_name = result.get("pdf_name", "")
+                status = result.get("status", "")
+                images = result.get("images", [])
+                
+                if status == "success":
+                    all_images.extend(images)
+                    progress.show_observation(f"✓ Extracted {len(images)} image(s) from {pdf_name}")
+                elif status == "error":
+                    error_msg = result.get("error", "Unknown error")
+                    progress.show_observation(f"⚠ Error extracting images from {pdf_name}: {error_msg}")
+                else:
+                    progress.show_observation(f"⚠ No images found in {pdf_name}")
         
         progress.show_observation(f"Image gathering complete: {len(all_images)} total image(s) available")
         
@@ -281,36 +376,51 @@ class ExecutorAgent:
         progress.show_action("Saving chapter plan to disk")
         self._invoke_tool("write_chapter_list", chapters=chapter_list)
         
-        # Dynamically add individual chapter generation tasks to the plan
+        # Dynamically add chapter generation tasks to the plan
         plan = state.get("plan", [])
         current_task_index = state.get("current_task_index", 0)
         
-        progress.show_action("Creating individual tasks for each chapter generation")
+        # Check if parallel execution is enabled
+        if is_parallel_enabled():
+            progress.show_action("Parallel execution enabled - will generate all chapters in parallel")
+            # Keep the generate_chapters task to handle all chapters at once
+            new_plan = []
+            for i, task in enumerate(plan):
+                if i < current_task_index + 1:
+                    # Keep tasks that are already done or current
+                    new_plan.append(task)
+                else:
+                    # Keep all other tasks as is (including generate_chapters)
+                    new_plan.append(task)
+        else:
+            progress.show_action("Creating individual tasks for sequential chapter generation")
+            # Find the "generate_chapters" task and replace it with individual chapter tasks
+            new_plan = []
+            for i, task in enumerate(plan):
+                if i < current_task_index + 1:
+                    # Keep tasks that are already done or current
+                    new_plan.append(task)
+                elif task.get("task") == "generate_chapters":
+                    # Replace with individual chapter tasks
+                    for chapter_info in chapter_list:
+                        chapter_num = chapter_info.get("number")
+                        chapter_title = chapter_info.get("title")
+                        new_plan.append({
+                            "task": "generate_single_chapter",
+                            "description": f"Generate Chapter {chapter_num}: {chapter_title}",
+                            "status": "pending",
+                            "chapter_number": chapter_num,
+                            "chapter_title": chapter_title,
+                            "chapter_description": chapter_info.get("description", "")
+                        })
+                else:
+                    # Keep other tasks (compile_references, generate_book)
+                    new_plan.append(task)
         
-        # Find the "generate_chapters" task and replace it with individual chapter tasks
-        new_plan = []
-        for i, task in enumerate(plan):
-            if i < current_task_index + 1:
-                # Keep tasks that are already done or current
-                new_plan.append(task)
-            elif task.get("task") == "generate_chapters":
-                # Replace with individual chapter tasks
-                for chapter_info in chapter_list:
-                    chapter_num = chapter_info.get("number")
-                    chapter_title = chapter_info.get("title")
-                    new_plan.append({
-                        "task": "generate_single_chapter",
-                        "description": f"Generate Chapter {chapter_num}: {chapter_title}",
-                        "status": "pending",
-                        "chapter_number": chapter_num,
-                        "chapter_title": chapter_title,
-                        "chapter_description": chapter_info.get("description", "")
-                    })
-            else:
-                # Keep other tasks (compile_references, generate_book)
-                new_plan.append(task)
-        
-        progress.show_observation(f"Updated plan with {len(chapter_list)} individual chapter generation tasks")
+        if is_parallel_enabled():
+            progress.show_observation(f"Plan ready for parallel chapter generation")
+        else:
+            progress.show_observation(f"Updated plan with {len(chapter_list)} individual chapter generation tasks")
         
         return {
             "chapter_list": chapter_list,
@@ -353,6 +463,93 @@ class ExecutorAgent:
             "title": chapter_title,
             "content": content
         })
+        
+        return {
+            "chapters": chapters,
+            "current_task_index": state.get("current_task_index", 0) + 1,
+            "status": "executing"
+        }
+    
+    def _generate_chapters_parallel(self, state: AgentState) -> Dict[str, Any]:
+        """Generate all chapters in parallel.
+        
+        This method is used when parallel execution is enabled to generate
+        all chapters at once using parallel processing.
+        """
+        chapter_list = state.get("chapter_list", [])
+        gathered_content = state.get("gathered_content", {})
+        language = state.get("language", "en-US")
+        
+        if not chapter_list:
+            progress.show_observation("⚠ No chapters to generate")
+            return {
+                "current_task_index": state.get("current_task_index", 0) + 1,
+                "status": "executing"
+            }
+        
+        progress.show_thought(f"Generating {len(chapter_list)} chapters in parallel")
+        progress.show_observation(f"Parallel execution enabled - generating chapters concurrently")
+        
+        # Create a helper function for parallel execution
+        def generate_chapter_wrapper(chapter_info: Dict[str, Any]) -> Dict[str, Any]:
+            """Wrapper function to generate a single chapter for parallel execution."""
+            chapter_num = chapter_info.get("number", 0)
+            chapter_title = chapter_info.get("title", "Untitled")
+            chapter_desc = chapter_info.get("description", "")
+            
+            progress.show_action(f"Generating Chapter {chapter_num}: {chapter_title}")
+            
+            try:
+                # Generate chapter content
+                content = self._generate_chapter_content(
+                    chapter_num,
+                    chapter_title,
+                    chapter_desc,
+                    gathered_content,
+                    language
+                )
+                
+                # Save chapter
+                self._invoke_tool("write_chapter", chapter_number=chapter_num, title=chapter_title, content=content)
+                
+                word_count = len(content.split())
+                progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
+                
+                return {
+                    "number": chapter_num,
+                    "title": chapter_title,
+                    "content": content,
+                    "status": "success"
+                }
+            except Exception as e:
+                progress.show_observation(f"✗ Error generating Chapter {chapter_num}: {str(e)}")
+                return {
+                    "number": chapter_num,
+                    "title": chapter_title,
+                    "content": "",
+                    "status": "error",
+                    "error": str(e)
+                }
+        
+        # Generate all chapters in parallel
+        chapter_results = execute_parallel(generate_chapter_wrapper, chapter_list)
+        
+        # Sort results by chapter number to maintain order
+        chapter_results.sort(key=lambda x: x.get("number", 0))
+        
+        # Filter out errors and create final chapter list
+        chapters = []
+        for result in chapter_results:
+            if result.get("status") == "success":
+                chapters.append({
+                    "number": result.get("number"),
+                    "title": result.get("title"),
+                    "content": result.get("content")
+                })
+            else:
+                progress.show_observation(f"⚠ Chapter {result.get('number')} failed: {result.get('error', 'Unknown error')}")
+        
+        progress.show_observation(f"✓ Generated {len(chapters)}/{len(chapter_list)} chapters successfully")
         
         return {
             "chapters": chapters,
