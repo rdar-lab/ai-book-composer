@@ -177,7 +177,7 @@ class BookGeneratorTool:
                 "error": str(e)
             }
     
-    def _add_image_to_section(self, section: Section, img_info: Dict[str, Any], style_sheet) -> None:
+    def _add_image_to_section(self, section, img_info: Dict[str, Any], style_sheet) -> None:
         """Add an image to the document section.
         
         Args:
