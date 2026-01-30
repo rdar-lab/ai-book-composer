@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 
 class LLMConfig(BaseModel):
     """LLM configuration."""
-    provider: str = "openai"
-    model: str = "gpt-4"
+    provider: str = "ollama_embedded"
+    model: str = "llama-3.2-1b-instruct"
     temperature: Dict[str, float] = Field(default_factory=lambda: {
         "planning": 0.3,
         "execution": 0.7,
@@ -146,8 +146,8 @@ class Settings:
         """Get default configuration."""
         return {
             'llm': {
-                'provider': 'openai',
-                'model': 'gpt-4',
+                'provider': 'ollama_embedded',
+                'model': 'llama-3.2-3b-instruct',
                 'temperature': {'planning': 0.3, 'execution': 0.7, 'critique': 0.2}
             },
             'whisper': {
@@ -200,6 +200,13 @@ class Settings:
                 'ollama': {
                     'base_url': 'http://localhost:11434',
                     'model': 'llama2'
+                },
+                'ollama_embedded': {
+                    'model_name': 'llama-3.2-3b-instruct',
+                    'n_ctx': 2048,
+                    'n_threads': 4,
+                    'run_on_gpu': False,
+                    'verbose': False
                 }
             }
         }
