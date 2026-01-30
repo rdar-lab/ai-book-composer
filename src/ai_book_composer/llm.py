@@ -87,6 +87,15 @@ def get_llm(
                     package_dir = Path(__file__).parent.parent.parent
                     model_path_obj = package_dir / model_path
             
+            # Verify model file exists
+            if not model_path_obj.exists():
+                logger.error(f"Model file not found: {model_path_obj}")
+                raise FileNotFoundError(
+                    f"Embedded Ollama model file not found: {model_path_obj}\n"
+                    f"Please download a GGUF model file and update the model_path in your configuration.\n"
+                    f"You can find GGUF models at: https://huggingface.co/models?search=gguf"
+                )
+            
             model_path_str = str(model_path_obj)
             
             logger.info(f"Using embedded Ollama model: {model_path_str}")

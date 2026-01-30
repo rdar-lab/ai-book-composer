@@ -105,7 +105,15 @@ class TestLLMProvider:
                 'verbose': False
             }
             
-            get_llm(temperature=0.7, provider='ollama_embedded')
+            # Mock Path to make it look like the file exists
+            with patch('ai_book_composer.llm.Path') as mock_path:
+                mock_path_obj = MagicMock()
+                mock_path_obj.is_absolute.return_value = False
+                mock_path_obj.exists.return_value = True
+                mock_path_obj.__str__.return_value = 'models/test-model.gguf'
+                mock_path.return_value = mock_path_obj
+                
+                get_llm(temperature=0.7, provider='ollama_embedded')
             
             mock_llamacpp.assert_called_once()
             call_kwargs = mock_llamacpp.call_args[1]
@@ -114,6 +122,21 @@ class TestLLMProvider:
             assert call_kwargs['n_ctx'] == 2048
             assert call_kwargs['n_threads'] == 4
             assert call_kwargs['n_gpu_layers'] == 0
+    
+    def test_embedded_ollama_missing_model_file(self):
+        """Test that embedded ollama raises error when model file doesn't exist."""
+        with patch('ai_book_composer.llm.settings') as mock_settings:
+            mock_settings.llm.provider = 'ollama_embedded'
+            mock_settings.get_provider_config.return_value = {
+                'model_path': 'models/nonexistent-model.gguf',
+                'n_ctx': 2048,
+                'n_threads': 4,
+                'n_gpu_layers': 0,
+                'verbose': False
+            }
+            
+            with pytest.raises(FileNotFoundError, match="model file not found"):
+                get_llm(provider='ollama_embedded')
     
     def test_unsupported_provider(self):
         """Test that unsupported provider raises error."""

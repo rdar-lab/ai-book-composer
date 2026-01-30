@@ -462,12 +462,11 @@ export LLM_PROVIDER=ollama_embedded
 - ✅ No external server required
 - ✅ No API keys needed
 - ✅ Runs completely offline
-- ✅ Default configuration (works out of the box)
 - ✅ Lower latency (in-process execution)
 
 **Model Requirements:**
 - Models must be in GGUF format (used by llama.cpp)
-- Available from HuggingFace, TheBloke, and other sources
+- Available from Hugging Face, TheBloke, and other sources
 - Smaller models (1B-7B parameters) work well on CPU
 - Larger models benefit from GPU acceleration
 
