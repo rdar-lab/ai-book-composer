@@ -12,9 +12,9 @@ def is_parallel_enabled() -> bool:
     """Check if parallel execution is enabled.
     
     Returns:
-        True if parallel execution is enabled, False otherwise
+        True if parallel execution is enabled (parallel_execution != 0), False otherwise
     """
-    return settings.parallel.parallel_execution == 1
+    return settings.parallel.parallel_execution != 0
 
 
 def get_worker_count() -> int:

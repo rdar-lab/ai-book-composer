@@ -65,7 +65,7 @@ class BookConfig(BaseModel):
 
 class ParallelConfig(BaseModel):
     """Parallel execution configuration."""
-    parallel_execution: int = 1  # 0=disabled, 1=enabled
+    parallel_execution: int = 1  # 1=enabled, 0=disabled
     parallel_workers: int = 4
 
 
