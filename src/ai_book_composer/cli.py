@@ -59,6 +59,12 @@ console = Console()
     type=int,
     help="Maximum revision iterations"
 )
+@click.option(
+    "--style-instructions",
+    "-s",
+    default=None,
+    help="Instructions to guide the AI on book style (e.g., 'academic book', 'light reading', 'professional reading material')"
+)
 def main(
     config: str,
     input_dir: str,
@@ -66,7 +72,8 @@ def main(
     title: str,
     author: str,
     language: str,
-    max_iterations: int
+    max_iterations: int,
+    style_instructions: str
 ):
     """AI Book Composer - Generate comprehensive books from source files.
     
@@ -91,6 +98,7 @@ def main(
     author = author or settings.book.default_author
     language = language or settings.book.output_language
     max_iterations = max_iterations or settings.book.max_iterations
+    style_instructions = style_instructions or settings.book.style_instructions
     
     console.print(Panel.fit(
         "[bold blue]AI Book Composer[/bold blue]\n"
@@ -112,6 +120,8 @@ def main(
     config_table.add_row("LLM Provider", settings.llm.provider)
     config_table.add_row("LLM Model", settings.llm.model)
     config_table.add_row("Max Iterations", str(max_iterations))
+    if style_instructions:
+        config_table.add_row("Style Instructions", style_instructions)
     
     console.print(config_table)
     console.print()
@@ -129,7 +139,8 @@ def main(
             language=language,
             book_title=title,
             book_author=author,
-            max_iterations=max_iterations
+            max_iterations=max_iterations,
+            style_instructions=style_instructions
         )
         
         # Run workflow

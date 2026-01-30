@@ -122,12 +122,38 @@ book:
   default_author: AI Book Composer
   quality_threshold: 0.7
   max_iterations: 3
+  style_instructions: ""  # Optional: Guide the AI on book style
 
 # Parallel execution configuration
 parallel:
   parallel_execution: 1  # 1 = enabled, 0 = disabled (default: enabled)
   parallel_workers: 4    # Number of parallel workers (default: 4)
 ```
+
+### Book Style Instructions
+
+You can guide the AI on what kind of book to generate by providing style instructions. This helps the AI tailor the tone, language, and structure to your preferences.
+
+Examples of style instructions:
+- `"I want an academic book"` - Produces formal, scholarly content with technical precision
+- `"I want it to be light reading"` - Creates accessible, easy-to-read content
+- `"I want it to be professional reading material"` - Generates business-appropriate, polished content
+- `"I want it to be kids/fun reading material"` - Makes content engaging and appropriate for younger audiences
+
+To use style instructions, add them to your configuration file:
+
+```yaml
+book:
+  style_instructions: "I want an academic book with formal language and in-depth analysis"
+```
+
+Or provide them via the command line:
+
+```bash
+ai-book-composer -i input -o output --style-instructions "I want it to be light reading"
+```
+
+**Note**: Style instructions are optional. If not provided, the AI will generate content in a neutral, informative style.
 
 ### Parallel Execution
 
@@ -166,7 +192,8 @@ ai-book-composer \
   --title "My Book Title" \
   --author "Author Name" \
   --language en-US \
-  --max-iterations 3
+  --max-iterations 3 \
+  --style-instructions "I want an academic book"
 ```
 
 ### Options
@@ -177,6 +204,7 @@ ai-book-composer \
 - `--author, -a`: Book author (default: "AI Book Composer")
 - `--language, -l`: Target language (default: "en-US")
 - `--max-iterations`: Maximum revision iterations (default: 3)
+- `--style-instructions, -s`: Instructions to guide the AI on book style (optional)
 
 ### Python API
 
@@ -190,7 +218,8 @@ workflow = BookComposerWorkflow(
     language="en-US",
     book_title="My Book",
     book_author="Author Name",
-    max_iterations=3
+    max_iterations=3,
+    style_instructions="I want an academic book"  # Optional
 )
 
 # Run workflow
@@ -504,6 +533,42 @@ ai-book-composer \
   -o ./output \
   -t "Comprehensive Guide" \
   -a "AI Book Composer"
+```
+
+### Example 4: Academic Book with Style Instructions
+
+```bash
+# Generate an academic-style book from research papers
+ai-book-composer \
+  -i ./research-papers \
+  -o ./output \
+  -t "Research Compilation" \
+  -a "Dr. Jane Smith" \
+  --style-instructions "I want an academic book with formal language, in-depth analysis, and proper citation style"
+```
+
+### Example 5: Light Reading Book
+
+```bash
+# Generate a casual, easy-to-read book
+ai-book-composer \
+  -i ./blog-posts \
+  -o ./output \
+  -t "Easy Reading Collection" \
+  -a "John Doe" \
+  --style-instructions "I want it to be light reading with a conversational tone and simple explanations"
+```
+
+### Example 6: Professional Book
+
+```bash
+# Generate a professional business book
+ai-book-composer \
+  -i ./business-documents \
+  -o ./output \
+  -t "Business Insights" \
+  -a "Corporate Authors" \
+  --style-instructions "I want it to be professional reading material suitable for executives and managers"
 ```
 
 ## Contributing

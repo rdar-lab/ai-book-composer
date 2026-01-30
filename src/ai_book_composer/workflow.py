@@ -24,7 +24,8 @@ class BookComposerWorkflow:
         language: str = "en-US",
         book_title: str = "Composed Book",
         book_author: str = "AI Book Composer",
-        max_iterations: int = 3
+        max_iterations: int = 3,
+        style_instructions: str = ""
     ):
         """Initialize the workflow.
         
@@ -35,6 +36,7 @@ class BookComposerWorkflow:
             book_title: Title of the book
             book_author: Author name
             max_iterations: Maximum revision iterations
+            style_instructions: Instructions to guide AI on book style
         """
         self.input_directory = input_directory
         self.output_directory = output_directory
@@ -42,6 +44,7 @@ class BookComposerWorkflow:
         self.book_title = book_title
         self.book_author = book_author
         self.max_iterations = max_iterations
+        self.style_instructions = style_instructions
         
         # Initialize agents
         self.planner = PlannerAgent()
@@ -212,7 +215,8 @@ class BookComposerWorkflow:
             {
                 "book_title": self.book_title,
                 "book_author": self.book_author,
-                "language": self.language
+                "language": self.language,
+                "style_instructions": self.style_instructions
             }
         )
         
@@ -222,7 +226,8 @@ class BookComposerWorkflow:
             output_directory=self.output_directory,
             language=self.language,
             book_title=self.book_title,
-            book_author=self.book_author
+            book_author=self.book_author,
+            style_instructions=self.style_instructions
         )
         
         # Run the graph

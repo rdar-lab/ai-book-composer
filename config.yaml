@@ -94,6 +94,7 @@ book:
   default_author: AI Book Composer
   quality_threshold: 0.7
   max_iterations: 3
+  style_instructions: ""  # Optional: Guide the AI on book style (e.g., "I want an academic book", "I want it to be light reading", "I want it to be professional reading material")
 
 # Parallel Execution Configuration
 parallel:

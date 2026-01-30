@@ -37,6 +37,7 @@ class CriticAgent:
             references = state.get("references", [])
             book_title = state.get("book_title", "")
             language = state.get("language", "en-US")
+            style_instructions = state.get("style_instructions", "")
             
             if not chapters:
                 progress.show_observation("No chapters found to critique")
@@ -56,12 +57,21 @@ class CriticAgent:
             progress.show_action("Requesting AI critique of the generated book")
             
             # Load prompts from YAML and format with placeholders
-            system_prompt = self.prompts['critic']['system_prompt']
+            system_prompt_template = self.prompts['critic']['system_prompt']
             user_prompt_template = self.prompts['critic']['user_prompt']
+            
+            # Format style instructions section
+            style_instructions_section = ""
+            if style_instructions:
+                style_instructions_section = f"Style Instructions: {style_instructions}\nEvaluate whether the book adheres to this requested style."
+            
+            system_prompt = system_prompt_template.format(
+                language=language,
+                style_instructions_section=style_instructions_section
+            )
             
             user_prompt = user_prompt_template.format(
                 book_title=book_title,
-                language=language,
                 chapter_count=len(chapters),
                 reference_count=len(references),
                 chapter_summaries=chapter_summaries

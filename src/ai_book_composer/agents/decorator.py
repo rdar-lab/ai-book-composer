@@ -31,6 +31,7 @@ class DecoratorAgent:
         chapters = state.get("chapters", [])
         images = state.get("images", [])
         language = state.get("language", "en-US")
+        style_instructions = state.get("style_instructions", "")
         
         if not images:
             progress.update_status("Decorator: No images available, skipping decoration")
@@ -60,7 +61,8 @@ class DecoratorAgent:
                 chapter_content_preview=content_preview,
                 available_images=images_summary,
                 all_images=images,
-                language=language
+                language=language,
+                style_instructions=style_instructions
             )
             
             # Create decorated chapter with image placements
@@ -110,7 +112,8 @@ class DecoratorAgent:
         chapter_content_preview: str,
         available_images: str,
         all_images: List[Dict[str, Any]],
-        language: str
+        language: str,
+        style_instructions: str = ""
     ) -> List[Dict[str, Any]]:
         """Get image placement suggestions from LLM.
         
@@ -121,15 +124,23 @@ class DecoratorAgent:
             available_images: Formatted list of available images
             all_images: List of all available image dictionaries
             language: Target language
+            style_instructions: Style instructions for the book
             
         Returns:
             List of image placement dictionaries
         """
         try:
             decorator_prompts = self.prompts.get("decorator", {})
+            
+            # Format style instructions section
+            style_instructions_section = ""
+            if style_instructions:
+                style_instructions_section = f"Style Instructions: {style_instructions}\nConsider this style when selecting and placing images."
+            
             system_prompt = decorator_prompts.get("system_prompt", "").format(
                 language=language,
-                max_images_per_chapter=settings.image_processing.max_images_per_chapter
+                max_images_per_chapter=settings.image_processing.max_images_per_chapter,
+                style_instructions_section=style_instructions_section
             )
             user_prompt = decorator_prompts.get("user_prompt", "").format(
                 chapter_number=chapter_number,

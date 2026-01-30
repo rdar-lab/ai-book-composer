@@ -11,6 +11,7 @@ class AgentState(TypedDict):
     input_directory: str
     output_directory: str
     language: str
+    style_instructions: str  # Instructions to guide AI on book style
     
     # Files information
     files: List[Dict[str, Any]]
@@ -46,7 +47,8 @@ def create_initial_state(
     output_directory: str,
     language: str = "en-US",
     book_title: str = "Composed Book",
-    book_author: str = "AI Book Composer"
+    book_author: str = "AI Book Composer",
+    style_instructions: str = ""
 ) -> AgentState:
     """Create initial agent state.
     
@@ -56,6 +58,7 @@ def create_initial_state(
         language: Target language for the book
         book_title: Title of the book
         book_author: Author name
+        style_instructions: Instructions to guide AI on book style
         
     Returns:
         Initial agent state
@@ -64,6 +67,7 @@ def create_initial_state(
         input_directory=input_directory,
         output_directory=output_directory,
         language=language,
+        style_instructions=style_instructions,
         files=[],
         images=[],
         plan=[],
