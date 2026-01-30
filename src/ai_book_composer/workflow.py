@@ -8,7 +8,8 @@ from .agents import (
     create_initial_state,
     PlannerAgent,
     ExecutorAgent,
-    CriticAgent
+    CriticAgent,
+    DecoratorAgent
 )
 from .progress_display import progress, show_workflow_start, show_node_transition
 
@@ -45,6 +46,7 @@ class BookComposerWorkflow:
         # Initialize agents
         self.planner = PlannerAgent()
         self.executor = ExecutorAgent(input_directory, output_directory)
+        self.decorator = DecoratorAgent()
         self.critic = CriticAgent()
         
         # Build graph
@@ -63,6 +65,7 @@ class BookComposerWorkflow:
         workflow.add_node("list_files", self._list_files_node)
         workflow.add_node("plan", self._plan_node)
         workflow.add_node("execute", self._execute_node)
+        workflow.add_node("decorate", self._decorate_node)
         workflow.add_node("critique", self._critique_node)
         workflow.add_node("finalize", self._finalize_node)
         
@@ -79,9 +82,12 @@ class BookComposerWorkflow:
             self._should_continue_execution,
             {
                 "continue": "execute",
-                "critique": "critique"
+                "decorate": "decorate"
             }
         )
+        
+        # Edge from decorate to critique
+        workflow.add_edge("decorate", "critique")
         
         # Conditional edge from critique
         workflow.add_conditional_edges(
@@ -126,6 +132,11 @@ class BookComposerWorkflow:
         show_node_transition(prev_node, "execute", "Executing next task")
         return self.executor.execute(state)
     
+    def _decorate_node(self, state: AgentState) -> Dict[str, Any]:
+        """Node for decorator phase."""
+        show_node_transition("execute", "decorate", "Adding images to chapters")
+        return self.decorator.decorate(state)
+    
     def _critique_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for critique phase."""
         show_node_transition("execute", "critique", "Execution complete, evaluating quality")
@@ -153,7 +164,7 @@ class BookComposerWorkflow:
         return {"status": "completed"}
     
     def _should_continue_execution(self, state: AgentState) -> str:
-        """Determine if execution should continue or move to critique.
+        """Determine if execution should continue or move to decorator.
         
         Args:
             state: Current state
@@ -166,7 +177,7 @@ class BookComposerWorkflow:
         plan = state.get("plan", [])
         
         if status == "book_generated" or current_task_index >= len(plan):
-            return "critique"
+            return "decorate"
         else:
             return "continue"
     
