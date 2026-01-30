@@ -195,51 +195,35 @@ The system uses the following specialized tools:
 - **ChapterListWriterTool**: Saves chapter planning
 - **BookGeneratorTool**: Generates final RTF book
 
-### MCP Server
+### Tool Integration with LangChain
 
-The tools are exposed through the **Model Context Protocol (MCP)**, making them easily accessible to LLMs and enabling simple addition of new tools.
+Tools are exposed to the LLM through LangChain's tool binding system, making them accessible during the execution flow. The `ToolRegistry` class manages all tools and converts them to LangChain-compatible format:
 
-#### Running the MCP Server
+```python
+from ai_book_composer.langchain_tools import ToolRegistry
 
-To start the MCP server that exposes all tools:
+# Initialize tools
+registry = ToolRegistry(input_directory, output_directory)
+
+# Get LangChain tools for binding to LLM
+tools = registry.get_langchain_tools()
+
+# Bind tools to LLM
+llm_with_tools = llm.bind_tools(tools)
+```
+
+The executor agent automatically binds these tools to its LLM instance, allowing the AI to discover and use them during task execution. This architecture makes it easy to add new tools without modifying the core workflow.
+
+### MCP Server (Optional)
+
+For external integrations, tools can also be exposed through the **Model Context Protocol (MCP)** as a standalone server. This is useful for testing tools independently or integrating with other MCP-compatible clients:
 
 ```bash
-# Using the standalone script
+# Run standalone MCP server (optional)
 python run_mcp_server.py /path/to/input /path/to/output
-
-# Or with environment variables
-INPUT_DIRECTORY=/path/to/input OUTPUT_DIRECTORY=/path/to/output python run_mcp_server.py
-
-# Default directories (current dir for input, ./output for output)
-python run_mcp_server.py
 ```
 
-The MCP server will be available at `http://127.0.0.1:8000` by default.
-
-#### MCP Server Configuration
-
-Configure the MCP server in `config.yaml`:
-
-```yaml
-mcp_server:
-  host: 127.0.0.1
-  port: 8000
-  name: ai-book-composer
-  debug: false
-  log_level: INFO
-```
-
-#### Available MCP Tools
-
-When running as an MCP server, the following tools are available:
-
-1. **list_files**: List all files in the input directory
-2. **read_text_file**: Read content from text files with optional line range
-3. **transcribe_audio**: Transcribe audio files to text
-4. **transcribe_video**: Transcribe video files to text
-5. **write_chapter**: Write a chapter to a file
-6. **write_chapter_list**: Write the list of planned chapters
-7. **generate_book**: Generate the final book in RTF format
+The MCP server provides the same tools through a standardized protocol but is **not required** for normal operation. The main workflow uses tools directly through LangChain's embedded tool system.
 
 ## Development
 

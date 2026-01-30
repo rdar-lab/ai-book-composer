@@ -10,7 +10,6 @@ from .agents import (
     ExecutorAgent,
     CriticAgent
 )
-from .tools import FileListingTool
 from .progress_display import progress, show_workflow_start, show_node_transition
 
 
@@ -47,7 +46,6 @@ class BookComposerWorkflow:
         self.planner = PlannerAgent()
         self.executor = ExecutorAgent(input_directory, output_directory)
         self.critic = CriticAgent()
-        self.file_lister = FileListingTool(input_directory)
         
         # Build graph
         self.graph = self._build_graph()
@@ -109,7 +107,7 @@ class BookComposerWorkflow:
         )
         
         progress.show_action(f"Listing files in: {self.input_directory}")
-        files = self.file_lister.run()
+        files = self.executor.tool_registry.list_files()
         
         progress.show_observation(f"Found {len(files)} file(s) to process")
         if files:

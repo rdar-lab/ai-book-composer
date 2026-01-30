@@ -7,15 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..llm import get_llm
 from ..config import load_prompts
 from ..progress_display import progress
-from ..tools import (
-    FileListingTool,
-    TextFileReaderTool,
-    AudioTranscriptionTool,
-    VideoTranscriptionTool,
-    ChapterWriterTool,
-    ChapterListWriterTool,
-    BookGeneratorTool
-)
+from ..langchain_tools import ToolRegistry
 from .state import AgentState
 
 # Constants
@@ -34,16 +26,14 @@ class ExecutorAgent:
         self.input_directory = input_directory
         self.output_directory = output_directory
         
-        # Initialize tools
-        self.file_lister = FileListingTool(input_directory)
-        self.text_reader = TextFileReaderTool()
-        self.audio_transcriber = AudioTranscriptionTool()
-        self.video_transcriber = VideoTranscriptionTool()
-        self.chapter_writer = ChapterWriterTool(output_directory)
-        self.chapter_list_writer = ChapterListWriterTool(output_directory)
-        self.book_generator = BookGeneratorTool(output_directory)
+        # Initialize tool registry with LangChain-compatible tools
+        self.tool_registry = ToolRegistry(input_directory, output_directory)
         
-        self.llm = get_llm(temperature=0.7)
+        # Get LangChain tools for LLM binding
+        self.langchain_tools = self.tool_registry.get_langchain_tools()
+        
+        # Initialize LLM with tools bound
+        self.llm = get_llm(temperature=0.7).bind_tools(self.langchain_tools)
         self.prompts = load_prompts()
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
@@ -116,7 +106,7 @@ class ExecutorAgent:
                 if extension in [".txt", ".md", ".rst"]:
                     # Read text file
                     progress.show_observation(f"Reading text file: {file_name}")
-                    result = self.text_reader.run(file_path)
+                    result = self.tool_registry.read_text_file(file_path)
                     gathered_content[file_path] = {
                         "type": "text",
                         "content": result.get("content", "")
@@ -124,7 +114,7 @@ class ExecutorAgent:
                 elif extension in [".mp3", ".wav", ".m4a", ".flac"]:
                     # Transcribe audio
                     progress.show_observation(f"Transcribing audio file: {file_name}")
-                    result = self.audio_transcriber.run(file_path)
+                    result = self.tool_registry.transcribe_audio(file_path)
                     gathered_content[file_path] = {
                         "type": "audio_transcription",
                         "content": result.get("transcription", "")
@@ -132,7 +122,7 @@ class ExecutorAgent:
                 elif extension in [".mp4", ".avi", ".mov", ".mkv"]:
                     # Transcribe video
                     progress.show_observation(f"Transcribing video file: {file_name}")
-                    result = self.video_transcriber.run(file_path)
+                    result = self.tool_registry.transcribe_video(file_path)
                     gathered_content[file_path] = {
                         "type": "video_transcription",
                         "content": result.get("transcription", "")
@@ -199,7 +189,7 @@ class ExecutorAgent:
         
         # Save chapter list
         progress.show_action("Saving chapter plan to disk")
-        self.chapter_list_writer.run(chapter_list)
+        self.tool_registry.write_chapter_list(chapter_list)
         
         # Dynamically add individual chapter generation tasks to the plan
         plan = state.get("plan", [])
@@ -261,7 +251,7 @@ class ExecutorAgent:
         )
         
         # Save chapter
-        self.chapter_writer.run(chapter_num, chapter_title, content)
+        self.tool_registry.write_chapter(chapter_num, chapter_title, content)
         
         word_count = len(content.split())
         progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
@@ -353,9 +343,9 @@ class ExecutorAgent:
         progress.show_action(f"Generating final book: '{title}' by {author}")
         progress.show_observation(f"Compiling {len(chapters)} chapters and {len(references)} references into RTF format")
         
-        result = self.book_generator.run(
-            title=title,
-            author=author,
+        result = self.tool_registry.generate_book(
+            book_title=title,
+            book_author=author,
             chapters=chapters,
             references=references
         )
