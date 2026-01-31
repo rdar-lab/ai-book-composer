@@ -1,5 +1,5 @@
 """Integration test using Docker and Ollama."""
-
+import uuid
 from pathlib import Path
 
 import pytest
@@ -46,7 +46,7 @@ def test_config(tmp_path):
             'max_iterations': 1
         },
         'logging': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'file': str(tmp_path / 'test.log'),
             'console_output': True
         },
@@ -69,29 +69,27 @@ def test_input(tmp_path):
     input_dir = tmp_path / "input"
     input_dir.mkdir()
 
-    # Create test text files
-    (input_dir / "article1.txt").write_text(
-        "Introduction to AI\n\n"
-        "Artificial Intelligence is a fascinating field.\n"
-        "It encompasses many technologies and approaches.\n"
-    )
-
-    (input_dir / "article2.txt").write_text(
-        "Machine Learning Basics\n\n"
-        "Machine learning is a subset of AI.\n"
-        "It focuses on pattern recognition and learning from data.\n"
-    )
+    # Copy all files from the /tests/fixtures directory to the input directory
+    fixtures_dir = Path(__file__).parent.parent / "fixtures"
+    for file in fixtures_dir.iterdir():
+        if file.is_file():
+            dest_file = input_dir / file.name
+            dest_file.write_bytes(file.read_bytes())
 
     return str(input_dir)
 
 
-def test_book_generation_end_to_end(test_config, test_input, tmp_path):
+def test_book_generation_end_to_end(test_config, test_input):
     """Test complete book generation workflow."""
 
     settings = Settings(test_config)
 
-    output_dir = tmp_path / "output"
-    output_dir.mkdir()
+    # Get project root path
+    project_root = Path(__file__).parent.parent.parent
+
+    # Generate a random output directory inside the 'ROOT'/output folder
+    output_dir = project_root / "output" / f"{uuid.uuid4()}"
+    output_dir.mkdir(parents=True)
 
     print(f"Running book generation test...")
     print(f"Input: {test_input}")
