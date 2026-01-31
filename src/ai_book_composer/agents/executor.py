@@ -5,10 +5,9 @@ from typing import Dict, Any, List
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from .agent_base import AgentBase
 from .state import AgentState
-from .. import mcp_client
-from ..config import load_prompts, Settings
-from ..llm import get_llm
+from ..config import Settings
 from ..parallel_utils import execute_parallel, is_parallel_enabled
 from ..progress_display import progress
 
@@ -23,37 +22,18 @@ MAX_CHAPTER_COUNT = 10
 logger = logging.getLogger(__name__)
 
 
-class ExecutorAgent:
+class ExecutorAgent(AgentBase):
     """The Executor (Worker) - performs tasks using available tools."""
 
     def __init__(self, settings: Settings, input_directory: str, output_directory: str):
-        self.settings = settings
-        self.input_directory = input_directory
-        self.output_directory = output_directory
-
-        tools = mcp_client.get_tools(settings, input_directory, output_directory)
-        self.tools_map = {tool.name: tool for tool in tools}
-
-        # Initialize LLM with tools bound
-        self.llm = get_llm(settings, temperature=0.7).bind_tools(list(self.tools_map.values()))
-        self.prompts = load_prompts()
-
-    def _invoke_tool(self, tool_name: str, **kwargs) -> Any:
-        """Invoke a tool by name with arguments.
-        
-        Args:
-            tool_name: Name of the tool to invoke
-            **kwargs: Tool arguments
-            
-        Returns:
-            Tool result
-        """
-        if tool_name not in self.tools_map:
-            raise ValueError(f"Tool {tool_name} not found")
-
-        tool = self.tools_map[tool_name]
-
-        return mcp_client.invoke_tool(tool, **kwargs)
+        super().__init__(
+            settings,
+            llm_temperature=0.7,
+            cache_llm=not settings.parallel.parallel_execution,
+            bind_tools=True,
+            input_directory=input_directory,
+            output_directory=output_directory
+        )
 
     def list_files(self) -> List[Dict[str, Any]]:
         """List all files in the input directory using the appropriate tool.

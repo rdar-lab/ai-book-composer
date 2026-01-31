@@ -4,19 +4,17 @@ from typing import Dict, Any, List
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from .agent_base import AgentBase
 from .state import AgentState
-from ..config import load_prompts, Settings
-from ..llm import get_llm
+from ..config import Settings
 from ..progress_display import progress
 
 
-class PlannerAgent:
+class PlannerAgent(AgentBase):
     """The Planner (Product Manager) - generates structured plans."""
 
     def __init__(self, settings: Settings):
-        self.settings = settings
-        self.llm = get_llm(settings, temperature=0.3)
-        self.prompts = load_prompts()
+        super().__init__(settings, llm_temperature=0.3)
 
     def plan(self, state: AgentState) -> Dict[str, Any]:
         """Generate a structured plan for creating the book.
@@ -32,47 +30,51 @@ class PlannerAgent:
                 "Analyzing source files and creating a structured plan for book generation"
         ):
             files = state.get("files", [])
-            language = state.get("language", "en-US")
-            style_instructions = state.get("style_instructions", "")
 
-            progress.show_thought(
-                f"Analyzing {len(files)} source file(s) to determine optimal book structure"
-            )
+            if not self.settings.llm.static_plan:
+                progress.show_thought(
+                    f"Analyzing {len(files)} source file(s) to determine optimal book structure"
+                )
 
-            # Build file summary
-            file_summary = self._summarize_files(files)
+                # Build file summary
+                file_summary = self._summarize_files(files)
 
-            progress.show_action("Generating comprehensive book plan with AI")
+                progress.show_action("Generating comprehensive book plan with AI")
 
-            # Load prompts from YAML and format with placeholders
-            system_prompt_template = self.prompts['planner']['system_prompt']
-            user_prompt_template = self.prompts['planner']['user_prompt']
+                # Load prompts from YAML and format with placeholders
+                system_prompt_template = self.prompts['planner']['system_prompt']
+                user_prompt_template = self.prompts['planner']['user_prompt']
 
-            # Format style instructions section
-            style_instructions_section = ""
-            if style_instructions:
-                style_instructions_section = f"Style Instructions: {style_instructions}\nPlease plan the book structure to match this style."
+                language = state.get("language", "en-US")
+                style_instructions = state.get("style_instructions", "")
 
-            system_prompt = system_prompt_template.format(
-                language=language,
-                style_instructions_section=style_instructions_section
-            )
+                # Format style instructions section
+                style_instructions_section = ""
+                if style_instructions:
+                    style_instructions_section = f"Style Instructions: {style_instructions}\nPlease plan the book structure to match this style."
 
-            user_prompt = user_prompt_template.format(
-                file_summary=file_summary
-            )
+                system_prompt = system_prompt_template.format(
+                    language=language,
+                    style_instructions_section=style_instructions_section
+                )
 
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
+                user_prompt = user_prompt_template.format(
+                    file_summary=file_summary
+                )
 
-            response = self.llm.invoke(messages)
+                messages = [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt)
+                ]
 
-            progress.show_observation("Received plan from AI, parsing into structured tasks")
+                response = self.llm.invoke(messages)
 
-            # Parse the plan (simplified - in production, use structured output)
-            plan = self._parse_plan(response.content, files)
+                progress.show_observation("Received plan from AI, parsing into structured tasks")
+
+                # Parse the plan (simplified - in production, use structured output)
+                plan = self._parse_plan(response.content, files)
+            else:
+                plan = self._get_static_plan(files)
 
             progress.show_plan(plan)
             progress.show_observation(f"Plan created with {len(plan)} major tasks")
@@ -100,24 +102,8 @@ class PlannerAgent:
             summary.append(f"{i}. {name} ({extension}, {size} bytes)")
         return "\n".join(summary)
 
-    # noinspection PyUnusedLocal
     @staticmethod
-    def _parse_plan(response_content: str, files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Parse the LLM response into a structured plan.
-        
-        Args:
-            response_content: LLM response
-            files: Available files
-            
-        Returns:
-            Structured plan
-        """
-
-        # TODO: Implement robust parsing logic here
-
-        # Simplified parsing - create default plan structure
-        # In production, use structured output or JSON parsing
-
+    def _get_static_plan(files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         plan = [
             # Task 1: Gather all content
             {
@@ -152,3 +138,20 @@ class PlannerAgent:
             }]
 
         return plan
+
+
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def _parse_plan(response_content: str, files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Parse the LLM response into a structured plan.
+        
+        Args:
+            response_content: LLM response
+            files: Available files
+            
+        Returns:
+            Structured plan
+        """
+
+        # TODO: Implement robust parsing logic here
+        raise NotImplementedError()

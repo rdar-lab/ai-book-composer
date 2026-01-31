@@ -4,22 +4,21 @@ from typing import Dict, Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from .agent_base import AgentBase
 from .state import AgentState
-from ..config import load_prompts, Settings
-from ..llm import get_llm
+from ..config import Settings
 from ..progress_display import progress
 
 # Constants
 CHAPTER_PREVIEW_LENGTH = 200
 
 
-class CriticAgent:
+class CriticAgent(AgentBase):
     """The Critic - validates quality and provides feedback."""
 
     def __init__(self, settings: Settings, quality_threshold: float = 0.7):
-        self.llm = get_llm(settings=settings, temperature=0.2)
+        super().__init__(settings=settings, llm_temperature=0.2)
         self.quality_threshold = quality_threshold
-        self.prompts = load_prompts()
 
     def critique(self, state: AgentState) -> Dict[str, Any]:
         """Critique the generated book and provide feedback.
@@ -138,6 +137,41 @@ class CriticAgent:
         return "\n\n".join(summaries)
 
     @staticmethod
+    def _extract_score(response_lines):
+        for line in response_lines:
+            if "score" in line or "quality" in line:
+                # Try to find a number
+                words = line.split()
+                for word in words:
+                    try:
+                        # Remove all special chars except dot
+                        word = ''.join(c for c in word if c.isdigit() or c == '.')
+
+                        score = float(word.strip(':.,%'))
+                        if 0 <= score <= 1:
+                            return score
+                        elif 0 <= score <= 10:
+                            return score / 10
+                        elif 0 <= score <= 100:
+                            return score / 100
+                    except ValueError:
+                        continue
+        return 0.0
+
+    @staticmethod
+    def _is_approved(response_lines):
+        found_reject = False
+        found_approve = False
+
+        for line in response_lines:
+            if "revise" in line or "needs work" in line or "improve" in line:
+                found_reject = True
+            elif "approve" in line or "good" in line or "excellent" in line:
+                found_approve = True
+
+        return found_approve and not found_reject
+
+    @staticmethod
     def _parse_critique(response_content: str) -> tuple:
         """Parse critique response.
         
@@ -147,34 +181,11 @@ class CriticAgent:
         Returns:
             Tuple of (quality_score, feedback, decision)
         """
-        # Simplified parsing
-        # In production, use structured output
-
-        quality_score = 0.8  # Default good score
         feedback = response_content
-        decision = "approve"
 
         # Try to extract score from text
         lines = response_content.lower().split('\n')
-        for line in lines:
-            if "score" in line or "quality" in line:
-                # Try to find a number
-                words = line.split()
-                for word in words:
-                    try:
-                        score = float(word.strip(':.,%'))
-                        if 0 <= score <= 1:
-                            quality_score = score
-                        elif 0 <= score <= 10:
-                            quality_score = score / 10
-                        elif 0 <= score <= 100:
-                            quality_score = score / 100
-                    except ValueError:
-                        continue
-
-            if "revise" in line or "needs work" in line or "improve" in line:
-                decision = "revise"
-            elif "approve" in line or "good" in line or "excellent" in line:
-                decision = "approve"
+        quality_score = CriticAgent._extract_score(lines)
+        decision = "approve" if CriticAgent._is_approved(lines) else "revise"
 
         return quality_score, feedback, decision

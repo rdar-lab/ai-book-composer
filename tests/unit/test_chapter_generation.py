@@ -14,9 +14,9 @@ from ai_book_composer.agents.state import create_initial_state
 class TestChapterByChapterGeneration:
     """Test that chapters are generated one at a time."""
 
-    @patch('ai_book_composer.agents.executor.load_prompts')
+    @patch('ai_book_composer.agents.agent_base.load_prompts')
     @patch('ai_book_composer.mcp_client.get_tools')
-    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     def test_plan_chapters_creates_individual_tasks(
             self,
             mock_get_llm,
@@ -107,9 +107,9 @@ Chapter 3: Applications
         assert any(task.get("task") == "compile_references" for task in other_tasks)
         assert any(task.get("task") == "generate_book" for task in other_tasks)
 
-    @patch('ai_book_composer.agents.executor.load_prompts')
+    @patch('ai_book_composer.agents.agent_base.load_prompts')
     @patch('ai_book_composer.mcp_client.get_tools')
-    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     def test_generate_single_chapter_adds_to_chapters_list(
             self,
             mock_get_llm,

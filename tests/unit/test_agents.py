@@ -52,17 +52,12 @@ class TestAgentState:
 class TestPlannerAgent:
     """Test planner agent with mocked LLM."""
 
-    @patch('ai_book_composer.agents.planner.get_llm')
-    def test_plan_generation(self, mock_get_llm):
+    def test_plan_generation_static_plan(self):
         """Test plan generation."""
-        # Mock LLM response
-        mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.content = "Generated plan content"
-        mock_llm.invoke.return_value = mock_response
-        mock_get_llm.return_value = mock_llm
+        settings = Settings()
+        settings.llm.static_plan = True
 
-        planner = PlannerAgent(Settings())
+        planner = PlannerAgent(settings)
 
         state = create_initial_state(
             input_directory="/tmp/input",
@@ -79,13 +74,12 @@ class TestPlannerAgent:
         assert "status" in result
         assert result["status"] == "planned"
         assert isinstance(result["plan"], list)
-        assert mock_llm.invoke.called
 
 
 class TestCriticAgent:
     """Test critic agent with mocked LLM."""
 
-    @patch('ai_book_composer.agents.critic.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     def test_critique_good_quality(self, mock_get_llm):
         """Test critique with good quality score."""
         # Mock LLM response indicating good quality
@@ -116,7 +110,7 @@ class TestCriticAgent:
         assert result["status"] in ["approved", "needs_revision"]
         assert mock_llm.invoke.called
 
-    @patch('ai_book_composer.agents.critic.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     def test_critique_no_chapters(self, mock_get_llm):
         """Test critique with no chapters."""
         mock_llm = Mock()
@@ -140,7 +134,7 @@ class TestCriticAgent:
 class TestExecutorAgent:
     """Test executor agent with focus on content summarization."""
 
-    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     @patch('ai_book_composer.mcp_client.get_tools')
     def test_summarize_content_includes_full_content(self, get_tools_mock, mock_llm):
         """Test that _summarize_content includes full file content for chapter planning."""
@@ -180,7 +174,7 @@ class TestExecutorAgent:
             assert "file2.txt" in summary
             assert "text" in summary.lower()
 
-    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     @patch('ai_book_composer.mcp_client.get_tools')
     def test_summarize_content_with_multiple_files(self, get_tools_mock, mock_llm):
         """Test that _summarize_content handles multiple files correctly."""
@@ -222,7 +216,7 @@ class TestExecutorAgent:
             assert "audio1.mp3" in summary
             assert "video1.mp4" in summary
 
-    @patch('ai_book_composer.agents.executor.get_llm')
+    @patch('ai_book_composer.agents.agent_base.get_llm')
     @patch('ai_book_composer.mcp_client.get_tools')
     def test_summarize_content_truncates_large_files(self, get_tools_mock, mock_llm):
         """Test that _summarize_content truncates very large files to manage token limits."""

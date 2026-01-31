@@ -5,19 +5,17 @@ from typing import Dict, Any, List
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from .agent_base import AgentBase
 from .state import AgentState
-from ..config import load_prompts, Settings
-from ..llm import get_llm
+from ..config import Settings
 from ..progress_display import progress
 
 
-class DecoratorAgent:
+class DecoratorAgent(AgentBase):
     """The Decorator - decides on image placements in chapters."""
 
     def __init__(self, settings: Settings):
-        self.settings = settings
-        self.llm = get_llm(settings=settings, temperature=0.3)  # Lower temperature for more consistent decisions
-        self.prompts = load_prompts()
+        super().__init__(settings=settings, llm_temperature=0.3)
 
     def decorate(self, state: AgentState) -> Dict[str, Any]:
         """Add image placements to chapters.

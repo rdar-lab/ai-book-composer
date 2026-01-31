@@ -17,6 +17,7 @@ class LLMConfig(BaseModel):
         "execution": 0.7,
         "critique": 0.2
     })
+    static_plan: bool = True
 
 
 class WhisperConfig(BaseModel):
