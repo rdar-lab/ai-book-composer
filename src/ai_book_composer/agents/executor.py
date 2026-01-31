@@ -1,11 +1,10 @@
 """Executor agent - Phase 2 of Deep-Agent architecture."""
 import logging
-from functools import partial
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langchain_core.tools import Tool
+from langchain_core.tools import tool
 
 from .agent_base import AgentBase
 from .state import AgentState
@@ -36,6 +35,7 @@ class ExecutorAgent(AgentBase):
             input_directory=input_directory,
             output_directory=output_directory
         )
+        self.state: Optional[AgentState] = None
 
     def list_files(self) -> List[Dict[str, Any]]:
         """List all files in the input directory using the appropriate tool.
@@ -54,6 +54,9 @@ class ExecutorAgent(AgentBase):
         Returns:
             Updated state
         """
+
+        self.state = state
+
         with progress.agent_context(
                 "Executor",
                 "Executing tasks using specialized tools to generate book content"
@@ -78,19 +81,17 @@ class ExecutorAgent(AgentBase):
 
             # Execute based on task type
             if task_type == "gather_content":
-                result = self._gather_content(state)
+                result = self._gather_content_inner()
             elif task_type == "plan_chapters":
-                result = self._plan_chapters(state)
+                result = self._plan_chapters_inner()
             elif task_type == "generate_chapters":
-                result = self._generate_chapters_parallel(state)
-            elif task_type == "generate_single_chapter":
-                result = self._generate_single_chapter(state, current_task)
+                result = self._generate_chapters_inner()
             elif task_type == "compile_references":
-                result = self._compile_references(state)
+                result = self._compile_references_inner()
             elif task_type == "generate_book":
-                result = self._generate_book(state)
+                result = self._generate_book_inner()
             else:
-                result = self._custom_agent_task(current_task, state)
+                result = self._custom_agent_task(current_task)
 
                 return {
                     "llm_agent_result": result,
@@ -102,17 +103,12 @@ class ExecutorAgent(AgentBase):
 
             return result
 
-    def _custom_agent_task(self, current_task: dict[str, Any], state: AgentState) -> str | list[str | dict] | AIMessage:
-        # Use LLM agent with tools, using prompts from prompts.yaml
+    def _custom_agent_task(self, current_task: dict[str, Any]) -> str | list[str | dict] | AIMessage:
         system_prompt_template = self.prompts['executor'].get('llm_agent_system_prompt')
         user_prompt_template = self.prompts['executor'].get('llm_agent_user_prompt')
         system_prompt = system_prompt_template.format()
-        user_prompt = user_prompt_template.format(state=state, current_task=current_task)
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ]
-        response = self.llm.invoke(messages)
+        user_prompt = user_prompt_template.format(state=self.state, current_task=current_task)
+        response = self._invoke_agent(system_prompt, user_prompt, self.state)
         result = response.content if hasattr(response, 'content') else response
         return result
 
@@ -215,9 +211,14 @@ class ExecutorAgent(AgentBase):
                 "error": str(e)
             }
 
-    def _gather_content(self, state: AgentState) -> Dict[str, Any]:
+    @tool
+    def gather_content(self) -> Dict[str, Any]:
         """Gather content from all source files."""
-        files = state.get("files", [])
+
+        return self._gather_content_inner()
+
+    def _gather_content_inner(self) -> dict[str, dict[Any, Any] | list[Any] | int | str | Any]:
+        files = self.state.get("files", [])
         gathered_content = {}
 
         progress.show_thought(f"Need to process {len(files)} source file(s) and extract their content")
@@ -301,18 +302,26 @@ class ExecutorAgent(AgentBase):
 
         progress.show_observation(f"Image gathering complete: {len(all_images)} total image(s) available")
 
+        self.state["gathered_content"] = gathered_content
+        self.state["images"] = all_images
+
         return {
             "gathered_content": gathered_content,
             "images": all_images,
-            "current_task_index": state.get("current_task_index", 0) + 1,
+            "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "executing"
         }
 
-    def _plan_chapters(self, state: AgentState) -> Dict[str, Any]:
+    @tool
+    def plan_chapters(self) -> Dict[str, Any]:
         """Plan the book chapters based on gathered content."""
-        gathered_content = state.get("gathered_content", {})
-        language = state.get("language", "en-US")
-        style_instructions = state.get("style_instructions", "")
+
+        return self._plan_chapters_inner()
+
+    def _plan_chapters_inner(self) -> dict[str, list[dict[str, Any]] | int | str | Any]:
+        gathered_content = self.state.get("gathered_content", {})
+        language = self.state.get("language", "en-US")
+        style_instructions = self.state.get("style_instructions", "")
 
         progress.show_thought("Analyzing gathered content to determine optimal chapter structure")
 
@@ -354,168 +363,83 @@ class ExecutorAgent(AgentBase):
         progress.show_action("Saving chapter plan to disk")
         self._invoke_tool("write_chapter_list", chapters=chapter_list)
 
-        # Dynamically add chapter generation tasks to the plan
-        plan = state.get("plan", [])
-        current_task_index = state.get("current_task_index", 0)
-
-        # Check if parallel execution is enabled
-        if is_parallel_enabled(self.settings):
-            progress.show_action("Parallel execution enabled - will generate all chapters in parallel")
-            # Keep the generate_chapters task to handle all chapters at once
-            new_plan = []
-            for i, task in enumerate(plan):
-                if i < current_task_index + 1:
-                    # Keep tasks that are already done or current
-                    new_plan.append(task)
-                else:
-                    # Keep all other tasks as is (including generate_chapters)
-                    new_plan.append(task)
-        else:
-            progress.show_action("Creating individual tasks for sequential chapter generation")
-            # Find the "generate_chapters" task and replace it with individual chapter tasks
-            new_plan = []
-            for i, task in enumerate(plan):
-                if i < current_task_index + 1:
-                    # Keep tasks that are already done or current
-                    new_plan.append(task)
-                elif task.get("task") == "generate_chapters":
-                    # Replace with individual chapter tasks
-                    for chapter_info in chapter_list:
-                        chapter_num = chapter_info.get("number")
-                        chapter_title = chapter_info.get("title")
-                        new_plan.append({
-                            "task": "generate_single_chapter",
-                            "description": f"Generate Chapter {chapter_num}: {chapter_title}",
-                            "status": "pending",
-                            "chapter_number": chapter_num,
-                            "chapter_title": chapter_title,
-                            "chapter_description": chapter_info.get("description", "")
-                        })
-                else:
-                    # Keep other tasks (compile_references, generate_book)
-                    new_plan.append(task)
-
-        if is_parallel_enabled(self.settings):
-            progress.show_observation(f"Plan ready for parallel chapter generation")
-        else:
-            progress.show_observation(f"Updated plan with {len(chapter_list)} individual chapter generation tasks")
+        self.state["chapter_list"] = chapter_list
 
         return {
             "chapter_list": chapter_list,
-            "plan": new_plan,
-            "current_task_index": current_task_index + 1,
+            "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "executing"
         }
 
-    def _generate_single_chapter(self, state: AgentState, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate a single chapter."""
-        chapter_num = task.get("chapter_number", 0)
-        chapter_title = task.get("chapter_title", "Untitled")
-        chapter_desc = task.get("chapter_description", "")
-        gathered_content = state.get("gathered_content", {})
-        language = state.get("language", "en-US")
-        style_instructions = state.get("style_instructions", "")
+    # Create a helper function for parallel execution
+    def generate_chapter_wrapper(self, chapter_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Wrapper function to generate a single chapter for parallel execution."""
 
-        progress.show_thought(f"Generating Chapter {chapter_num}: {chapter_title}")
-        progress.show_chapter_info(chapter_num, chapter_title, "generating")
-        progress.show_action(f"Creating content for Chapter {chapter_num}")
+        gathered_content = self.state.get("gathered_content", {})
+        language = self.state.get("language", "en-US")
+        style_instructions = self.state.get("style_instructions", "")
 
-        # Generate chapter content
-        content = self._generate_chapter_content(
-            chapter_num,
-            chapter_title,
-            chapter_desc,
-            gathered_content,
-            language,
-            style_instructions
-        )
+        chapter_num = chapter_info.get("number", 0)
+        chapter_title = chapter_info.get("title", "Untitled")
+        chapter_desc = chapter_info.get("description", "")
 
-        # Save chapter
-        self._invoke_tool("write_chapter", chapter_number=chapter_num, title=chapter_title, content=content)
+        progress.show_action(f"Generating Chapter {chapter_num}: {chapter_title}")
 
-        word_count = len(content.split())
-        progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
+        try:
+            # Generate chapter content
+            content = self._generate_chapter_content(
+                chapter_num,
+                chapter_title,
+                chapter_desc,
+                gathered_content,
+                language,
+                style_instructions
+            )
 
-        # Add chapter to existing list (create new list to maintain immutability)
-        chapters = list(state.get("chapters", []))
-        chapters.append({
-            "number": chapter_num,
-            "title": chapter_title,
-            "content": content
-        })
+            # Save chapter
+            self._invoke_tool("write_chapter", chapter_number=chapter_num, title=chapter_title, content=content)
 
-        return {
-            "chapters": chapters,
-            "current_task_index": state.get("current_task_index", 0) + 1,
-            "status": "executing"
-        }
+            word_count = len(content.split())
+            progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
 
-    def _generate_chapters_parallel(self, state: AgentState) -> Dict[str, Any]:
-        """Generate all chapters in parallel.
-        
-        This method is used when parallel execution is enabled to generate
-        all chapters at once using parallel processing.
+            return {
+                "number": chapter_num,
+                "title": chapter_title,
+                "content": content,
+                "status": "success"
+            }
+        except Exception as e:
+            logger.exception(f"Error generating Chapter {chapter_num}: {str(e)}")
+            progress.show_observation(f"✗ Error generating Chapter {chapter_num}: {str(e)}")
+            return {
+                "number": chapter_num,
+                "title": chapter_title,
+                "content": "",
+                "status": "error",
+                "error": str(e)
+            }
+
+    @tool
+    def generate_chapters(self) -> Dict[str, Any]:
+        """Generate all chapters of the book.
         """
-        chapter_list = state.get("chapter_list", [])
-        gathered_content = state.get("gathered_content", {})
-        language = state.get("language", "en-US")
-        style_instructions = state.get("style_instructions", "")
+        return self._generate_chapters_inner()
+
+    def _generate_chapters_inner(self) -> Dict[str, Any]:
+        chapter_list = self.state.get("chapter_list", [])
 
         if not chapter_list:
             progress.show_observation("⚠ No chapters to generate")
             return {
-                "current_task_index": state.get("current_task_index", 0) + 1,
+                "current_task_index": self.state.get("current_task_index", 0) + 1,
                 "status": "executing"
             }
 
         progress.show_thought(f"Generating {len(chapter_list)} chapters in parallel")
         progress.show_observation(f"Parallel execution enabled - generating chapters concurrently")
 
-        # Create a helper function for parallel execution
-        def generate_chapter_wrapper(chapter_info: Dict[str, Any]) -> Dict[str, Any]:
-            """Wrapper function to generate a single chapter for parallel execution."""
-            chapter_num = chapter_info.get("number", 0)
-            chapter_title = chapter_info.get("title", "Untitled")
-            chapter_desc = chapter_info.get("description", "")
-
-            progress.show_action(f"Generating Chapter {chapter_num}: {chapter_title}")
-
-            try:
-                # Generate chapter content
-                content = self._generate_chapter_content(
-                    chapter_num,
-                    chapter_title,
-                    chapter_desc,
-                    gathered_content,
-                    language,
-                    style_instructions
-                )
-
-                # Save chapter
-                self._invoke_tool("write_chapter", chapter_number=chapter_num, title=chapter_title, content=content)
-
-                word_count = len(content.split())
-                progress.show_observation(f"✓ Chapter {chapter_num} complete ({word_count} words)")
-
-                return {
-                    "number": chapter_num,
-                    "title": chapter_title,
-                    "content": content,
-                    "status": "success"
-                }
-            except Exception as e:
-                logger.exception(f"Error generating Chapter {chapter_num}: {str(e)}")
-                progress.show_observation(f"✗ Error generating Chapter {chapter_num}: {str(e)}")
-                return {
-                    "number": chapter_num,
-                    "title": chapter_title,
-                    "content": "",
-                    "status": "error",
-                    "error": str(e)
-                }
-
         # Generate all chapters in parallel
-        chapter_results = execute_parallel(self.settings, generate_chapter_wrapper, chapter_list)
+        chapter_results = execute_parallel(self.settings, self.generate_chapter_wrapper, chapter_list)
 
         # Sort results by chapter number to maintain order
         chapter_results.sort(key=lambda x: x.get("number", 0))
@@ -530,14 +454,14 @@ class ExecutorAgent(AgentBase):
                     "content": result.get("content")
                 })
             else:
-                progress.show_observation(
-                    f"⚠ Chapter {result.get('number')} failed: {result.get('error', 'Unknown error')}")
+                raise Exception(
+                    f"Chapter {result.get('number')} failed: {result.get('error', 'Unknown error')}")
 
         progress.show_observation(f"✓ Generated {len(chapters)}/{len(chapter_list)} chapters successfully")
 
         return {
             "chapters": chapters,
-            "current_task_index": state.get("current_task_index", 0) + 1,
+            "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "executing"
         }
 
@@ -591,10 +515,13 @@ class ExecutorAgent(AgentBase):
         response = self.llm.invoke(messages)
         return response.content
 
-    @staticmethod
-    def _compile_references(state: AgentState) -> Dict[str, Any]:
+    @tool
+    def compile_references(self) -> Dict[str, Any]:
         """Compile list of references."""
-        files = state.get("files", [])
+        return self._compile_references_inner()
+
+    def _compile_references_inner(self) -> dict[str, list[Any] | int | str | Any]:
+        files = self.state.get("files", [])
 
         progress.show_action("Compiling list of source file references")
 
@@ -608,16 +535,20 @@ class ExecutorAgent(AgentBase):
 
         return {
             "references": references,
-            "current_task_index": state.get("current_task_index", 0) + 1,
+            "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "executing"
         }
 
-    def _generate_book(self, state: AgentState) -> Dict[str, Any]:
+    @tool
+    def generate_book(self) -> Dict[str, Any]:
         """Generate the final book."""
-        title = state.get("book_title", "Composed Book")
-        author = state.get("book_author", "AI Book Composer")
-        chapters = state.get("chapters", [])
-        references = state.get("references", [])
+        return self._generate_book_inner()
+
+    def _generate_book_inner(self) -> dict[str, int | str | Any]:
+        title = self.state.get("book_title", "Composed Book")
+        author = self.state.get("book_author", "AI Book Composer")
+        chapters = self.state.get("chapters", [])
+        references = self.state.get("references", [])
 
         progress.show_action(f"Generating final book: '{title}' by {author}")
         progress.show_observation(
@@ -636,7 +567,7 @@ class ExecutorAgent(AgentBase):
 
         return {
             "final_output_path": output_path,
-            "current_task_index": state.get("current_task_index", 0) + 1,
+            "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "book_generated"
         }
 
@@ -711,36 +642,6 @@ class ExecutorAgent(AgentBase):
         # Get MCP tools (as in base)
         mcp_tools = super()._generate_tools()
         # Built-in tool wrappers
-        builtin_tools = [
-            Tool(
-                name="gather_content",
-                description="Gather content from all source files.",
-                func=partial(self._gather_content)
-            ),
-            Tool(
-                name="plan_chapters",
-                description="Plan the book chapters based on gathered content.",
-                func=partial(self._plan_chapters)
-            ),
-            Tool(
-                name="generate_chapters_parallel",
-                description="Generate all chapters in parallel (preferred).",
-                func=partial(self._generate_chapters_parallel)
-            ),
-            Tool(
-                name="generate_single_chapter",
-                description="Generate a single chapter.",
-                func=partial(self._generate_single_chapter)
-            ),
-            Tool(
-                name="compile_references",
-                description="Compile list of references.",
-                func=partial(self._compile_references)
-            ),
-            Tool(
-                name="generate_book",
-                description="Generate the final book.",
-                func=partial(self._generate_book)
-            ),
-        ]
+        builtin_tools = [self.gather_content, self.plan_chapters, self.generate_chapters, self.compile_references,
+                         self.generate_book]
         return list(mcp_tools) + builtin_tools

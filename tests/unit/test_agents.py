@@ -298,19 +298,13 @@ class TestExecutorAgent:
             # Verify first part is included
             assert "X" * 100 in summary, "Beginning of content should be included"
 
-    @patch('ai_book_composer.agents.agent_base.get_llm')
+    @patch('ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
     @patch('ai_book_composer.mcp_client.get_tools')
-    def test_llm_agent_else_branch(self, get_tools_mock, mock_get_llm):
+    def test_llm_agent_else_branch(self, get_tools_mock, mock_invoke_agent):
         """Test ExecutorAgent LLM agent else branch uses prompts and tools correctly."""
         # Mock tools (none needed for this test, just to satisfy init)
         get_tools_mock.return_value = []
-        # Mock LLM response
-        mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.content = '{"result": "Tool executed successfully"}'
-        mock_llm.invoke.return_value = mock_response
-        mock_llm.bind_tools.return_value = mock_llm
-        mock_get_llm.return_value = mock_llm
+        mock_invoke_agent.return_value = '{"result": "Tool executed successfully"}'
 
         with tempfile.TemporaryDirectory() as tmpdir:
             executor = ExecutorAgent(
@@ -335,10 +329,10 @@ class TestExecutorAgent:
             result = executor.execute(state)
 
             # Check that the LLM was called with the correct prompt
-            assert mock_llm.invoke.called
-            called_args = mock_llm.invoke.call_args[0][0]
-            assert any('SYSTEM PROMPT' in m.content for m in called_args)
-            assert any('USER PROMPT' in m.content for m in called_args)
+            assert mock_invoke_agent.called
+            called_args = mock_invoke_agent.call_args[0]
+            assert any('SYSTEM PROMPT' in m for m in called_args)
+            assert any('USER PROMPT' in m for m in called_args)
             # Check result structure
             assert 'llm_agent_result' in result
             assert result['status'] == 'executing'

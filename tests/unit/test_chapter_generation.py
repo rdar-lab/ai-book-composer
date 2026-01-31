@@ -4,11 +4,11 @@ from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
 # noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings
-# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.executor import ExecutorAgent
 # noinspection PyUnresolvedReferences
 from ai_book_composer.agents.state import create_initial_state
+# noinspection PyUnresolvedReferences
+from ai_book_composer.config import Settings
 
 
 class TestChapterByChapterGeneration:
@@ -84,28 +84,19 @@ Chapter 3: Applications
         ]
         state["current_task_index"] = 1  # Currently on plan_chapters
 
+        executor.state = state  # Set current state for tool access
         # Execute plan_chapters
-        result = executor._plan_chapters(state)
-
-        # Verify that individual chapter tasks were created
-        assert "plan" in result
-        new_plan = result["plan"]
+        result = executor._plan_chapters_inner()
 
         # Check that generate_chapters was replaced with individual tasks
-        chapter_tasks = [task for task in new_plan if task.get("task") == "generate_single_chapter"]
-        assert len(chapter_tasks) >= 3, f"Expected at least 3 individual chapter tasks, got {len(chapter_tasks)}"
+        chapter_list = result['chapter_list']
+        assert len(chapter_list) == 3, f"Expected at least 3 individual chapter tasks, got {len(chapter_list)}"
 
         # Verify each chapter task has required fields
-        for chapter_task in chapter_tasks:
-            assert "chapter_number" in chapter_task
-            assert "chapter_title" in chapter_task
-            assert "chapter_description" in chapter_task
-            assert chapter_task["status"] == "pending"
-
-        # Verify other tasks are still present
-        other_tasks = [task for task in new_plan if task.get("task") != "generate_single_chapter"]
-        assert any(task.get("task") == "compile_references" for task in other_tasks)
-        assert any(task.get("task") == "generate_book" for task in other_tasks)
+        for chapter in chapter_list:
+            assert "number" in chapter
+            assert "title" in chapter
+            assert "description" in chapter
 
     @patch('ai_book_composer.agents.agent_base.load_prompts')
     @patch('ai_book_composer.mcp_client.get_tools')
@@ -158,19 +149,18 @@ Chapter 3: Applications
             }
         }
         state["chapters"] = []
+        state['chapter_list'] = [
+            {
+                "number": 1,
+                "title": "Introduction",
+                "description": "Introduction chapter"
+            }
+        ]
         state["current_task_index"] = 2
 
-        # Create a chapter task
-        chapter_task = {
-            "task": "generate_single_chapter",
-            "description": "Generate Chapter 1: Introduction",
-            "chapter_number": 1,
-            "chapter_title": "Introduction",
-            "chapter_description": "Introduction chapter"
-        }
-
         # Execute generate_single_chapter
-        result = executor._generate_single_chapter(state, chapter_task)
+        executor.state = state  # Set current state for tool access
+        result = executor._generate_chapters_inner()
 
         # Verify chapter was added
         assert "chapters" in result
