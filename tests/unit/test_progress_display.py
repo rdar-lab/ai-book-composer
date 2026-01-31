@@ -2,8 +2,7 @@
 
 from unittest.mock import patch, MagicMock
 
-# noinspection PyUnresolvedReferences
-from ai_book_composer.progress_display import (
+from src.ai_book_composer.progress_display import (
     ProgressDisplay,
     show_workflow_start,
     show_node_transition
@@ -19,7 +18,7 @@ class TestProgressDisplay:
         assert display._current_phase is None
         assert display._live is None
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_phase(self, mock_console_class):
         """Test showing a phase."""
         mock_console = MagicMock()
@@ -32,7 +31,7 @@ class TestProgressDisplay:
         assert mock_console.print.called
         assert display._current_phase == "Planning"
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_thought(self, mock_console_class):
         """Test showing a thought."""
         mock_console = MagicMock()
@@ -43,7 +42,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_action(self, mock_console_class):
         """Test showing an action."""
         mock_console = MagicMock()
@@ -54,7 +53,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_observation(self, mock_console_class):
         """Test showing an observation."""
         mock_console = MagicMock()
@@ -65,7 +64,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_step(self, mock_console_class):
         """Test showing a step."""
         mock_console = MagicMock()
@@ -76,7 +75,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_task_started(self, mock_console_class):
         """Test showing a task with started status."""
         mock_console = MagicMock()
@@ -87,7 +86,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_task_completed(self, mock_console_class):
         """Test showing a task with completed status."""
         mock_console = MagicMock()
@@ -98,7 +97,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_plan(self, mock_console_class):
         """Test showing a plan."""
         mock_console = MagicMock()
@@ -113,7 +112,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_files(self, mock_console_class):
         """Test showing files."""
         mock_console = MagicMock()
@@ -128,7 +127,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_files_with_many_files(self, mock_console_class):
         """Test showing files when there are more than 10."""
         mock_console = MagicMock()
@@ -143,7 +142,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_chapter_info(self, mock_console_class):
         """Test showing chapter info."""
         mock_console = MagicMock()
@@ -154,7 +153,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_critique_summary(self, mock_console_class):
         """Test showing critique summary."""
         mock_console = MagicMock()
@@ -165,7 +164,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_critique_summary_without_score(self, mock_console_class):
         """Test showing critique summary without score."""
         mock_console = MagicMock()
@@ -176,7 +175,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_show_completion(self, mock_console_class):
         """Test showing completion."""
         mock_console = MagicMock()
@@ -188,7 +187,7 @@ class TestProgressDisplay:
 
         assert mock_console.print.called
 
-    @patch('ai_book_composer.progress_display.Console')
+    @patch('src.ai_book_composer.progress_display.Console')
     def test_agent_context(self, mock_console_class):
         """Test agent context manager."""
         mock_console = MagicMock()
@@ -204,7 +203,7 @@ class TestProgressDisplay:
         assert mock_console.print.call_count >= 2
 
 
-@patch('ai_book_composer.progress_display.console')
+@patch('src.ai_book_composer.progress_display.console')
 def test_show_workflow_start(mock_console):
     """Test showing workflow start."""
     config = {
@@ -218,7 +217,7 @@ def test_show_workflow_start(mock_console):
     assert mock_console.print.called
 
 
-@patch('ai_book_composer.progress_display.console')
+@patch('src.ai_book_composer.progress_display.console')
 def test_show_node_transition_with_from_node(mock_console):
     """Test showing node transition with from_node."""
     show_node_transition("plan", "execute", "Ready to execute")
@@ -226,7 +225,7 @@ def test_show_node_transition_with_from_node(mock_console):
     assert mock_console.print.called
 
 
-@patch('ai_book_composer.progress_display.console')
+@patch('src.ai_book_composer.progress_display.console')
 def test_show_node_transition_without_from_node(mock_console):
     """Test showing node transition without from_node."""
     show_node_transition(None, "plan", "")

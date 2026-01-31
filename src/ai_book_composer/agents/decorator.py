@@ -2,14 +2,14 @@
 
 import json
 from typing import Dict, Any, List
-
-from langchain_core.messages import HumanMessage, SystemMessage
+import logging
 
 from .agent_base import AgentBase
 from .state import AgentState
 from ..config import Settings
 from ..progress_display import progress
 
+logger = logging.getLogger(__name__)
 
 class DecoratorAgent(AgentBase):
     """The Decorator - decides on image placements in chapters."""
@@ -20,13 +20,12 @@ class DecoratorAgent(AgentBase):
     def decorate(self, state: AgentState) -> Dict[str, Any]:
         """Add image placements to chapters.
         
-        Args:
-            state: Current agent state
-            
         Returns:
             Updated state with image-decorated chapters
         """
-        progress.update_status("Decorator: Analyzing image placements...")
+        self.state = state
+
+        progress.show_action("Decorator: Analyzing image placements...")
 
         chapters = state.get("chapters", [])
         images = state.get("images", [])
@@ -34,14 +33,12 @@ class DecoratorAgent(AgentBase):
         style_instructions = state.get("style_instructions", "")
 
         if not images:
-            progress.update_status("Decorator: No images available, skipping decoration")
+            progress.show_observation("Decorator: No images available, skipping decoration")
             # noinspection PyTypeChecker
             return state
 
         if not chapters:
-            progress.update_status("Decorator: No chapters to decorate")
-            # noinspection PyTypeChecker
-            return state
+            raise Exception("Decorator: No chapters found in state to decorate.")
 
         # Decorate each chapter
         decorated_chapters = []
@@ -75,10 +72,11 @@ class DecoratorAgent(AgentBase):
             }
             decorated_chapters.append(decorated_chapter)
 
-            progress.update_status(f"Decorator: Added {len(placements)} images to chapter {chapter_number}")
+            progress.show_observation(f"Decorator: Added {len(placements)} images to chapter {chapter_number}")
+
+        self.state["chapters"] = decorated_chapters
 
         return {
-            **state,
             "chapters": decorated_chapters,
             "status": "decorated"
         }
@@ -151,13 +149,7 @@ class DecoratorAgent(AgentBase):
                 available_images=available_images
             )
 
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-
-            response = self.llm.invoke(messages)
-            response_text = response.content
+            response_text = self._invoke_agent(system_prompt, user_prompt, self.state)
 
             # Try to parse JSON response
             try:
@@ -185,7 +177,7 @@ class DecoratorAgent(AgentBase):
                         validated_placements.append(placement)
                     else:
                         # Log warning but don't fail - LLM might have made an error
-                        progress.update_status(f"Warning: Image path not found in available images: {image_path}")
+                        progress.show_observation(f"Warning: Image path not found in available images: {image_path}")
 
                 # Limit to max images per chapter
                 max_images = self.settings.image_processing.max_images_per_chapter
@@ -194,9 +186,11 @@ class DecoratorAgent(AgentBase):
 
                 return validated_placements
             except json.JSONDecodeError as e:
-                progress.update_status(f"Warning: Could not parse decorator response as JSON: {e}")
-                return []
+                logger.exception("Failed to parse decorator response as JSON")
+                progress.show_observation(f"Warning: Could not parse decorator response as JSON: {e}")
+                raise
 
         except Exception as e:
-            progress.update_status(f"Error getting image placements: {e}")
-            return []
+            logger.exception("Error getting image placements")
+            progress.show_observation(f"Error getting image placements: {e}")
+            raise

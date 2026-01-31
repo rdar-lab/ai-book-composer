@@ -46,6 +46,16 @@ class ProgressDisplay:
         """
         self.console.print(f"{emoji} [italic yellow]Thought:[/italic yellow] {thought}")
 
+    def show_agent_response(self, thought: str, action: str):
+        """Display an agent's response.
+
+        Args:
+            thought: The agent thought
+            action: The agent action
+        """
+        self.console.print(f"⚙️ [italic yellow]Thought:[/italic yellow] {thought}")
+        self.console.print(f"🔧️ [bold green]Action:[/bold green] {action}")
+
     def show_action(self, action: str, emoji: str = "🔧"):
         """Display an action being taken.
         
@@ -237,6 +247,7 @@ class ProgressDisplay:
             Self for method chaining
         """
         style_map = {
+            "PreProcessor Agent": ("bold blue", "🔍"),
             "Planner": ("bold blue", "🎯"),
             "Executor": ("bold green", "⚙️"),
             "Critic": ("bold yellow", "🔍")

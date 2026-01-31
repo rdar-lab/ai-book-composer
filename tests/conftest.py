@@ -1,17 +1,25 @@
 """Pytest configuration for test suite."""
+import shutil
+from pathlib import Path
 
-import os
-import sys
+import pytest
 
-# Ensure the src/ directory is on the path so tests can import the package
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-SRC_DIR = os.path.join(ROOT_DIR, "src")
-if SRC_DIR not in sys.path:
-    sys.path.insert(0, SRC_DIR)
+from src.ai_book_composer import logging_config
+from src.ai_book_composer.config import Settings
 
-# noinspection PyUnresolvedReferences
-from ai_book_composer import logging_config
-# noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings
+settings = Settings()
+settings.logging.level = "INFO"
+settings.logging.file = None
+settings.logging.console_output = True
 
-logging_config.setup_logging(Settings())
+logging_config.setup_logging(settings)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def after_all_tests():
+    yield
+
+    # Remove the cache directory after all tests
+    cache_dir = Path(settings.general.cache_dir)
+    if cache_dir.exists() and cache_dir.is_dir():
+        shutil.rmtree(cache_dir)

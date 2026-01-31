@@ -4,10 +4,9 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-# noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings
-# noinspection PyUnresolvedReferences
-from ai_book_composer.llm import get_llm
+
+from src.ai_book_composer.config import Settings
+from src.ai_book_composer.llm import get_llm
 
 
 class TestConfiguration:
@@ -25,9 +24,9 @@ class TestConfiguration:
         settings = Settings()
 
         ollama_embedded_config = settings.get_provider_config("ollama_embedded")
-        assert "model_name" in ollama_embedded_config
-        assert "n_ctx" in ollama_embedded_config
-        assert "n_threads" in ollama_embedded_config
+        internal = ollama_embedded_config.get("internal", {})
+        assert "n_ctx" in internal
+        assert "n_threads" in internal
         assert "run_on_gpu" in ollama_embedded_config
 
     def test_custom_config_file(self, tmp_path):
@@ -57,7 +56,7 @@ class TestConfiguration:
 class TestLLMProvider:
     """Test LLM provider setup."""
 
-    @patch('ai_book_composer.llm.ChatOpenAI')
+    @patch('src.ai_book_composer.llm.ChatOpenAI')
     def test_openai_provider(self, mock_openai):
         """Test OpenAI provider initialization."""
         mock_settings = Settings()
@@ -72,7 +71,7 @@ class TestLLMProvider:
         assert call_kwargs['model'] == 'gpt-4'
         assert call_kwargs['temperature'] == 0.7
 
-    @patch('ai_book_composer.llm.ChatOllama')
+    @patch('src.ai_book_composer.llm.ChatOllama')
     def test_ollama_server_provider(self, mock_ollama):
         """Test Ollama server provider initialization."""
         mock_settings = Settings()
@@ -91,8 +90,8 @@ class TestLLMProvider:
         assert call_kwargs['temperature'] == 0.7
         assert call_kwargs['base_url'] == 'http://localhost:11434'
 
-    @patch('ai_book_composer.llm.hf_hub_download')
-    @patch('ai_book_composer.llm.ChatLlamaCpp')
+    @patch('src.ai_book_composer.llm.hf_hub_download')
+    @patch('src.ai_book_composer.llm.ChatLlamaCpp')
     def test_embedded_ollama_provider(self, mock_llamacpp, mock_download):
         """Test embedded ollama provider initialization."""
         mock_download.return_value = '/path/to/downloaded/model.gguf'
@@ -102,10 +101,12 @@ class TestLLMProvider:
         mock_settings.llm.model = 'llama-3.2-3b-instruct'
         mock_settings.providers['ollama_embedded'] = {
             'model_name': 'llama-3.2-3b-instruct',
-            'n_ctx': 2048,
-            'n_threads': 4,
+            'internal':{
+                'n_ctx': 2048,
+                'n_threads': 4,
+                'verbose': False
+            },
             'run_on_gpu': False,
-            'verbose': False
         }
 
         get_llm(mock_settings, temperature=0.7, provider='ollama_embedded')
@@ -124,17 +125,19 @@ class TestLLMProvider:
 
     def test_embedded_ollama_with_gpu(self):
         """Test that run_on_gpu=True sets n_gpu_layers=-1."""
-        with patch('ai_book_composer.llm.hf_hub_download') as mock_download, \
-                patch('ai_book_composer.llm.ChatLlamaCpp') as mock_llamacpp:
+        with patch('src.ai_book_composer.llm.hf_hub_download') as mock_download, \
+                patch('src.ai_book_composer.llm.ChatLlamaCpp') as mock_llamacpp:
             mock_download.return_value = '/path/to/model.gguf'
             mock_settings = Settings()
             mock_settings.llm.provider = 'ollama_embedded'
+            mock_settings.model = 'llama-3.2-3b-instruct'
             mock_settings.providers['ollama_embedded'] = {
-                'model_name': 'llama-3.2-3b-instruct',
-                'n_ctx': 2048,
-                'n_threads': 4,
-                'run_on_gpu': True,
-                'verbose': False
+                'internal': {
+                    'n_ctx': 2048,
+                    'n_threads': 4,
+                    'verbose': False
+                },
+                'run_on_gpu': True
             }
 
             get_llm(mock_settings, provider='ollama_embedded')
@@ -146,12 +149,14 @@ class TestLLMProvider:
         """Test that unknown model name raises error."""
         mock_settings = Settings()
         mock_settings.llm.provider = 'ollama_embedded'
+        mock_settings.llm.model = 'nonexistent-model'
         mock_settings.providers['ollama_embedded'] = {
-            'model_name': 'nonexistent-model',
-            'n_ctx': 2048,
-            'n_threads': 4,
+            'internal': {
+                'n_ctx': 2048,
+                'n_threads': 4,
+                'verbose': False
+            },
             'run_on_gpu': False,
-            'verbose': False
         }
 
         with pytest.raises(ValueError, match="Unknown embedded model"):

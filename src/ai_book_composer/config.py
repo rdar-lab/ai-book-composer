@@ -7,6 +7,8 @@ from typing import Dict, Any, Optional
 import yaml
 from pydantic import BaseModel, Field
 
+class GeneralConfig(BaseModel):
+    cache_dir: str = ".cache"
 
 class LLMConfig(BaseModel):
     """LLM configuration."""
@@ -64,6 +66,9 @@ class BookConfig(BaseModel):
     quality_threshold: float = 0.7
     max_iterations: int = 3
     style_instructions: str = ""  # Optional instructions to guide AI on book style
+    use_cached_plan: bool = True  # Whether to cache the generated plan
+    use_cached_chapters_list: bool = True  # Whether to cache the chapter list
+    use_cached_chapters_content: bool = True  # Whether to cache individual chapter content
 
 
 class ParallelConfig(BaseModel):
@@ -130,6 +135,7 @@ class Settings:
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
         self.parallel = ParallelConfig(**self._config.get('parallel', {}))
+        self.general = GeneralConfig(**self._config.get('general', {}))
 
         # Store provider configurations
         self.providers = self._config.get('providers', {})
@@ -174,7 +180,7 @@ class Settings:
         return {
             'llm': {
                 'provider': 'ollama_embedded',
-                'model': 'llama-3.2-3b-instruct',
+                'model': 'llama-3.1-8b-instruct',
                 'temperature': {'planning': 0.3, 'execution': 0.7, 'critique': 0.2}
             },
             'whisper': {
@@ -205,10 +211,13 @@ class Settings:
                 'default_author': 'AI Book Composer',
                 'quality_threshold': 0.7,
                 'max_iterations': 3,
-                'style_instructions': ''
+                'style_instructions': '',
+                'use_cached_plan': True,
+                'use_cached_chapters_list': True,
+                'use_cached_chapters_content': True
             },
             'logging': {
-                'level': 'INFO',
+                'level': 'DEBUG',
                 'file': 'logs/ai_book_composer.log',
                 'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 'console_output': False
@@ -230,16 +239,20 @@ class Settings:
                     'deployment': os.environ.get('AZURE_OPENAI_DEPLOYMENT', '')
                 },
                 'ollama': {
-                    'base_url': 'http://localhost:11434',
-                    'model': 'llama2'
+                    'base_url': 'http://localhost:11434'
                 },
                 'ollama_embedded': {
-                    'model_name': 'llama-3.2-3b-instruct',
-                    'n_ctx': 2048,
-                    'n_threads': 4,
+                    'internal': {
+                        'n_ctx': 131072,
+                        'n_threads': 4,
+                        'n_batch': 64,
+                        'verbose': False
+                    },
                     'run_on_gpu': False,
-                    'verbose': False
                 }
+            },
+            'general': {
+                'cache_dir': '.cache'
             }
         }
 

@@ -1,4 +1,4 @@
-"""Tool for generating final book in RTF format using PyRTF3."""
+"""Enhanced tools with security, logging, and additional format support."""
 
 import logging
 from datetime import datetime
@@ -18,11 +18,8 @@ from ..config import Settings
 logger = logging.getLogger(__name__)
 
 
-class BookGeneratorTool:
+class BookWriter:
     """Tool to generate final book in RTF format."""
-
-    name = "generate_final_book"
-    description = "Generate the final book in RTF format with embedded images"
 
     def __init__(self, settings: Settings, output_directory: str):
         self.settings = settings
@@ -186,7 +183,7 @@ class BookGeneratorTool:
     @staticmethod
     def _add_image_to_section(section, img_info: Dict[str, Any], style_sheet) -> None:
         """Add an image to the document section.
-        
+
         Args:
             section: RTF section to add image to
             img_info: Dictionary with image information (path, reasoning, etc.)

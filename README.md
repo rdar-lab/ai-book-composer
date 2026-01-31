@@ -99,12 +99,12 @@ providers:
     deployment: ${AZURE_OPENAI_DEPLOYMENT}
   ollama:
     base_url: http://localhost:11434
-    model: llama2  # Specify Ollama model name
   ollama_embedded:
     # Embedded (in-process) ollama execution using llama.cpp
-    model_name: llama-3.2-3b-instruct  # Model will be auto-downloaded
-    n_ctx: 2048  # Context window size
-    n_threads: 4  # Number of CPU threads to use
+    internal:
+        n_ctx: 2048  # Context window size
+        n_threads: 4  # Number of CPU threads to use
+        n_batch: 64
     run_on_gpu: false  # Use GPU acceleration if available
 
 # Whisper Configuration (for audio/video transcription)

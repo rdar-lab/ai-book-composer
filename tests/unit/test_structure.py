@@ -1,10 +1,9 @@
 """Basic structure tests for AI Book Composer."""
 
-import sys
-from pathlib import Path
-
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+from src.ai_book_composer import config
+from src.ai_book_composer.agents import state
+from src.ai_book_composer.agents.state import create_initial_state
+from src.ai_book_composer.config import Settings
 
 
 def test_module_structure():
@@ -12,13 +11,9 @@ def test_module_structure():
 
     print("Testing module structure...")
 
-    # noinspection PyUnresolvedReferences
-    from ai_book_composer import config
     assert hasattr(config, 'Settings')
     print("✓ Config module OK")
 
-    # noinspection PyUnresolvedReferences
-    from ai_book_composer.agents import state
     assert hasattr(state, 'AgentState')
     assert hasattr(state, 'create_initial_state')
     print("✓ Agents state module OK")
@@ -29,10 +24,7 @@ def test_state_creation():
 
     print("\nTesting state creation...")
 
-    # noinspection PyUnresolvedReferences
-    from ai_book_composer.agents.state import create_initial_state
-
-    state = create_initial_state(
+    state_instance = create_initial_state(
         input_directory="/tmp/input",
         output_directory="/tmp/output",
         language="en-US",
@@ -40,24 +32,21 @@ def test_state_creation():
         book_author="Test Author"
     )
 
-    assert state['input_directory'] == "/tmp/input"
-    assert state['output_directory'] == "/tmp/output"
-    assert state['language'] == "en-US"
-    assert state['book_title'] == "Test Book"
-    assert state['book_author'] == "Test Author"
-    assert state['status'] == "initialized"
-    assert state['iterations'] == 0
-    assert isinstance(state['files'], list)
-    assert isinstance(state['chapters'], list)
+    assert state_instance['input_directory'] == "/tmp/input"
+    assert state_instance['output_directory'] == "/tmp/output"
+    assert state_instance['language'] == "en-US"
+    assert state_instance['book_title'] == "Test Book"
+    assert state_instance['book_author'] == "Test Author"
+    assert state_instance['status'] == "initialized"
+    assert state_instance['iterations'] == 0
+    assert isinstance(state_instance['files'], list)
+    assert isinstance(state_instance['chapters'], list)
 
 
 def test_config():
     """Test configuration."""
 
     print("\nTesting configuration...")
-
-    # noinspection PyUnresolvedReferences
-    from ai_book_composer.config import Settings
 
     settings = Settings()
     llm_config = settings.llm

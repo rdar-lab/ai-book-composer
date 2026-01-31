@@ -1,108 +1,260 @@
+import json
+import logging
+import re
+from pathlib import Path
 from typing import Any, Optional
+from typing import Dict
 
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import create_agent
+from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
+from langchain_core.tools import tool, BaseTool
 
 from .state import AgentState
-from .. import mcp_client
+from .. import progress_display
 from ..config import load_prompts, Settings
-from ..llm import get_llm
+from ..llm import get_llm, ToolFixer, system_notification
+
+logger = logging.getLogger(__name__)
+
+_RE_THINK_BLOCK = re.compile(r'<think>.*?</think>', re.DOTALL)
+_RE_THINK_TAGS = re.compile(r'^<think>|</think>$', re.DOTALL)
+_RE_JSON_BLOCK = re.compile(r'```(?:json)?\s*([\s\S]*?)\s*```')
+# noinspection RegExpRedundantEscape
+_RE_JSON_EXTRACT = re.compile(r'([\[\{][\s\S]*[\]\}])')
+_RE_RESULT_BLOCK = re.compile(r'<result>.*?</result>', re.DOTALL)
+_RE_RESULT_TAGS = re.compile(r'^<result>|</result>$', re.DOTALL)
 
 
 class AgentBase:
-    def __init__(self, settings: Settings,
+    def __init__(self,
+                 settings: Settings,
                  llm_temperature=0.0,
-                 cache_llm: bool = True,
-                 bind_tools: bool = False,
                  input_directory: Optional[str] = None,
                  output_directory: Optional[str] = None):
         self.settings = settings
         self.llm_temperature = llm_temperature
-        self.is_cache_llm = cache_llm
-        self.bind_tools = bind_tools
         self.input_directory = input_directory
         self.output_directory = output_directory
-        self.tools_map: Optional[dict[str, Any]] = None
-        self._llm_instance_cache = None
         self.prompts = load_prompts()
+        self.state = None
 
-    @property
-    def llm(self):
-        if self._llm_instance_cache is not None:
-            return self._llm_instance_cache
-
+    def _get_llm(self):
         llm_instance = get_llm(self.settings, temperature=self.llm_temperature)
-
-        if self.bind_tools:
-            self._init_tools_map()
-            llm_instance = llm_instance.bind_tools(list(self.tools_map.values()))
-
-        if self.is_cache_llm:
-            self._llm_instance_cache = llm_instance
-
         return llm_instance
 
-    def _init_tools_map(self):
-        if self.tools_map is None:
-            tools = self._generate_tools()
-            self.tools_map = {tool.name: tool for tool in tools}
+    def _generate_tools(self) -> list[BaseTool]:
+        tools: list[BaseTool] = [
+            system_notification,
+            self.get_file_content_tool()
+        ]
 
-    def _generate_tools(self) -> Any:
-        if not self.bind_tools:
-            return []
-
-        tools = mcp_client.get_tools(self.settings, self.input_directory, self.output_directory)
         return tools
 
-    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState) -> Any:
-        if not self.bind_tools:
-            raise Exception("Agent tools are not bound. Cannot invoke agent.")
+    def _invoke_llm(self, system_prompt: str, user_prompt: str):
+        llm = self._get_llm()
+        logger.info(
+            f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
+        progress_display.progress.show_action("Running LLM...")
 
-        self._init_tools_map()
+        # noinspection PyTypeChecker
+        result = llm.invoke(f'f{system_prompt}\n{user_prompt}')
 
-        # 1. Attach state to self so the @tools can grab it
-        self.current_run_state = state
+        logger.info(f"LLM Response: {result}")
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", "{input}"),
-            ("placeholder", "{agent_scratchpad}"),  # Essential for agent internal tracking
-        ])
+        response_content = self._extract_llm_response(result)
 
-        agent = create_tool_calling_agent(
-            llm=self.llm,
-            tools=list(self.tools_map.values()),
-            prompt=prompt
+        response_content = str(response_content)
+        thought, action = self._extract_thought_and_action(response_content)
+
+        logger.info(f"\n***LLM Thought***\n{thought}\n*** Action ***\n{action}")
+
+        progress_display.progress.show_agent_response(thought, action)
+        return action
+
+    @staticmethod
+    def _extract_llm_response(result: Any) -> Any:
+        if isinstance(result, BaseMessage):
+            return result.content
+
+        if "messages" in result:
+            response_content = result["messages"][-1].content
+        elif 'output' in result:
+            response_content = result['output']
+        elif 'content' in result:
+            response_content = result['content']
+        else:
+            response_content = result
+        return response_content
+
+    # noinspection PyUnusedLocal
+    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None) -> Any:
+        if not custom_tools:
+            tools = self._generate_tools()
+        else:
+            tools = custom_tools
+
+        llm = ToolFixer(self._get_llm())
+
+        # noinspection PyTypeChecker
+        agent = create_agent(
+            model=llm,
+            tools=tools,
+            debug=True
         )
 
-        agent_executor = AgentExecutor(
-            agent=agent,
-            tools=list(self.tools_map.values()),
-            verbose=True
+        tool_names = [tool_obj.name for tool_obj in tools]
+
+        logger.info(
+            f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
+        progress_display.progress.show_action("Running agent...")
+
+        # noinspection PyTypeChecker
+        result = agent.invoke(
+            {
+                "messages": [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt)
+                ]
+            }
         )
 
-        result = agent_executor.invoke({"input": user_prompt})
-        return result
+        logger.info(f"Agent response: {result}")
 
-    def _invoke_tool(self, tool_name: str, **kwargs) -> Any:
-        """Invoke a tool by name with arguments.
+        response_content = self._extract_llm_response(result)
 
-        Args:
-            tool_name: Name of the tool to invoke
-            **kwargs: Tool arguments
+        response_content = str(response_content)
+        thought, action = self._extract_thought_and_action(response_content)
 
-        Returns:
-            Tool result
+        logger.info(f"\n***Agent Thought***\n{thought}\n*** Action ***\n{action}")
+
+        progress_display.progress.show_agent_response(thought, action)
+
+        return action
+
+    def get_file_content_tool(self):
+        @tool
+        def get_file_content(file_name: str, start_char: int = 0, length: int = 5000) -> Dict[str, Any]:
+            """Get content from a file in the gathered content state.
+
+            Args:
+                file_name: Name of the file to read (e.g., 'document.txt')
+                start_char: Starting character position (default: 0)
+                length: Number of characters to read (default: 5000, max: 10000)
+
+            Returns:
+                Dictionary with file content, metadata, and pagination info
+            """
+            progress_display.progress.show_action(
+                f"Fetching file content. file_name={file_name}, start_char={start_char}, length={length}")
+            logger.info(f"Fetching file content. file_name={file_name}, start_char={start_char}, length={length}")
+            gathered_content = self.state.get("gathered_content", {})
+
+            # Find the file by name in gathered_content
+            file_path = None
+            for path in gathered_content.keys():
+                if Path(path).name == file_name:
+                    file_path = path
+                    break
+
+            if not file_path:
+                return {
+                    "error": f"File '{file_name}' not found in gathered content",
+                    "available_files": [Path(p).name for p in gathered_content.keys()]
+                }
+
+            content_info = gathered_content[file_path]
+            content = content_info.get("content", "")
+            content_type = content_info.get("type", "unknown")
+
+            # Limit length to avoid excessive token usage
+            length = min(length, 10000)
+
+            # Extract the requested chunk
+            end_char = start_char + length
+            chunk = content[start_char:end_char]
+
+            progress_display.progress.show_observation(
+                f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}")
+
+            response = {
+                "file_name": file_name,
+                "file_type": content_type,
+                "chunk": chunk,
+                "start_char": start_char,
+                "end_char": min(end_char, len(content)),
+                "total_length": len(content),
+                "has_more": end_char < len(content)
+            }
+            logger.info(
+                f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}. Full response: {response}")
+
+            return response
+
+        return get_file_content
+
+    @staticmethod
+    def _extract_thought_and_action(result_text: str) -> tuple[str, str]:
         """
-        if not self.bind_tools:
-            raise Exception("Agent tools are not bound. Cannot invoke tool.")
+        Extracts the <think> block content and the remaining action text.
+        Returns a tuple: (thought, action)
+        """
+        think_match = _RE_THINK_BLOCK.search(result_text)
+        thought = think_match.group(0) if think_match else ""
+        # Remove <think> tags if present
+        if thought:
+            # Extract only the inner content of <think>...</think>
+            inner_thought = _RE_THINK_TAGS.sub('', thought).strip()
+        else:
+            inner_thought = ""
+        # Remove the <think> block from the result to get the action
+        action = _RE_THINK_BLOCK.sub('', result_text).strip()
 
-        # Just in case, we ensure tools map is initialized
-        self._init_tools_map()
+        # In case there is a <result> block, extract its content as the action
+        result_action_match = _RE_RESULT_BLOCK.search(action)
+        result_action = result_action_match.group(0) if result_action_match else ""
+        if result_action:
+            action = _RE_RESULT_TAGS.sub('', result_action).strip()
 
-        if tool_name not in self.tools_map:
-            raise ValueError(f"Tool {tool_name} not found")
+        return inner_thought, action
 
-        tool = self.tools_map[tool_name]
+    @staticmethod
+    def _extract_json_from_llm_response(clean_text: str) -> Optional[Any]:
+        """
+        Generic utility to extract JSON from LLM responses.
+        Handles mark-down code blocks, and leading/trailing text.
+        """
+        markdown_match = _RE_JSON_BLOCK.search(clean_text)
+        if markdown_match:
+            target_text = markdown_match.group(1)
+        else:
+            json_match = _RE_JSON_EXTRACT.search(clean_text)
+            target_text = json_match.group(1) if json_match else clean_text
 
-        return mcp_client.invoke_tool(tool, **kwargs)
+        if not target_text:
+            raise Exception("Could not find JSON object in the LLM response.")
+
+        try:
+            return json.loads(target_text.strip())
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse extracted JSON: {e}")
+            raise
+
+    def _get_files_summary(self):
+        gathered_content = self.state.get("gathered_content", {})
+        file_list = []
+        for file_path, content_info in gathered_content.items():
+            content = content_info.get("content", "")
+            content_type = content_info.get("type", "unknown")
+            summary = content_info.get("summary", "")
+            file_list.append({
+                "name": Path(file_path).name,
+                "type": content_type,
+                "size": len(content),
+                "summary": summary
+            })
+
+        file_summary = "\n".join([
+            f"- {f['name']} ({f['type']}, {f['size']} chars) [Summary: {f['summary']}]"
+            for f in file_list
+        ])
+        return file_summary
