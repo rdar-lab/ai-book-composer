@@ -143,15 +143,40 @@ class PlannerAgent(AgentBase):
     # noinspection PyUnusedLocal
     @staticmethod
     def _parse_plan(response_content: str, files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Parse the LLM response into a structured plan.
-        
-        Args:
-            response_content: LLM response
-            files: Available files
-            
-        Returns:
-            Structured plan
-        """
+        """Parse the LLM response into a structured plan (list of tasks).
 
-        # TODO: Implement robust parsing logic here
-        raise NotImplementedError()
+        Args:
+            response_content: LLM response (should be JSON array or JSON array in markdown/code block)
+            files: Available files (list of dicts)
+        Returns:
+            Structured plan as a list of task dicts
+        Raises:
+            ValueError if parsing fails or structure is invalid
+        """
+        import json
+        import re
+
+        # Remove markdown code block formatting if present
+        content = response_content.strip()
+        code_block_match = re.match(r"^```(?:json)?\\n([\s\S]+?)\\n```$", content)
+        if code_block_match:
+            content = code_block_match.group(1).strip()
+        # Try to parse JSON
+        try:
+            plan = json.loads(content)
+        except Exception as e:
+            raise ValueError(f"Failed to parse plan as JSON: {e}\nRaw content: {content[:200]}")
+
+        # Validate and normalize structure
+        if not isinstance(plan, list):
+            raise ValueError("Plan must be a JSON array (list of tasks)")
+        for i, task in enumerate(plan):
+            if not isinstance(task, dict):
+                raise ValueError(f"Task {i} is not a dict")
+            for field in ("task", "description", "status"):
+                if field not in task:
+                    raise ValueError(f"Task {i} missing field: {field}")
+            # files is optional, but if present, must be a list
+            if "files" in task and not isinstance(task["files"], list):
+                task["files"] = []
+        return plan

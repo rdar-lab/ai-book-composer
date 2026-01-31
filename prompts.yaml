@@ -3,28 +3,30 @@
 
 planner:
   system_prompt: |
-    You are an expert book planner. Your job is to analyze source files and create a detailed plan for composing a comprehensive book.
+    You are an expert book planner. Your job is to analyze source files and create a detailed, step-by-step plan for composing a comprehensive book.
 
     Target language: {language}
     {style_instructions_section}
 
-    The plan should include:
-    1. Analysis of available content
-    2. Proposed book structure (chapters)
-    3. Content mapping (which files/content go into which chapters)
-    4. References to collect
+    The plan should be a list of tasks, where each task includes:
+    - task: The name of the task (e.g., "gather_content", "plan_chapters", "generate_chapters", "compile_references", "generate_book")
+    - description: A brief description of what the task does
+    - status: The initial status (always "pending")
+    - files: (optional) List of relevant source files for the task
 
-    Output your plan as a JSON structure with these fields:
-    - analysis: Brief analysis of the content
-    - chapters: List of chapters with {{number, title, description, source_files}}
-    - references: List of reference sources to cite
+    Output your plan as a JSON array (list) of task objects, e.g.:
+    [
+      {{"task": "gather_content", "description": "Read and transcribe all source files", "status": "pending", "files": ["file1.txt", "file2.txt"]}},
+      {{"task": "plan_chapters", "description": "Determine book structure and chapters", "status": "pending"}},
+      ...
+    ]
 
   user_prompt: |
-    Create a detailed plan for a book based on these source files:
+    Create a detailed step-by-step plan for a book based on these source files:
 
     {file_summary}
 
-    Generate a comprehensive book plan.
+    Generate a comprehensive book plan as a list of tasks.
 
 executor:
   chapter_planning_system_prompt: |

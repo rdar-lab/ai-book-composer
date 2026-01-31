@@ -75,6 +75,52 @@ class TestPlannerAgent:
         assert result["status"] == "planned"
         assert isinstance(result["plan"], list)
 
+    @patch('ai_book_composer.agents.agent_base.get_llm')
+    def test_plan_generation_llm_plan(self, mock_get_llm):
+        """Test plan generation with LLM (non-static plan)."""
+        # Mock LLM response with a valid plan JSON (as string)
+        mock_llm = Mock()
+        mock_response = Mock()
+        mock_response.content = '''[
+            {"task": "gather_content", "description": "Read and transcribe all source files", "status": "pending", "files": ["file1.txt", "file2.txt"]},
+            {"task": "plan_chapters", "description": "Determine book structure and chapters", "status": "pending"},
+            {"task": "generate_chapters", "description": "Write each chapter based on gathered content", "status": "pending"},
+            {"task": "compile_references", "description": "Compile list of references", "status": "pending"},
+            {"task": "generate_book", "description": "Generate final book with all components", "status": "pending"}
+        ]'''
+        mock_llm.invoke.return_value = mock_response
+        mock_get_llm.return_value = mock_llm
+
+        settings = Settings()
+        settings.llm.static_plan = False
+        planner = PlannerAgent(settings)
+        planner.prompts = {
+            'planner': {
+                'system_prompt': 'SYSTEM {language} {style_instructions_section}',
+                'user_prompt': 'USER {file_summary}'
+            }
+        }
+        state = create_initial_state(
+            input_directory="/tmp/input",
+            output_directory="/tmp/output"
+        )
+        state["files"] = [
+            {"name": "file1.txt", "path": "/tmp/input/file1.txt", "extension": ".txt"},
+            {"name": "file2.txt", "path": "/tmp/input/file2.txt", "extension": ".txt"}
+        ]
+        result = planner.plan(state)
+        assert "plan" in result
+        assert "status" in result
+        assert result["status"] == "planned"
+        plan = result["plan"]
+        assert isinstance(plan, list)
+        assert plan[0]["task"] == "gather_content"
+        assert plan[1]["task"] == "plan_chapters"
+        assert plan[2]["task"] == "generate_chapters"
+        assert plan[3]["task"] == "compile_references"
+        assert plan[4]["task"] == "generate_book"
+        assert plan[0]["files"] == ["file1.txt", "file2.txt"]
+
 
 class TestCriticAgent:
     """Test critic agent with mocked LLM."""
