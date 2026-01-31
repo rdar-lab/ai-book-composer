@@ -30,7 +30,7 @@ class AgentBase:
         llm_instance = get_llm(self.settings, temperature=self.llm_temperature)
 
         if self.bind_tools:
-            tools = mcp_client.get_tools(self.settings, self.input_directory, self.output_directory)
+            tools = self._generate_tools()
             self.tools_map = {tool.name: tool for tool in tools}
             llm_instance = llm_instance.bind_tools(list(self.tools_map.values()))
 
@@ -38,6 +38,10 @@ class AgentBase:
             self._llm_instance_cache = llm_instance
 
         return llm_instance
+
+    def _generate_tools(self) -> Any:
+        tools = mcp_client.get_tools(self.settings, self.input_directory, self.output_directory)
+        return tools
 
     def _invoke_tool(self, tool_name: str, **kwargs) -> Any:
         """Invoke a tool by name with arguments.

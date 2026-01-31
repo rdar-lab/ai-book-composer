@@ -1,9 +1,11 @@
 """Executor agent - Phase 2 of Deep-Agent architecture."""
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Dict, Any, List
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.tools import Tool
 
 from .agent_base import AgentBase
 from .state import AgentState
@@ -88,7 +90,10 @@ class ExecutorAgent(AgentBase):
             elif task_type == "generate_book":
                 result = self._generate_book(state)
             else:
-                result = {
+                result = self._custom_agent_task(current_task, state)
+
+                return {
+                    "llm_agent_result": result,
                     "current_task_index": current_task_index + 1,
                     "status": "executing"
                 }
@@ -96,6 +101,20 @@ class ExecutorAgent(AgentBase):
             progress.show_task(task_type, "completed")
 
             return result
+
+    def _custom_agent_task(self, current_task: dict[str, Any], state: AgentState) -> str | list[str | dict] | AIMessage:
+        # Use LLM agent with tools, using prompts from prompts.yaml
+        system_prompt_template = self.prompts['executor'].get('llm_agent_system_prompt')
+        user_prompt_template = self.prompts['executor'].get('llm_agent_user_prompt')
+        system_prompt = system_prompt_template.format()
+        user_prompt = user_prompt_template.format(state=state, current_task=current_task)
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        response = self.llm.invoke(messages)
+        result = response.content if hasattr(response, 'content') else response
+        return result
 
     def _process_single_file(self, file_info: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single file and return its content.
@@ -686,3 +705,42 @@ class ExecutorAgent(AgentBase):
             })
 
         return chapters[:MAX_CHAPTER_COUNT]
+
+    def _generate_tools(self):
+        """Extend base tools with built-in executor methods as LangChain tools."""
+        # Get MCP tools (as in base)
+        mcp_tools = super()._generate_tools()
+        # Built-in tool wrappers
+        builtin_tools = [
+            Tool(
+                name="gather_content",
+                description="Gather content from all source files.",
+                func=partial(self._gather_content)
+            ),
+            Tool(
+                name="plan_chapters",
+                description="Plan the book chapters based on gathered content.",
+                func=partial(self._plan_chapters)
+            ),
+            Tool(
+                name="generate_chapters_parallel",
+                description="Generate all chapters in parallel (preferred).",
+                func=partial(self._generate_chapters_parallel)
+            ),
+            Tool(
+                name="generate_single_chapter",
+                description="Generate a single chapter.",
+                func=partial(self._generate_single_chapter)
+            ),
+            Tool(
+                name="compile_references",
+                description="Compile list of references.",
+                func=partial(self._compile_references)
+            ),
+            Tool(
+                name="generate_book",
+                description="Generate the final book.",
+                func=partial(self._generate_book)
+            ),
+        ]
+        return list(mcp_tools) + builtin_tools
