@@ -253,8 +253,10 @@ class ProgressDisplay:
 
         try:
             yield self
-        finally:
             self.console.print(f"[dim]  ✓ {agent_name} phase complete[/dim]")
+        except:
+            self.console.print(f"[dim]  X {agent_name} phase failed[/dim]")
+            raise
 
 
 # Global progress display instance
