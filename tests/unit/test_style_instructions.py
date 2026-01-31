@@ -4,8 +4,12 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import yaml
+
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.state import create_initial_state
+# noinspection PyUnresolvedReferences
 from ai_book_composer.config import Settings, BookConfig
+# noinspection PyUnresolvedReferences
 from ai_book_composer.workflow import BookComposerWorkflow
 
 
@@ -82,6 +86,7 @@ class TestStyleInstructionsState:
         assert state['style_instructions'] == ""
 
 
+# noinspection PyUnusedLocal
 class TestStyleInstructionsWorkflow:
     """Test style instructions in workflow."""
 
@@ -131,6 +136,7 @@ class TestStyleInstructionsWorkflow:
         assert workflow.style_instructions == ""
 
 
+# noinspection PyUnusedLocal
 class TestStyleInstructionsIntegration:
     """Integration tests for style instructions feature."""
 
@@ -144,6 +150,7 @@ class TestStyleInstructionsIntegration:
             mock_workflow
     ):
         """Test that CLI properly passes style instructions to workflow."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.cli import main
         from click.testing import CliRunner
 
@@ -171,6 +178,7 @@ class TestStyleInstructionsIntegration:
         mock_workflow.return_value = mock_workflow_instance
 
         runner = CliRunner()
+        # noinspection PyTypeChecker
         with runner.isolated_filesystem():
             Path('input').mkdir()
             Path('output').mkdir()
@@ -196,6 +204,7 @@ class TestStyleInstructionsIntegration:
             mock_workflow
     ):
         """Test that CLI uses config style instructions when not provided via CLI."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.cli import main
         from click.testing import CliRunner
 
@@ -223,6 +232,7 @@ class TestStyleInstructionsIntegration:
         mock_workflow.return_value = mock_workflow_instance
 
         runner = CliRunner()
+        # noinspection PyTypeChecker
         with runner.isolated_filesystem():
             Path('input').mkdir()
             Path('output').mkdir()
@@ -243,6 +253,7 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_planner_prompt_includes_style_instructions(self):
         """Test that planner prompt includes style instructions placeholder."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
@@ -263,6 +274,7 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_critic_prompt_includes_style_instructions(self):
         """Test that critic prompt includes style instructions placeholder."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
@@ -284,6 +296,7 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_decorator_prompt_includes_style_instructions(self):
         """Test that decorator prompt includes style instructions placeholder."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
@@ -305,6 +318,7 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_executor_prompt_already_has_style_instructions(self):
         """Test that executor prompt already includes style instructions (from previous implementation)."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
@@ -316,6 +330,7 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_all_prompts_work_with_empty_style_instructions(self):
         """Test that all prompts work correctly when style instructions are empty."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()

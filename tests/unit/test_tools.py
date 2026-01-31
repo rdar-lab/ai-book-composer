@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+# noinspection PyUnresolvedReferences
+from ai_book_composer.config import Settings
+# noinspection PyUnresolvedReferences
 from ai_book_composer.tools.base_tools import (
     FileListingTool,
     TextFileReaderTool,
@@ -14,8 +17,6 @@ from ai_book_composer.tools.base_tools import (
     is_path_safe,
     is_file_size_within_limits
 )
-
-from ai_book_composer.config import Settings
 
 
 class TestSecurity:
@@ -278,9 +279,9 @@ class TestAudioTranscriptionTool:
         call_kwargs = mock_model_instance.transcribe.call_args[1]
         assert call_kwargs["language"] == "he"
 
+    # noinspection PyUnusedLocal
     @patch('ai_book_composer.tools.base_tools.WhisperModel')
     def test_transcribe_audio_file_not_found(self, mock_whisper_model):
-
         """Test audio transcription with non-existent file."""
         settings = Settings()
         settings.whisper.mode = "local"
@@ -319,7 +320,7 @@ class TestVideoTranscriptionTool:
         # Setup mock audio transcription tool
         mock_audio_tool = Mock()
         mock_audio_tool.mode = "local"
-        mock_audio_tool._transcribe_local.return_value = {
+        mock_audio_tool.transcribe_local.return_value = {
             "transcription": "Video content",
             "segments": [{"start": 0.0, "end": 10.0, "text": "Video content"}],
             "language": "en",
@@ -363,7 +364,7 @@ class TestVideoTranscriptionTool:
         # Setup mock audio transcription tool
         mock_audio_tool = Mock()
         mock_audio_tool.mode = "local"
-        mock_audio_tool._transcribe_local.return_value = {
+        mock_audio_tool.transcribe_local.return_value = {
             "transcription": "תוכן וידאו",
             "segments": [{"start": 0.0, "end": 10.0, "text": "תוכן וידאו"}],
             "language": "he",
@@ -383,10 +384,10 @@ class TestVideoTranscriptionTool:
         assert cache_path.exists()
 
         # Verify language parameter was passed
-        mock_audio_tool._transcribe_local.assert_called_once()
-        call_args = mock_audio_tool._transcribe_local.call_args[0]
-        call_kwargs = mock_audio_tool._transcribe_local.call_args[1] if len(
-            mock_audio_tool._transcribe_local.call_args) > 1 else {}
+        mock_audio_tool.transcribe_local.assert_called_once()
+        call_args = mock_audio_tool.transcribe_local.call_args[0]
+        call_kwargs = mock_audio_tool.transcribe_local.call_args[1] if len(
+            mock_audio_tool.transcribe_local.call_args) > 1 else {}
         # Language should be either in args or kwargs
         assert call_kwargs.get('language') == "he" or (len(call_args) > 1 and call_args[1] == "he")
 
@@ -396,6 +397,7 @@ class TestImageListingTool:
 
     def test_list_images(self, tmp_path):
         """Test listing images in directory."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.tools.base_tools import ImageListingTool
 
         # Create test image files
@@ -418,6 +420,7 @@ class TestImageListingTool:
 
     def test_list_empty_directory(self, tmp_path):
         """Test listing empty directory."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.tools.base_tools import ImageListingTool
 
         tool = ImageListingTool(Settings(), str(tmp_path))
@@ -430,6 +433,7 @@ class TestImageExtractorTool:
 
     def test_extract_images_file_not_found(self, tmp_path):
         """Test extract images from non-existent file."""
+        # noinspection PyUnresolvedReferences
         from ai_book_composer.tools.base_tools import ImageExtractorTool
 
         tool = ImageExtractorTool(Settings(), str(tmp_path))

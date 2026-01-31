@@ -1,6 +1,5 @@
 """Pytest configuration for test suite."""
 
-import logging
 import os
 import sys
 
@@ -10,6 +9,9 @@ SRC_DIR = os.path.join(ROOT_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-# Init logging framework for tests
-logging.basicConfig(level=logging.ERROR,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# noinspection PyUnresolvedReferences
+from ai_book_composer import logging_config
+# noinspection PyUnresolvedReferences
+from ai_book_composer.config import Settings
+
+logging_config.setup_logging(Settings())

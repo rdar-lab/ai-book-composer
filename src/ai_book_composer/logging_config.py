@@ -3,18 +3,16 @@
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional
 
 from .config import Settings
 
 
-def setup_logging(settings: Settings, config_path: Optional[str] = None) -> logging.Logger:
+def setup_logging(settings: Settings) -> logging.Logger:
     """Set up logging configuration.
     
     Args:
         settings: The project settings
-        config_path: Optional path to config file
-        
+
     Returns:
         Configured logger instance
     """

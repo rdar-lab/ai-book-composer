@@ -14,6 +14,7 @@ from .workflow import BookComposerWorkflow
 console = Console()
 logger = logging.getLogger(__name__)
 
+
 @click.command()
 @click.option(
     "--config",
@@ -89,7 +90,7 @@ def main(
         settings = Settings()
 
     # Set up logging
-    setup_logging(settings, config)
+    setup_logging(settings)
     logger.info("Starting AI Book Composer")
     logger.info(f"Config file: {config if config else 'default'}")
 

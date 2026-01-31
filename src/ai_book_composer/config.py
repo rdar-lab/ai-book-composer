@@ -145,15 +145,15 @@ class Settings:
 
     def _sync_config_state(self):
         # Reflect the state back to the self._config dictionary
-        self._config['llm'] = self.llm.dict()
-        self._config['whisper'] = self.whisper.dict()
-        self._config['text_reading'] = self.text_reading.dict()
-        self._config['media_processing'] = self.media_processing.dict()
-        self._config['image_processing'] = self.image_processing.dict()
-        self._config['book'] = self.book.dict()
-        self._config['logging'] = self.logging.dict()
-        self._config['security'] = self.security.dict()
-        self._config['parallel'] = self.parallel.dict()
+        self._config['llm'] = self.llm.model_dump()
+        self._config['whisper'] = self.whisper.model_dump()
+        self._config['text_reading'] = self.text_reading.model_dump()
+        self._config['media_processing'] = self.media_processing.model_dump()
+        self._config['image_processing'] = self.image_processing.model_dump()
+        self._config['book'] = self.book.model_dump()
+        self._config['logging'] = self.logging.model_dump()
+        self._config['security'] = self.security.model_dump()
+        self._config['parallel'] = self.parallel.model_dump()
         self._config['providers'] = self.providers
 
     def _replace_env_vars(self, data: Any) -> Any:
@@ -167,7 +167,8 @@ class Settings:
             return os.environ.get(var_name, data)
         return data
 
-    def _get_defaults(self) -> Dict[str, Any]:
+    @staticmethod
+    def _get_defaults() -> Dict[str, Any]:
         """Get default configuration."""
         return {
             'llm': {

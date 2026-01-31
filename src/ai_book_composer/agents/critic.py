@@ -112,7 +112,8 @@ class CriticAgent:
             "iterations": 1
         }
 
-    def _summarize_chapters(self, chapters: list) -> str:
+    @staticmethod
+    def _summarize_chapters(chapters: list) -> str:
         """Create summary of chapters for critique.
         
         Args:
@@ -136,7 +137,8 @@ class CriticAgent:
 
         return "\n\n".join(summaries)
 
-    def _parse_critique(self, response_content: str) -> tuple:
+    @staticmethod
+    def _parse_critique(response_content: str) -> tuple:
         """Parse critique response.
         
         Args:

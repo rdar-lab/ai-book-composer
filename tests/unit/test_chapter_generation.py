@@ -3,8 +3,11 @@
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
+# noinspection PyUnresolvedReferences
 from ai_book_composer.config import Settings
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.executor import ExecutorAgent
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.state import create_initial_state
 
 

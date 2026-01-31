@@ -1,5 +1,5 @@
 """Executor agent - Phase 2 of Deep-Agent architecture."""
-import asyncio
+import logging
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -19,6 +19,8 @@ MAX_CONTENT_PREVIEW_LENGTH = 500
 MAX_CONTENT_FOR_CHAPTER_PLANNING = 10000
 MIN_CHAPTER_COUNT = 3
 MAX_CHAPTER_COUNT = 10
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutorAgent:
@@ -52,6 +54,14 @@ class ExecutorAgent:
         tool = self.tools_map[tool_name]
 
         return mcp_client.invoke_tool(tool, **kwargs)
+
+    def list_files(self) -> List[Dict[str, Any]]:
+        """List all files in the input directory using the appropriate tool.
+
+        Returns:
+            List of file information dictionaries
+        """
+        return self._invoke_tool("list_files")
 
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.
@@ -161,6 +171,7 @@ class ExecutorAgent:
                     "status": "skipped"
                 }
         except Exception as e:
+            logger.exception(f"Error processing file {file_path}: {str(e)}")
             return {
                 "file_path": file_path,
                 "file_name": file_name,
@@ -196,6 +207,8 @@ class ExecutorAgent:
                     "status": "no_images"
                 }
         except Exception as e:
+            logger.exception(f"Error extracting images from PDF {pdf_path}: {str(e)}")
+
             return {
                 "pdf_name": pdf_name,
                 "images": [],
@@ -258,6 +271,7 @@ class ExecutorAgent:
             all_images.extend(existing_images)
             progress.show_observation(f"✓ Found {len(existing_images)} existing image(s)")
         except Exception as e:
+            logger.exception(f"Error listing images: {str(e)}")
             progress.show_observation(f"⚠ Error listing images: {str(e)}")
 
         # Extract images from PDF files (potentially in parallel)
@@ -491,6 +505,7 @@ class ExecutorAgent:
                     "status": "success"
                 }
             except Exception as e:
+                logger.exception(f"Error generating Chapter {chapter_num}: {str(e)}")
                 progress.show_observation(f"✗ Error generating Chapter {chapter_num}: {str(e)}")
                 return {
                     "number": chapter_num,
@@ -577,7 +592,8 @@ class ExecutorAgent:
         response = self.llm.invoke(messages)
         return response.content
 
-    def _compile_references(self, state: AgentState) -> Dict[str, Any]:
+    @staticmethod
+    def _compile_references(state: AgentState) -> Dict[str, Any]:
         """Compile list of references."""
         files = state.get("files", [])
 
@@ -625,7 +641,8 @@ class ExecutorAgent:
             "status": "book_generated"
         }
 
-    def _summarize_content(self, gathered_content: Dict[str, Any]) -> str:
+    @staticmethod
+    def _summarize_content(gathered_content: Dict[str, Any]) -> str:
         """Summarize gathered content with full content for chapter planning.
         
         Includes full content from each file (up to MAX_CONTENT_FOR_CHAPTER_PLANNING chars)
@@ -651,7 +668,8 @@ class ExecutorAgent:
             summary.append(f"File: {Path(file_path).name} ({content_type})\nContent:\n{file_content}\n")
         return "\n".join(summary)
 
-    def _parse_chapter_list(self, response_content: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _parse_chapter_list(response_content: str) -> List[Dict[str, Any]]:
         """Parse chapter list from LLM response."""
         # Simplified parsing - create default structure
         # In production, use structured output

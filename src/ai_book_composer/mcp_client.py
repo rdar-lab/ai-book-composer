@@ -58,10 +58,10 @@ def get_tools_sync(mcp_client):
 
 def unwrap_mcp_result(result: Any) -> Any:
     """Unwrap MCP tool result from LangChain format.
-    
-    LangChain MCP adapters wrap tool results in formats like:
-    - List: [{'id': '...', 'text': '...', 'type': 'text'}, ...]
-    - Single dict: {'id': '...', 'text': '...', 'type': 'text'}
+
+    The expectation from the MCP server is to return a JSON to overcome this issue
+    we expect a text element with JSON payload inside the result.
+    We parse it like that, otherwise we just return it as it is
     
     This function unwraps them back to the original format.
     
@@ -71,44 +71,21 @@ def unwrap_mcp_result(result: Any) -> Any:
     Returns:
         Unwrapped result in original format
     """
-    # Handle single wrapped item (dict)
-    if isinstance(result, dict) and 'text' in result and 'type' in result and 'id' in result:
-        # Only unwrap if type is 'text' (standard MCP wrapper format)
-        if result.get('type') == 'text':
-            try:
-                return json.loads(result['text'])
-            except (json.JSONDecodeError, TypeError):
-                # If parsing fails, return the text as-is
-                return result['text']
-        # For other types, return as-is (this might be a regular dict, not a wrapper)
-        # since we can't be certain it's a wrapped result without type='text'
+
+    if isinstance(result, list) and len(result) > 0 and 'text' in result[0] and result[0].get('type') == 'text':
+        json_payload = result[0]['text']
+        try:
+            return json.loads(json_payload)
+        except json.JSONDecodeError:
+            return json_payload  # Return as-is if not valid JSON
+    elif isinstance(result, dict) and 'text' in result  and result.get('type') == 'text':
+        json_payload = result['text']
+        try:
+            return json.loads(json_payload)
+        except json.JSONDecodeError:
+            return json_payload  # Return as-is if not valid JSON
+    else:
         return result
-
-    # Handle list of wrapped items
-    if isinstance(result, list) and len(result) > 0:
-        # Check if all items look like wrapped results
-        all_wrapped = all(
-            isinstance(item, dict) and
-            'text' in item and
-            'type' in item and
-            'id' in item and
-            item.get('type') == 'text'
-            for item in result
-        )
-
-        if all_wrapped:
-            # All items are wrapped - unwrap each one
-            unwrapped = []
-            for item in result:
-                try:
-                    unwrapped.append(json.loads(item['text']))
-                except (json.JSONDecodeError, TypeError):
-                    # If parsing fails, keep the text as-is
-                    unwrapped.append(item['text'])
-            return unwrapped
-
-    # If it's not wrapped, return as-is
-    return result
 
 
 def get_tools(settings, input_directory: str, output_directory: str):

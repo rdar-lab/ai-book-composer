@@ -2,6 +2,7 @@
 
 from unittest.mock import patch, MagicMock
 
+# noinspection PyUnresolvedReferences
 from ai_book_composer.progress_display import (
     ProgressDisplay,
     show_workflow_start,

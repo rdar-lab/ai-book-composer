@@ -7,7 +7,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-
+import json
 from mcp.server import FastMCP
 
 from .config import Settings
@@ -95,7 +95,7 @@ def initialize_tools(settings: Settings, input_directory: str, output_directory:
 
 
 @mcp.tool(description="List all files in the input directory")
-async def list_files() -> List[Dict[str, Any]]:
+async def list_files() -> str:
     """List all files in the input directory.
 
     Returns:
@@ -107,11 +107,11 @@ async def list_files() -> List[Dict[str, Any]]:
     logger.debug("MCP: list_files called")
     result = _file_lister.run()
     logger.debug(f"MCP: list_files returned {len(result)} files")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="List all image files in the input directory")
-async def list_images() -> List[Dict[str, Any]]:
+async def list_images() -> str:
     """List all image files in the input directory.
 
     Returns:
@@ -123,11 +123,11 @@ async def list_images() -> List[Dict[str, Any]]:
     logger.debug("MCP: list_images called")
     result = _image_lister.run()
     logger.debug(f"MCP: list_images returned {len(result)} images")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Extract images from PDF files and save them to output directory")
-async def extract_images_from_pdf(file_path: str) -> Dict[str, Any]:
+async def extract_images_from_pdf(file_path: str) -> str:
     """Extract images from a PDF file.
 
     Args:
@@ -142,7 +142,7 @@ async def extract_images_from_pdf(file_path: str) -> Dict[str, Any]:
     logger.info(f"MCP: extract_images_from_pdf called for {file_path}")
     result = _image_extractor.run(file_path)
     logger.info(f"MCP: extract_images_from_pdf extracted {result.get('count', 0)} images")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Read content from text files (txt, md, rst, docx, rtf, pdf)")
@@ -150,7 +150,7 @@ async def read_text_file(
         file_path: str,
         start_line: int = 1,
         end_line: Optional[int] = None
-) -> Dict[str, Any]:
+) -> str:
     """Read text file content with optional line range.
 
     Args:
@@ -167,11 +167,11 @@ async def read_text_file(
     logger.debug(f"MCP: read_text_file called for {file_path}")
     result = _text_reader.run(file_path, start_line, end_line)
     logger.debug(f"MCP: read_text_file returned {len(result.get('content', ''))} characters")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Transcribe audio files (mp3, wav, m4a, flac, ogg) with optional language specification")
-async def transcribe_audio(file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
+async def transcribe_audio(file_path: str, language: Optional[str] = None) -> str:
     """Transcribe audio file to text.
 
     Args:
@@ -187,11 +187,11 @@ async def transcribe_audio(file_path: str, language: Optional[str] = None) -> Di
     logger.info(f"MCP: transcribe_audio called for {file_path}, language: {language or 'auto-detect'}")
     result = _audio_transcriber.run(file_path, language)
     logger.info(f"MCP: transcribe_audio completed for {file_path}")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Transcribe video files (mp4, avi, mov, mkv) with optional language specification")
-async def transcribe_video(file_path: str, language: Optional[str] = None) -> Dict[str, Any]:
+async def transcribe_video(file_path: str, language: Optional[str] = None) -> str:
     """Transcribe video file to text.
 
     Args:
@@ -207,7 +207,7 @@ async def transcribe_video(file_path: str, language: Optional[str] = None) -> Di
     logger.info(f"MCP: transcribe_video called for {file_path}, language: {language or 'auto-detect'}")
     result = _video_transcriber.run(file_path, language)
     logger.info(f"MCP: transcribe_video completed for {file_path}")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Write a chapter to a file")
@@ -215,7 +215,7 @@ async def write_chapter(
         chapter_number: int,
         title: str,
         content: str
-) -> Dict[str, Any]:
+) -> str:
     """Write a chapter to a file in the output directory.
 
     Args:
@@ -232,11 +232,11 @@ async def write_chapter(
     logger.info(f"MCP: write_chapter called for Chapter {chapter_number}: {title}")
     result = _chapter_writer.run(chapter_number, title, content)
     logger.info(f"MCP: write_chapter completed for Chapter {chapter_number}")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Write the list of planned chapters")
-async def write_chapter_list(chapters: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def write_chapter_list(chapters: List[Dict[str, Any]]) -> str:
     """Write the list of planned chapters to a file.
 
     Args:
@@ -251,7 +251,7 @@ async def write_chapter_list(chapters: List[Dict[str, Any]]) -> Dict[str, Any]:
     logger.info(f"MCP: write_chapter_list called with {len(chapters)} chapters")
     result = _chapter_list_writer.run(chapters)
     logger.info(f"MCP: write_chapter_list completed")
-    return result
+    return json.dumps(result)
 
 
 @mcp.tool(description="Generate the final book in RTF format")
@@ -261,7 +261,7 @@ async def generate_book(
         chapters: Optional[List[Dict[str, str]]] = None,
         references: Optional[List[str]] = None,
         output_filename: str = "book.rtf"
-) -> Dict[str, Any]:
+) -> str:
     """Generate the final book in RTF format.
     
     Args:
@@ -301,7 +301,7 @@ async def generate_book(
 
     result = _book_generator.run(book_title, book_author, chapters, references, output_filename)
     logger.info(f"MCP: generate_book completed")
-    return result
+    return json.dumps(result)
 
 
 def get_mcp_server() -> FastMCP:
@@ -324,7 +324,7 @@ if __name__ == "__main__":
 
         # Get Settings
         settings_path = os.getenv("SETTINGS_PATH")
-        settings = Settings(settings_path)
+        parsed_settings = Settings(settings_path)
 
         # Get directories from environment variables
         input_dir = os.getenv("INPUT_DIRECTORY", ".")
@@ -340,7 +340,7 @@ if __name__ == "__main__":
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Initialize tools
-        initialize_tools(settings, str(input_path.resolve()), str(output_path.resolve()))
+        initialize_tools(parsed_settings, str(input_path.resolve()), str(output_path.resolve()))
 
         mcp.run()
     else:

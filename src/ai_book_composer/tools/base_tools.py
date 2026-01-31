@@ -175,23 +175,27 @@ class TextFileReaderTool:
             logger.exception(f"Error reading file {file_path}: {e}")
             return {"error": str(e), "content": ""}
 
-    def _read_plain_text(self, file_path: Path) -> str:
+    @staticmethod
+    def _read_plain_text(file_path: Path) -> str:
         """Read plain text file."""
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
 
-    def _read_docx(self, file_path: Path) -> str:
+    @staticmethod
+    def _read_docx(file_path: Path) -> str:
         """Read DOCX file."""
         doc = DocxDocument(str(file_path))
         return '\n'.join([para.text for para in doc.paragraphs])
 
-    def _read_rtf(self, file_path: Path) -> str:
+    @staticmethod
+    def _read_rtf(file_path: Path) -> str:
         """Read RTF file."""
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             rtf_content = f.read()
         return rtf_to_text(rtf_content)
 
-    def _read_pdf(self, file_path: Path) -> str:
+    @staticmethod
+    def _read_pdf(file_path: Path) -> str:
         """Read PDF file."""
         reader = PdfReader(file_path)
         text_parts = []
@@ -224,7 +228,8 @@ class AudioTranscriptionTool:
             self.api_key = settings.whisper.remote["api_key"]
             logger.info(f"Using remote Whisper at {self.endpoint}")
 
-    def _get_cache_path(self, file_path: Path, language: Optional[str] = None) -> Path:
+    @staticmethod
+    def _get_cache_path(file_path: Path, language: Optional[str] = None) -> Path:
         """Get cache file path for a given audio file.
         
         Args:
@@ -239,7 +244,8 @@ class AudioTranscriptionTool:
         cache_filename = f".{file_path.name}{lang_suffix}.txt"
         return file_path.parent / cache_filename
 
-    def _read_cache(self, cache_path: Path) -> Optional[Dict[str, Any]]:
+    @staticmethod
+    def _read_cache(cache_path: Path) -> Optional[Dict[str, Any]]:
         """Read cached transcription if it exists.
         
         Args:
@@ -259,7 +265,8 @@ class AudioTranscriptionTool:
                 return None
         return None
 
-    def _write_cache(self, cache_path: Path, data: Dict[str, Any]) -> None:
+    @staticmethod
+    def _write_cache(cache_path: Path, data: Dict[str, Any]) -> None:
         """Write transcription result to cache.
         
         Args:
@@ -301,9 +308,9 @@ class AudioTranscriptionTool:
 
         try:
             if self.mode == "local":
-                result = self._transcribe_local(file_path, language)
+                result = self.transcribe_local(file_path, language)
             else:
-                result = self._transcribe_remote(file_path, language)
+                result = self.transcribe_remote(file_path, language)
 
             # Cache the result if successful
             if "error" not in result:
@@ -314,7 +321,7 @@ class AudioTranscriptionTool:
             logger.exception(f"Error transcribing audio {file_path}: {e}")
             return {"error": str(e), "transcription": ""}
 
-    def _transcribe_local(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
+    def transcribe_local(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
         """Transcribe using local Whisper model.
         
         Args:
@@ -347,7 +354,7 @@ class AudioTranscriptionTool:
             "duration": info.duration
         }
 
-    def _transcribe_remote(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
+    def transcribe_remote(self, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
         """Transcribe using remote Whisper service.
         
         Args:
@@ -391,7 +398,8 @@ class VideoTranscriptionTool:
         self.chunk_duration = settings.media_processing.chunk_duration
         logger.info(f"VideoTranscriptionTool initialized with {self.chunk_duration}s chunks")
 
-    def _get_cache_path(self, file_path: Path, language: Optional[str] = None) -> Path:
+    @staticmethod
+    def _get_cache_path(file_path: Path, language: Optional[str] = None) -> Path:
         """Get cache file path for a given video file.
         
         Args:
@@ -406,7 +414,8 @@ class VideoTranscriptionTool:
         cache_filename = f".{file_path.name}{lang_suffix}.txt"
         return file_path.parent / cache_filename
 
-    def _read_cache(self, cache_path: Path) -> Optional[Dict[str, Any]]:
+    @staticmethod
+    def _read_cache(cache_path: Path) -> Optional[Dict[str, Any]]:
         """Read cached transcription if it exists.
         
         Args:
@@ -426,7 +435,8 @@ class VideoTranscriptionTool:
                 return None
         return None
 
-    def _write_cache(self, cache_path: Path, data: Dict[str, Any]) -> None:
+    @staticmethod
+    def _write_cache(cache_path: Path, data: Dict[str, Any]) -> None:
         """Write transcription result to cache.
         
         Args:
@@ -505,8 +515,8 @@ class VideoTranscriptionTool:
 
             # Transcribe - note: we bypass cache here since video has its own cache
             # Call the internal method directly to avoid double-caching
-            result = self.audio_tool._transcribe_local(Path(audio_path),
-                                                       language) if self.audio_tool.mode == "local" else self.audio_tool._transcribe_remote(
+            result = self.audio_tool.transcribe_local(Path(audio_path),
+                                                      language) if self.audio_tool.mode == "local" else self.audio_tool.transcribe_remote(
                 Path(audio_path), language)
             return result
         finally:
@@ -543,8 +553,8 @@ class VideoTranscriptionTool:
                 ffmpeg.run(stream, overwrite_output=True, quiet=True)
 
                 # Transcribe chunk - bypass cache for temporary audio files
-                result = self.audio_tool._transcribe_local(Path(audio_path),
-                                                           language) if self.audio_tool.mode == "local" else self.audio_tool._transcribe_remote(
+                result = self.audio_tool.transcribe_local(Path(audio_path),
+                                                          language) if self.audio_tool.mode == "local" else self.audio_tool.transcribe_remote(
                     Path(audio_path), language)
 
                 # Store detected language from first chunk
@@ -695,6 +705,7 @@ class ImageExtractorTool:
             Dictionary with extracted image paths and metadata
         """
         try:
+            # noinspection PyPackageRequirements
             import fitz  # PyMuPDF
         except ImportError:
             logger.error("PyMuPDF not installed. Cannot extract images from PDF.")

@@ -1,9 +1,9 @@
 """Utilities for parallel execution of tasks."""
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 from typing import Callable, List, Any, Dict
-import logging
 
 from .config import Settings
 

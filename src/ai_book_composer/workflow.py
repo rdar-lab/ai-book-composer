@@ -56,6 +56,7 @@ class BookComposerWorkflow:
         # Build graph
         self.graph = self._build_graph()
 
+    # noinspection PyTypeChecker
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow.
         
@@ -108,7 +109,7 @@ class BookComposerWorkflow:
 
         return workflow.compile()
 
-    def _list_files_node(self, state: AgentState) -> Dict[str, Any]:
+    def _list_files_node(self, _: AgentState) -> Dict[str, Any]:
         """Node to list all files in input directory."""
         show_node_transition(None, "list_files", "Starting workflow")
         progress.show_phase(
@@ -117,7 +118,7 @@ class BookComposerWorkflow:
         )
 
         progress.show_action(f"Listing files in: {self.input_directory}")
-        files = self.executor._invoke_tool("list_files")
+        files = self.executor.list_files()
 
         progress.show_observation(f"Found {len(files)} file(s) to process")
         if files:
@@ -146,6 +147,7 @@ class BookComposerWorkflow:
         show_node_transition("decorate", "critique", "Image decoration complete, evaluating quality")
         return self.critic.critique(state)
 
+    # noinspection PyMethodMayBeStatic
     def _finalize_node(self, state: AgentState) -> Dict[str, Any]:
         """Node to finalize the workflow."""
         show_node_transition("critique", "finalize", "Quality approved")
@@ -167,6 +169,7 @@ class BookComposerWorkflow:
 
         return {"status": "completed"}
 
+    # noinspection PyMethodMayBeStatic
     def _should_continue_execution(self, state: AgentState) -> str:
         """Determine if execution should continue or move to decorator.
         
@@ -203,6 +206,7 @@ class BookComposerWorkflow:
             # Reset task index for revision
             return "revise"
 
+    # noinspection PyUnresolvedReferences
     def run(self) -> Dict[str, Any]:
         """Run the workflow.
         

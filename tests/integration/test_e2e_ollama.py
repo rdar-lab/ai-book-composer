@@ -4,8 +4,11 @@ from pathlib import Path
 
 import pytest
 import yaml
+# noinspection PyUnresolvedReferences
 from ai_book_composer.workflow import BookComposerWorkflow
+# noinspection PyUnresolvedReferences
 from ai_book_composer.config import Settings
+# noinspection PyUnresolvedReferences
 from ai_book_composer import config
 
 @pytest.fixture

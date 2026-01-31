@@ -37,10 +37,12 @@ class DecoratorAgent:
 
         if not images:
             progress.update_status("Decorator: No images available, skipping decoration")
+            # noinspection PyTypeChecker
             return state
 
         if not chapters:
             progress.update_status("Decorator: No chapters to decorate")
+            # noinspection PyTypeChecker
             return state
 
         # Decorate each chapter
@@ -83,7 +85,8 @@ class DecoratorAgent:
             "status": "decorated"
         }
 
-    def _format_images_for_prompt(self, images: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_images_for_prompt(images: List[Dict[str, Any]]) -> str:
         """Format image list for the prompt.
         
         Args:
@@ -97,7 +100,6 @@ class DecoratorAgent:
 
         image_descriptions = []
         for i, img in enumerate(images, 1):
-            path = img.get("path", "unknown")
             filename = img.get("filename", "unknown")
             source = img.get("source_file", "input directory")
             format_type = img.get("format", "unknown")
@@ -141,7 +143,7 @@ class DecoratorAgent:
 
             system_prompt = decorator_prompts.get("system_prompt", "").format(
                 language=language,
-                max_images_per_chapter=settings.image_processing.max_images_per_chapter,
+                max_images_per_chapter=self.settings.image_processing.max_images_per_chapter,
                 style_instructions_section=style_instructions_section
             )
             user_prompt = decorator_prompts.get("user_prompt", "").format(
@@ -188,7 +190,7 @@ class DecoratorAgent:
                         progress.update_status(f"Warning: Image path not found in available images: {image_path}")
 
                 # Limit to max images per chapter
-                max_images = settings.image_processing.max_images_per_chapter
+                max_images = self.settings.image_processing.max_images_per_chapter
                 if len(validated_placements) > max_images:
                     validated_placements = validated_placements[:max_images]
 

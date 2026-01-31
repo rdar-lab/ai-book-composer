@@ -82,7 +82,8 @@ class PlannerAgent:
             "status": "planned"
         }
 
-    def _summarize_files(self, files: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _summarize_files(files: List[Dict[str, Any]]) -> str:
         """Create a summary of available files.
         
         Args:
@@ -99,7 +100,9 @@ class PlannerAgent:
             summary.append(f"{i}. {name} ({extension}, {size} bytes)")
         return "\n".join(summary)
 
-    def _parse_plan(self, response_content: str, files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def _parse_plan(response_content: str, files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Parse the LLM response into a structured plan.
         
         Args:
@@ -109,45 +112,43 @@ class PlannerAgent:
         Returns:
             Structured plan
         """
+
+        # TODO: Implement robust parsing logic here
+
         # Simplified parsing - create default plan structure
         # In production, use structured output or JSON parsing
 
-        plan = []
-
-        # Task 1: Gather all content
-        plan.append({
-            "task": "gather_content",
-            "description": "Read and transcribe all source files",
-            "status": "pending",
-            "files": [f.get("path") for f in files]
-        })
-
-        # Task 2: Plan chapters
-        plan.append({
-            "task": "plan_chapters",
-            "description": "Determine book structure and chapters",
-            "status": "pending"
-        })
-
-        # Task 3: Generate chapters
-        plan.append({
-            "task": "generate_chapters",
-            "description": "Write each chapter based on gathered content",
-            "status": "pending"
-        })
-
-        # Task 4: Compile references
-        plan.append({
-            "task": "compile_references",
-            "description": "Compile list of references",
-            "status": "pending"
-        })
-
-        # Task 5: Generate final book
-        plan.append({
-            "task": "generate_book",
-            "description": "Generate final book with all components",
-            "status": "pending"
-        })
+        plan = [
+            # Task 1: Gather all content
+            {
+                "task": "gather_content",
+                "description": "Read and transcribe all source files",
+                "status": "pending",
+                "files": [f.get("path") for f in files]
+            },
+            # Task 2: Plan chapters
+            {
+                "task": "plan_chapters",
+                "description": "Determine book structure and chapters",
+                "status": "pending"
+            },
+            # Task 3: Generate chapters
+            {
+                "task": "generate_chapters",
+                "description": "Write each chapter based on gathered content",
+                "status": "pending"
+            },
+            # Task 4: Compile references
+            {
+                "task": "compile_references",
+                "description": "Compile list of references",
+                "status": "pending"
+            },
+            # Task 5: Generate final book
+            {
+                "task": "generate_book",
+                "description": "Generate final book with all components",
+                "status": "pending"
+            }]
 
         return plan

@@ -65,7 +65,7 @@ class ProgressDisplay:
         self.console.print(f"{emoji} [blue]Observation:[/blue] {observation}")
 
     def show_step(self, step_num: int, total_steps: int, description: str):
-        """Display a step in a multi-step process.
+        """Display a step in a multistep process.
         
         Args:
             step_num: Current step number

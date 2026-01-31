@@ -4,6 +4,7 @@ import json
 import pytest
 from unittest.mock import Mock, AsyncMock
 
+# noinspection PyUnresolvedReferences
 from ai_book_composer import mcp_client
 
 
@@ -11,33 +12,31 @@ class TestMCPResultUnwrapping:
     """Test MCP result unwrapping functionality in mcp_client."""
 
     def test_unwrap_list_of_wrapped_items(self):
-        """Test unwrapping a list of wrapped MCP results."""
-        # Wrapped list result (as returned by langchain-mcp-adapters)
-        wrapped_result = [
+        payload = [
             {
-                'id': 'lc_b3beae62-6e61-4c38-b7d8-b31379eac376',
-                'text': json.dumps({
-                    "path": "/tmp/test/article2.txt",
-                    "name": "article2.txt",
-                    "extension": ".txt",
-                    "size": 119
-                }),
-                'type': 'text'
+                "path": "/tmp/test/article2.txt",
+                "name": "article2.txt",
+                "extension": ".txt",
+                "size": 119
             },
             {
-                'id': 'lc_edfba5bf-76f5-4360-8d12-219ff1448ba4',
-                'text': json.dumps({
-                    "path": "/tmp/test/article1.txt",
-                    "name": "article1.txt",
-                    "extension": ".txt",
-                    "size": 117
-                }),
+                "path": "/tmp/test/article1.txt",
+                "name": "article1.txt",
+                "extension": ".txt",
+                "size": 117
+            }
+        ]
+
+        wrapped_payload = [
+            {
+                'id': 'lc_b3beae62-6e61-4c38-b7d8-b31379eac376',
+                'text': json.dumps(payload),
                 'type': 'text'
             }
         ]
 
         # Unwrap
-        result = mcp_client.unwrap_mcp_result(wrapped_result)
+        result = mcp_client.unwrap_mcp_result(wrapped_payload)
 
         # Verify
         assert isinstance(result, list)
@@ -125,31 +124,18 @@ class TestMCPResultUnwrapping:
         result = mcp_client.invoke_tool(mock_tool)
 
         # Verify result is unwrapped
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["name"] == "test.txt"
-        assert result[0]["size"] == 100
+        assert isinstance(result, dict)
+        assert result["name"] == "test.txt"
+        assert result["size"] == 100
         # Verify it's not wrapped anymore
-        assert "id" not in result[0]
-        assert "text" not in result[0]
-        assert "type" not in result[0]
+        assert "id" not in result
+        assert "text" not in result
+        assert "type" not in result
 
     def test_unwrap_empty_list(self):
         """Test that empty list passes through unchanged."""
         result = mcp_client.unwrap_mcp_result([])
         assert result == []
-
-    def test_unwrap_partial_wrapped_list(self):
-        """Test list where not all items are wrapped (should return as-is)."""
-        # List with mixed content - not all items wrapped
-        mixed_result = [
-            {'id': 'lc_1', 'text': '{"name": "file1.txt"}', 'type': 'text'},
-            {'name': 'file2.txt', 'size': 200}  # Not wrapped
-        ]
-        
-        # Should return as-is since not all items are wrapped
-        result = mcp_client.unwrap_mcp_result(mixed_result)
-        assert result == mixed_result
 
     def test_unwrap_dict_with_non_text_type(self):
         """Test that dicts with type != 'text' are returned as-is."""

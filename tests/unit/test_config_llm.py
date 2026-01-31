@@ -4,7 +4,9 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+# noinspection PyUnresolvedReferences
 from ai_book_composer.config import Settings
+# noinspection PyUnresolvedReferences
 from ai_book_composer.llm import get_llm
 
 

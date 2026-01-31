@@ -3,10 +3,15 @@
 import tempfile
 from unittest.mock import Mock, patch
 
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.critic import CriticAgent
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.executor import ExecutorAgent
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.planner import PlannerAgent
+# noinspection PyUnresolvedReferences
 from ai_book_composer.agents.state import AgentState, create_initial_state
+# noinspection PyUnresolvedReferences
 from ai_book_composer.config import Settings
 
 class TestAgentState:
@@ -232,6 +237,7 @@ class TestExecutorAgent:
             )
 
             # Import the constant to use in test
+            # noinspection PyUnresolvedReferences
             from ai_book_composer.agents.executor import MAX_CONTENT_FOR_CHAPTER_PLANNING
 
             # Create content that exceeds the limit

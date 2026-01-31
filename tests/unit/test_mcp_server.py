@@ -1,8 +1,10 @@
 """Unit tests for MCP Server."""
 
 from pathlib import Path
+import json
 
 import pytest
+# noinspection PyUnresolvedReferences
 from ai_book_composer.mcp_server import (
     mcp,
     initialize_tools,
@@ -64,6 +66,7 @@ class TestMCPTools:
         input_dir, _ = setup_dirs
 
         result = await list_files()
+        result = json.loads(result)
 
         assert isinstance(result, list)
         assert len(result) == 2
@@ -76,6 +79,7 @@ class TestMCPTools:
         test_file = str(input_dir / "test1.txt")
 
         result = await read_text_file(test_file)
+        result = json.loads(result)
 
         assert isinstance(result, dict)
         assert "content" in result
@@ -91,6 +95,7 @@ class TestMCPTools:
             title="Test Chapter",
             content="Test content"
         )
+        result = json.loads(result)
 
         assert isinstance(result, dict)
         assert result["success"] is True
@@ -108,6 +113,7 @@ class TestMCPTools:
         ]
 
         result = await write_chapter_list(chapters)
+        result = json.loads(result)
 
         assert isinstance(result, dict)
         assert result["success"] is True
@@ -130,6 +136,7 @@ class TestMCPTools:
             chapters=[{"title": "Test Chapter", "content": "Test content"}],
             references=[]
         )
+        result = json.loads(result)
 
         assert isinstance(result, dict)
         assert result.get("success") is True or "output_path" in result
@@ -142,6 +149,7 @@ class TestMCPToolErrors:
     async def test_tools_not_initialized_error(self):
         """Test that tools raise error when not initialized."""
         # Reset global tool instances by importing fresh
+        # noinspection PyUnresolvedReferences
         import ai_book_composer.mcp_server as mcp_module
 
         # Set tool instances to None
@@ -156,6 +164,7 @@ class TestMCPToolErrors:
         initialize_tools(Settings(), str(tmp_path), str(tmp_path))
 
         result = await read_text_file("/nonexistent/file.txt")
+        result = json.loads(result)
 
         assert isinstance(result, dict)
         assert "error" in result
@@ -212,6 +221,8 @@ class TestMCPServerIntegration:
             actual_result = structured.get('result', [])
         else:
             actual_result = result
+
+        actual_result = json.loads(actual_result)
 
         assert isinstance(actual_result, list)
         assert len(actual_result) == 1
