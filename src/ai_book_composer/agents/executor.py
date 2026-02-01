@@ -107,7 +107,8 @@ class ExecutorAgent(AgentBase):
 
     def _plan_chapters_inner(self) -> dict[str, list[dict[str, Any]] | int | str | Any]:
         cached_chapters_list_file = file_utils.get_cache_path(self.settings, "chapter_list.json")
-        chapter_list = file_utils.read_cache(cached_chapters_list_file) if self.settings.book.use_cached_chapters_list else None
+        chapter_list = file_utils.read_cache(
+            cached_chapters_list_file) if self.settings.book.use_cached_chapters_list else None
         if not chapter_list:
             language = self.state.get("language", "en-US")
             style_instructions = self.state.get("style_instructions", "")

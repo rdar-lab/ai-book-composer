@@ -1,8 +1,8 @@
 """Decorator agent - decides where to place images in chapters."""
 
 import json
-from typing import Dict, Any, List
 import logging
+from typing import Dict, Any, List
 
 from .agent_base import AgentBase
 from .state import AgentState
@@ -10,6 +10,7 @@ from ..config import Settings
 from ..progress_display import progress
 
 logger = logging.getLogger(__name__)
+
 
 class DecoratorAgent(AgentBase):
     """The Decorator - decides on image placements in chapters."""
@@ -99,8 +100,9 @@ class DecoratorAgent(AgentBase):
             filename = img.get("filename", "unknown")
             source = img.get("source_file", "input directory")
             format_type = img.get("format", "unknown")
+            description = img.get("description", "No description available")
 
-            desc = f"{i}. {filename} (format: {format_type}, source: {source})"
+            desc = f"{i}. {filename} (format: {format_type}, source: {source})\n   Description: {description}"
             image_descriptions.append(desc)
 
         return "\n".join(image_descriptions)

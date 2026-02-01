@@ -1,5 +1,6 @@
 """Enhanced tools with security, logging, and additional format support."""
 
+import base64
 import hashlib
 import json
 import logging
@@ -11,8 +12,10 @@ from typing import Optional
 
 import ffmpeg
 import requests
+from PIL import Image
 from docx import Document as DocxDocument
 from faster_whisper import WhisperModel
+from langchain_core.messages import HumanMessage
 from pypdf import PdfReader
 from striprtf.striprtf import rtf_to_text
 
@@ -445,6 +448,64 @@ def _generate_unique_name_for_path(base_path: Path):
     return encoded_name
 
 
+def is_image_meaningful(image_bytes: bytes, black_threshold: float = 0.95) -> bool:
+    """Check if an image is meaningful (not just black or empty).
+    
+    Args:
+        image_bytes: Raw image bytes
+        black_threshold: Percentage threshold (0.0-1.0) of black/dark pixels to consider image as black
+        
+    Returns:
+        True if image is meaningful, False if it's mostly black/empty
+    """
+    try:
+        from io import BytesIO
+
+        # Load image
+        img = Image.open(BytesIO(image_bytes))
+
+        # Convert to RGB if needed
+        if img.mode not in ('RGB', 'L'):
+            img = img.convert('RGB')
+
+        # Convert to grayscale for easier analysis
+        if img.mode == 'RGB':
+            img = img.convert('L')
+
+        # Resize to smaller size for faster processing (e.g., 100x100).
+        # Note: thumbnail() downsamples the image in-place, so the analysis
+        # below is performed on this lower-resolution version rather than
+        # the original full-size image.
+        img.thumbnail((100, 100))
+
+        # Get pixel data - using load() to avoid deprecation warning
+        width, height = img.size
+        pixels_accessor = img.load()
+        total_pixels = width * height
+
+        if total_pixels == 0:
+            return False
+
+        # Count dark pixels (below threshold of 30 out of 255).
+        # The value 30 was chosen empirically: pixels below this are
+        # considered black/very dark for detecting completely black images.
+        dark_pixels = 0
+        for y in range(height):
+            for x in range(width):
+                if pixels_accessor[x, y] < 30:
+                    dark_pixels += 1
+
+        dark_ratio = dark_pixels / total_pixels
+
+        # Image is meaningful if less than black_threshold of pixels are dark
+        return dark_ratio < black_threshold
+
+    except Exception as e:
+        logger.warning(f"Error checking if image is meaningful: {e}")
+        # If we can't determine, assume it's meaningful to be safe
+        return True
+
+
 def extract_images_from_pdf(settings: Settings, file_path: str) -> Dict[str, Any]:
     """Extract images from a PDF file.
 
@@ -491,6 +552,11 @@ def extract_images_from_pdf(settings: Settings, file_path: str) -> Dict[str, Any
                 base_image = doc.extract_image(xref)
                 image_bytes = base_image["image"]
                 image_ext = base_image["ext"]
+
+                # Check if image is meaningful (not black)
+                if not is_image_meaningful(image_bytes):
+                    logger.debug(f"Skipping black/empty image on page {page_num + 1}, index {img_index + 1}")
+                    continue
 
                 # Create unique filename
                 image_filename = f"page{page_num + 1}_img{img_index + 1}.{image_ext}"
@@ -576,3 +642,137 @@ def list_images(settings: Settings, input_directory_str: str) -> List[Dict[str, 
     except Exception as e:
         logger.exception(f"Error listing images: {e}")
         raise
+
+
+def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
+                   language: str = "en-US", cache_results: bool = True) -> str:
+    """Generate a description of an image using a vision-language model.
+    
+    Args:
+        settings: The project settings
+        image_path: Path to the image file
+        prompts: Prompts configuration dictionary
+        language: Target language for description
+        cache_results: Whether to cache the description
+        
+    Returns:
+        String description of the image
+    """
+    from ..llm import get_llm
+
+    image_path = Path(image_path).resolve()
+    logger.info(f"Describing image: {image_path}")
+
+    if not image_path.exists():
+        logger.error(f"Image file not found: {image_path}")
+        raise Exception("Image file not found")
+
+    # Check for cached description
+    cache_path = get_cache_path(settings, image_path, prefix="img_desc_", ext="txt", language=language)
+    if cache_results:
+        cached_desc = read_cache(cache_path)
+        if cached_desc is not None:
+            # Cache normally stores JSON with a "description" field
+            if isinstance(cached_desc, dict):
+                return cached_desc.get("description", "")
+            # Backward compatibility: handle legacy string-only cache entries
+            if isinstance(cached_desc, str):
+                return cached_desc
+            logger.warning(f"Unexpected cache format for {cache_path}: {type(cached_desc).__name__}")
+
+    try:
+        filename = image_path.name
+        source = image_path.parent.name
+
+        # Get preprocessor prompts
+        preprocessor_prompts = prompts.get('preprocessor', {})
+        system_prompt_template = preprocessor_prompts.get('image_description_system_prompt', '')
+        user_prompt_template = preprocessor_prompts.get('image_description_user_prompt', '')
+
+        if not system_prompt_template or not user_prompt_template:
+            # Fallback if prompts not found - use consistent format
+            return f"Image from {source}: {filename}"
+
+        # Get image dimensions and format
+        try:
+            img = Image.open(image_path)
+            width, height = img.size
+            img_format = img.format or "unknown"
+            img.close()
+
+            metadata = f"Dimensions: {width}x{height}, Format: {img_format}"
+        except Exception as e:
+            logger.warning(f"Could not read image metadata: {e}")
+            metadata = "Metadata unavailable"
+
+        system_prompt = system_prompt_template.format(language=language)
+        user_prompt = user_prompt_template.format(
+            filename=filename,
+            source=source
+        )
+
+        # Add metadata to user prompt
+        user_prompt += f"\n\nTechnical details: {metadata}"
+
+        logger.info(f"Generating description for image: {filename}")
+
+        try:
+            # Get vision model from settings
+            vision_llm = get_llm(
+                settings,
+                temperature=settings.vision_model.temperature,
+                model=settings.vision_model.model,
+                provider=settings.vision_model.provider
+            )
+
+            # Read and encode image as base64
+            with open(image_path, "rb") as image_file:
+                image_data = base64.b64encode(image_file.read()).decode("utf-8")
+
+            # Determine image mime type
+            image_ext = image_path.suffix.lower()
+            mime_type_map = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.bmp': 'image/bmp',
+                '.webp': 'image/webp'
+            }
+            mime_type = mime_type_map.get(image_ext, 'image/jpeg')
+
+            # Create message with image - separate system and user content
+            message_content = [
+                {"type": "text", "text": f'{system_prompt}\n{user_prompt}'},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{image_data}"
+                    }
+                }
+            ]
+
+            message = HumanMessage(content=message_content)
+            response = vision_llm.invoke([message])
+            description = response.content
+
+            # Extract content from <result> tags if present
+            if '<result>' in description and '</result>' in description:
+                start = description.find('<result>') + 8
+                end = description.find('</result>')
+                description = description[start:end].strip()
+
+        except Exception as e:
+            logger.warning(f"Vision LLM description failed, using fallback: {e}")
+            description = f"Image from {source}: {filename}"
+
+        # Cache the description
+        if cache_results:
+            write_cache(cache_path, {"description": description})
+
+        return description
+
+    except Exception as e:
+        logger.exception(f"Error describing image {image_path}: {e}")
+        # Return basic description on error - use consistent format
+        return f"Image from {image_path.parent.name}: {image_path.name}"

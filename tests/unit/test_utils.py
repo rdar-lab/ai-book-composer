@@ -1,12 +1,17 @@
 """Unit tests for AI Book Composer tools with mocked LLMs."""
 
 import json
+import sys
+from io import BytesIO
 from unittest.mock import Mock, patch
 
 import pytest
+from PIL import Image as PILImage
 
 from src.ai_book_composer.config import Settings
 from src.ai_book_composer.utils import file_utils
+from src.ai_book_composer.utils.file_utils import describe_image
+from src.ai_book_composer.utils.file_utils import is_image_meaningful
 from src.ai_book_composer.utils.file_utils import (
     is_path_safe,
     is_file_size_within_limits,
@@ -351,3 +356,157 @@ class TestImageExtractorTool:
         """Test extract images from non-existent file."""
         with pytest.raises(Exception):
             extract_images_from_pdf(Settings(), str(tmp_path / "nonexistent.pdf"))
+
+
+class TestImageMeaningfulCheck:
+    """Test is_image_meaningful function."""
+
+    def test_is_image_meaningful_black_image(self):
+        """Test that black images are identified as not meaningful."""
+
+        # Create a black image
+        img = PILImage.new('RGB', (100, 100), color='black')
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        image_bytes = buffer.getvalue()
+
+        assert not is_image_meaningful(image_bytes, black_threshold=0.95)
+
+    def test_is_image_meaningful_white_image(self):
+        """Test that white images are identified as meaningful."""
+
+        # Create a white image
+        img = PILImage.new('RGB', (100, 100), color='white')
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        image_bytes = buffer.getvalue()
+
+        assert is_image_meaningful(image_bytes, black_threshold=0.95)
+
+    def test_is_image_meaningful_mixed_content(self):
+        """Test that images with mixed content are meaningful."""
+
+        # Create an image with mixed content
+        img = PILImage.new('RGB', (100, 100), color='white')
+        # Draw some black pixels
+        pixels = img.load()
+        for i in range(50):
+            for j in range(50):
+                pixels[i, j] = (0, 0, 0)
+
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        image_bytes = buffer.getvalue()
+
+        assert is_image_meaningful(image_bytes, black_threshold=0.95)
+
+
+class TestImageDescription:
+    """Test describe_image function."""
+
+    def test_describe_image_with_cache(self, tmp_path, monkeypatch):
+        """Test image description with caching."""
+
+        settings = Settings()
+
+        # Create a test image
+        test_image = tmp_path / "test_image.png"
+        img = PILImage.new('RGB', (100, 100), color='blue')
+        img.save(test_image)
+
+        # Mock vision LLM
+        mock_llm = Mock()
+        mock_response = Mock()
+        mock_response.content = "<think>Analyzing image</think><result>A blue square image</result>"
+        mock_llm.invoke.return_value = mock_response
+
+        # Create a mock get_llm function
+        # noinspection PyUnusedLocal,PyShadowingNames
+        def mock_get_llm(settings, temperature, model, provider):
+            return mock_llm
+
+        # Monkeypatch get_llm in the ai_book_composer.llm module namespace
+        # Since it's imported inside the function, we need to mock it in sys.modules
+        mock_llm_module = Mock()
+        mock_llm_module.get_llm = mock_get_llm
+        monkeypatch.setitem(sys.modules, 'src.ai_book_composer.llm', mock_llm_module)
+
+        # Mock prompts
+        prompts = {
+            'preprocessor': {
+                'image_description_system_prompt': 'You are an image analyst. Target language: {language}',
+                'image_description_user_prompt': 'Describe this image: {filename} from {source}'
+            }
+        }
+
+        # First call - should generate description
+        description1 = describe_image(
+            settings,
+            str(test_image),
+            prompts,
+            language="en-US",
+            cache_results=True
+        )
+
+        assert description1 == "A blue square image"
+
+        # Check cache was created
+        cache_path = file_utils.get_cache_path(settings, test_image, prefix="img_desc_", ext="txt", language="en-US")
+        assert cache_path.exists()
+
+        # Second call - should use cache (LLM should not be called again)
+        mock_llm.invoke.reset_mock()
+        description2 = describe_image(
+            settings,
+            str(test_image),
+            prompts,
+            language="en-US",
+            cache_results=True
+        )
+
+        assert description2 == description1
+        mock_llm.invoke.assert_not_called()
+
+    def test_describe_image_fallback_on_error(self, tmp_path, monkeypatch):
+        """Test that describe_image falls back on error."""
+        settings = Settings()
+
+        # Create a test image
+        test_image = tmp_path / "test_image.png"
+        img = PILImage.new('RGB', (100, 100), color='blue')
+        img.save(test_image)
+
+        # Mock LLM that raises an error
+        mock_llm = Mock()
+        mock_llm.invoke.side_effect = Exception("LLM error")
+
+        # Create a mock get_llm function
+        # noinspection PyUnusedLocal,PyShadowingNames
+        def mock_get_llm(settings, temperature, model, provider):
+            return mock_llm
+
+        # Monkeypatch get_llm in sys.modules
+        mock_llm_module = Mock()
+        mock_llm_module.get_llm = mock_get_llm
+        monkeypatch.setitem(sys.modules, 'src.ai_book_composer.llm', mock_llm_module)
+
+        # Mock prompts
+        prompts = {
+            'preprocessor': {
+                'image_description_system_prompt': 'You are an image analyst. Target language: {language}',
+                'image_description_user_prompt': 'Describe this image: {filename} from {source}'
+            }
+        }
+
+        # Should not raise error, but return fallback description
+        description = describe_image(
+            settings,
+            str(test_image),
+            prompts,
+            language="en-US",
+            cache_results=False
+        )
+
+        # Fallback should use consistent "Image from {source}: {filename}" format
+        expected_source = test_image.parent.name
+        assert description == f"Image from {expected_source}: test_image.png"

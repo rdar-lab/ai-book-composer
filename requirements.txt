@@ -19,6 +19,7 @@ pypdf>=5.1.0        # Significant performance fixes over 3.x
 PyMuPDF>=1.24.11    # Better OCR and table extraction support
 striprtf>=0.0.26
 PyRTF3>=0.47.5
+Pillow>=10.0.0      # Image processing for filtering and analysis
 
 # Configuration
 pyyaml>=6.0

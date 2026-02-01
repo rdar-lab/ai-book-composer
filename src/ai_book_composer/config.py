@@ -7,8 +7,10 @@ from typing import Dict, Any, Optional
 import yaml
 from pydantic import BaseModel, Field
 
+
 class GeneralConfig(BaseModel):
     cache_dir: str = ".cache"
+
 
 class LLMConfig(BaseModel):
     """LLM configuration."""
@@ -56,6 +58,13 @@ class ImageProcessingConfig(BaseModel):
     extract_from_pdf: bool = True
     max_image_size_mb: int = 10
     max_images_per_chapter: int = 5
+
+
+class VisionModelConfig(BaseModel):
+    """Vision model configuration for image description."""
+    provider: str = "openai"  # Options: openai, gemini, azure, ollama
+    model: str = "gpt-4o-mini"  # Vision-capable model
+    temperature: float = 0.3
 
 
 class BookConfig(BaseModel):
@@ -131,6 +140,7 @@ class Settings:
         self.text_reading = TextReadingConfig(**self._config.get('text_reading', {}))
         self.media_processing = MediaProcessingConfig(**self._config.get('media_processing', {}))
         self.image_processing = ImageProcessingConfig(**self._config.get('image_processing', {}))
+        self.vision_model = VisionModelConfig(**self._config.get('vision_model', {}))
         self.book = BookConfig(**self._config.get('book', {}))
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
@@ -157,6 +167,7 @@ class Settings:
         self._config['text_reading'] = self.text_reading.model_dump()
         self._config['media_processing'] = self.media_processing.model_dump()
         self._config['image_processing'] = self.image_processing.model_dump()
+        self._config['vision_model'] = self.vision_model.model_dump()
         self._config['book'] = self.book.model_dump()
         self._config['logging'] = self.logging.model_dump()
         self._config['security'] = self.security.model_dump()
@@ -204,6 +215,11 @@ class Settings:
                 'extract_from_pdf': True,
                 'max_image_size_mb': 10,
                 'max_images_per_chapter': 5
+            },
+            'vision_model': {
+                'provider': 'openai',
+                'model': 'gpt-4o-mini',
+                'temperature': 0.3
             },
             'book': {
                 'output_language': 'en-US',

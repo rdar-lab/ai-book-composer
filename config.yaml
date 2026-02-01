@@ -70,6 +70,12 @@ image_processing:
   max_image_size_mb: 10  # Maximum size per image
   max_images_per_chapter: 5  # Maximum images to place per chapter
 
+# Vision Model Configuration (for image description)
+vision_model:
+  provider: openai  # Options: openai, gemini, azure, ollama
+  model: gpt-4o-mini  # Vision-capable model (gpt-4o, gpt-4o-mini, gemini-1.5-flash, etc.)
+  temperature: 0.3
+
 # Audio/Video Processing Configuration
 media_processing:
   audio_formats:

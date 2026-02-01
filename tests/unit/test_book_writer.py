@@ -13,9 +13,9 @@ class TestBookWriterInitialization:
         """Test that initialization creates output directory."""
         output_dir = tmp_path / "output"
         settings = Settings()
-        
+
         writer = BookWriter(settings, str(output_dir))
-        
+
         assert output_dir.exists()
         assert writer.output_directory == output_dir
 
@@ -24,9 +24,9 @@ class TestBookWriterInitialization:
         output_dir = tmp_path / "existing"
         output_dir.mkdir()
         settings = Settings()
-        
+
         writer = BookWriter(settings, str(output_dir))
-        
+
         assert output_dir.exists()
         assert writer.output_directory == output_dir
 
@@ -36,17 +36,17 @@ class TestBookWriterRun:
 
     @patch('src.ai_book_composer.utils.book_writer.Document')
     @patch('src.ai_book_composer.utils.book_writer.Renderer')
-    def test_run_basic_book_generation(self, mock_renderer, mock_document, tmp_path):
+    def test_run_basic_book_generation(self, _, mock_document, tmp_path):
         """Test basic book generation without images."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         # Setup mocks
         mock_doc_instance = MagicMock()
         mock_document.return_value = mock_doc_instance
         mock_doc_instance.Sections = []
         mock_doc_instance.StyleSheet = MagicMock()
-        
+
         # Configure StyleSheet
         mock_ss = mock_doc_instance.StyleSheet
         mock_ss.Fonts = MagicMock()
@@ -55,7 +55,7 @@ class TestBookWriterRun:
         mock_ss.ParagraphStyles = MagicMock()
         mock_ss.ParagraphStyles.Heading1 = MagicMock()
         mock_ss.ParagraphStyles.Normal = MagicMock()
-        
+
         chapters = [
             {
                 "title": "Introduction",
@@ -66,9 +66,9 @@ class TestBookWriterRun:
                 "content": "Content of chapter one."
             }
         ]
-        
+
         references = ["Reference 1", "Reference 2"]
-        
+
         result = writer.run(
             title="Test Book",
             author="Test Author",
@@ -76,7 +76,7 @@ class TestBookWriterRun:
             references=references,
             output_filename="test.rtf"
         )
-        
+
         assert result["success"] is True
         assert "test.rtf" in result["file_path"]
         assert result["chapter_count"] == 2
@@ -84,21 +84,21 @@ class TestBookWriterRun:
 
     @patch('src.ai_book_composer.utils.book_writer.Document')
     @patch('src.ai_book_composer.utils.book_writer.Renderer')
-    def test_run_with_images(self, mock_renderer, mock_document, tmp_path):
+    def test_run_with_images(self, _, mock_document, tmp_path):
         """Test book generation with images."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         # Create test image
         test_image = tmp_path / "test_image.jpg"
         test_image.write_bytes(b"fake image data")
-        
+
         # Setup mocks
         mock_doc_instance = MagicMock()
         mock_document.return_value = mock_doc_instance
         mock_doc_instance.Sections = []
         mock_doc_instance.StyleSheet = MagicMock()
-        
+
         # Configure StyleSheet
         mock_ss = mock_doc_instance.StyleSheet
         mock_ss.Fonts = MagicMock()
@@ -107,7 +107,7 @@ class TestBookWriterRun:
         mock_ss.ParagraphStyles = MagicMock()
         mock_ss.ParagraphStyles.Heading1 = MagicMock()
         mock_ss.ParagraphStyles.Normal = MagicMock()
-        
+
         chapters = [
             {
                 "title": "Chapter with Images",
@@ -121,7 +121,7 @@ class TestBookWriterRun:
                 ]
             }
         ]
-        
+
         with patch('src.ai_book_composer.utils.book_writer.Image'):
             result = writer.run(
                 title="Test Book",
@@ -130,30 +130,30 @@ class TestBookWriterRun:
                 references=[],
                 output_filename="book_with_images.rtf"
             )
-        
+
         assert result["success"] is True
         assert result["image_count"] == 1
 
     @patch('src.ai_book_composer.utils.book_writer.Document')
     @patch('src.ai_book_composer.utils.book_writer.Renderer')
-    def test_run_with_images_at_different_positions(self, mock_renderer, mock_document, tmp_path):
+    def test_run_with_images_at_different_positions(self, _, mock_document, tmp_path):
         """Test image placement at start, middle, and end."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         # Create test images
         test_images = []
         for i in range(3):
             img = tmp_path / f"image_{i}.jpg"
             img.write_bytes(b"fake image data")
             test_images.append(img)
-        
+
         # Setup mocks
         mock_doc_instance = MagicMock()
         mock_document.return_value = mock_doc_instance
         mock_doc_instance.Sections = []
         mock_doc_instance.StyleSheet = MagicMock()
-        
+
         mock_ss = mock_doc_instance.StyleSheet
         mock_ss.Fonts = MagicMock()
         mock_ss.Fonts.Arial = "Arial"
@@ -161,7 +161,7 @@ class TestBookWriterRun:
         mock_ss.ParagraphStyles = MagicMock()
         mock_ss.ParagraphStyles.Heading1 = MagicMock()
         mock_ss.ParagraphStyles.Normal = MagicMock()
-        
+
         chapters = [
             {
                 "title": "Chapter",
@@ -173,7 +173,7 @@ class TestBookWriterRun:
                 ]
             }
         ]
-        
+
         with patch('src.ai_book_composer.utils.book_writer.Image'):
             result = writer.run(
                 title="Test Book",
@@ -181,22 +181,22 @@ class TestBookWriterRun:
                 chapters=chapters,
                 references=[]
             )
-        
+
         assert result["success"] is True
         assert result["image_count"] == 3
 
     @patch('src.ai_book_composer.utils.book_writer.Document')
     @patch('src.ai_book_composer.utils.book_writer.Renderer')
-    def test_run_empty_chapters(self, mock_renderer, mock_document, tmp_path):
+    def test_run_empty_chapters(self, _, mock_document, tmp_path):
         """Test book generation with empty chapters list."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         mock_doc_instance = MagicMock()
         mock_document.return_value = mock_doc_instance
         mock_doc_instance.Sections = []
         mock_doc_instance.StyleSheet = MagicMock()
-        
+
         mock_ss = mock_doc_instance.StyleSheet
         mock_ss.Fonts = MagicMock()
         mock_ss.Fonts.Arial = "Arial"
@@ -204,14 +204,14 @@ class TestBookWriterRun:
         mock_ss.ParagraphStyles = MagicMock()
         mock_ss.ParagraphStyles.Heading1 = MagicMock()
         mock_ss.ParagraphStyles.Normal = MagicMock()
-        
+
         result = writer.run(
             title="Empty Book",
             author="Test Author",
             chapters=[],
             references=[]
         )
-        
+
         assert result["success"] is True
         assert result["chapter_count"] == 0
 
@@ -220,17 +220,17 @@ class TestBookWriterRun:
         """Test error handling during book generation."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         # Force an error
         mock_document.side_effect = Exception("Test error")
-        
+
         result = writer.run(
             title="Test Book",
             author="Test Author",
             chapters=[{"title": "Chapter", "content": "Content"}],
             references=[]
         )
-        
+
         assert result["success"] is False
         assert "error" in result
         assert "Test error" in result["error"]
@@ -243,27 +243,27 @@ class TestBookWriterImageHandling:
         """Test adding image to section."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         # Create test image
         test_image = tmp_path / "test.jpg"
         test_image.write_bytes(b"fake image")
-        
+
         mock_section = MagicMock()
         mock_style_sheet = MagicMock()
         mock_style_sheet.ParagraphStyles = MagicMock()
         mock_style_sheet.ParagraphStyles.Normal = MagicMock()
         mock_style_sheet.Fonts = MagicMock()
         mock_style_sheet.Fonts.Arial = "Arial"
-        
+
         img_info = {
             "image_path": str(test_image),
             "reasoning": "Test image"
         }
-        
+
         with patch('src.ai_book_composer.utils.book_writer.Image') as mock_image, \
-             patch('src.ai_book_composer.utils.book_writer.Paragraph') as mock_para:
+                patch('src.ai_book_composer.utils.book_writer.Paragraph') as _:
             writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
-            
+
             # Verify Image was created
             mock_image.assert_called_once_with(str(test_image))
 
@@ -271,18 +271,18 @@ class TestBookWriterImageHandling:
         """Test adding image when file doesn't exist."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         mock_section = MagicMock()
         mock_style_sheet = MagicMock()
-        
+
         img_info = {
             "image_path": "/nonexistent/image.jpg",
             "reasoning": "Missing image"
         }
-        
+
         # Should not raise an error, just log warning
         writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
-        
+
         # Section append should not be called
         assert mock_section.append.call_count == 0
 
@@ -290,46 +290,46 @@ class TestBookWriterImageHandling:
         """Test adding image without reasoning/caption."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         test_image = tmp_path / "test.jpg"
         test_image.write_bytes(b"fake image")
-        
+
         mock_section = MagicMock()
         mock_style_sheet = MagicMock()
         mock_style_sheet.ParagraphStyles = MagicMock()
         mock_style_sheet.ParagraphStyles.Normal = MagicMock()
-        
+
         img_info = {
             "image_path": str(test_image),
             "reasoning": ""  # Empty reasoning
         }
-        
+
         with patch('src.ai_book_composer.utils.book_writer.Image') as mock_image, \
-             patch('src.ai_book_composer.utils.book_writer.Paragraph'):
+                patch('src.ai_book_composer.utils.book_writer.Paragraph'):
             writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
-            
+
             mock_image.assert_called_once()
 
     def test_add_image_handles_image_error(self, tmp_path):
         """Test handling error when Image constructor fails."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         test_image = tmp_path / "test.jpg"
         test_image.write_bytes(b"fake image")
-        
+
         mock_section = MagicMock()
         mock_style_sheet = MagicMock()
         mock_style_sheet.ParagraphStyles = MagicMock()
         mock_style_sheet.ParagraphStyles.Normal = MagicMock()
-        
+
         img_info = {
             "image_path": str(test_image),
             "reasoning": "Test"
         }
-        
+
         with patch('src.ai_book_composer.utils.book_writer.Image', side_effect=Exception("Image error")), \
-             patch('src.ai_book_composer.utils.book_writer.Paragraph'):
+                patch('src.ai_book_composer.utils.book_writer.Paragraph'):
             # Should not raise, just log warning
             writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
 
@@ -339,17 +339,17 @@ class TestBookWriterIntegration:
 
     @patch('src.ai_book_composer.utils.book_writer.Document')
     @patch('src.ai_book_composer.utils.book_writer.Renderer')
-    def test_full_book_with_all_features(self, mock_renderer, mock_document, tmp_path):
+    def test_full_book_with_all_features(self, _, mock_document, tmp_path):
         """Test complete book generation with all features."""
         settings = Settings()
         writer = BookWriter(settings, str(tmp_path))
-        
+
         # Setup mocks
         mock_doc_instance = MagicMock()
         mock_document.return_value = mock_doc_instance
         mock_doc_instance.Sections = []
         mock_doc_instance.StyleSheet = MagicMock()
-        
+
         mock_ss = mock_doc_instance.StyleSheet
         mock_ss.Fonts = MagicMock()
         mock_ss.Fonts.Arial = "Arial"
@@ -357,14 +357,14 @@ class TestBookWriterIntegration:
         mock_ss.ParagraphStyles = MagicMock()
         mock_ss.ParagraphStyles.Heading1 = MagicMock()
         mock_ss.ParagraphStyles.Normal = MagicMock()
-        
+
         # Create test images
         images = []
         for i in range(2):
             img = tmp_path / f"img{i}.jpg"
             img.write_bytes(b"data")
             images.append(img)
-        
+
         chapters = [
             {
                 "title": "First Chapter",
@@ -386,12 +386,12 @@ class TestBookWriterIntegration:
                 ]
             }
         ]
-        
+
         references = [
             "Smith, J. (2020). Example Reference.",
             "Doe, J. (2021). Another Reference."
         ]
-        
+
         with patch('src.ai_book_composer.utils.book_writer.Image'):
             result = writer.run(
                 title="Complete Test Book",
@@ -400,7 +400,7 @@ class TestBookWriterIntegration:
                 references=references,
                 output_filename="complete_book.rtf"
             )
-        
+
         assert result["success"] is True
         assert result["chapter_count"] == 3
         assert result["reference_count"] == 2
