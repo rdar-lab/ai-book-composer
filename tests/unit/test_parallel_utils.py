@@ -1,9 +1,5 @@
 """Unit tests for parallel execution utilities."""
 
-import pytest
-from unittest.mock import Mock, patch
-from concurrent.futures import ThreadPoolExecutor
-
 from src.ai_book_composer.config import Settings
 from src.ai_book_composer.parallel_utils import (
     is_parallel_enabled,

@@ -1,8 +1,6 @@
 """Unit tests for BookWriter utility."""
 
-import pytest
-from unittest.mock import Mock, patch, mock_open, MagicMock
-from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from src.ai_book_composer.config import Settings
 from src.ai_book_composer.utils.book_writer import BookWriter
@@ -46,7 +44,6 @@ class TestBookWriterRun:
         # Setup mocks
         mock_doc_instance = MagicMock()
         mock_document.return_value = mock_doc_instance
-        mock_section = MagicMock()
         mock_doc_instance.Sections = []
         mock_doc_instance.StyleSheet = MagicMock()
         

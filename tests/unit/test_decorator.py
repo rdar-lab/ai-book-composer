@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
 from src.ai_book_composer.agents.decorator import DecoratorAgent
 from src.ai_book_composer.agents.state import create_initial_state
@@ -95,7 +95,7 @@ class TestDecoratorAgentDecorate:
         result = agent.decorate(state)
         
         # Should return state unchanged when no images
-        assert "chapters" in result or result == state
+        assert result == state
         mock_invoke.assert_not_called()
 
     def test_decorate_no_chapters_raises_error(self, tmp_path):

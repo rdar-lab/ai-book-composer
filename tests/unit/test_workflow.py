@@ -1,7 +1,6 @@
 """Unit tests for BookComposerWorkflow."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from src.ai_book_composer.workflow import BookComposerWorkflow
 from src.ai_book_composer.agents.state import create_initial_state
@@ -187,26 +186,6 @@ class TestWorkflowNodeMethods:
         workflow.critic.critique.assert_called_once()
 
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
-    def test_critique_node_success(self, tmp_path):
-        """Test critique node execution."""
-        workflow = BookComposerWorkflow()
-        workflow.critic = Mock()
-        workflow.critic.critique = Mock(return_value={
-            "status": "approved",
-            "quality_score": 0.95
-        })
-        
-        state = create_initial_state(
-            input_directory=str(tmp_path),
-            output_directory=str(tmp_path)
-        )
-        
-        result = workflow._critique_node(state)
-        
-        assert result["status"] == "approved"
-        workflow.critic.critique.assert_called_once()
-
-    @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_finalize_node(self, tmp_path):
         """Test finalize node execution."""
         workflow = BookComposerWorkflow()
@@ -344,6 +323,9 @@ class TestWorkflowConditionalLogic:
         assert workflow.settings.book.use_cached_chapters_list is False
         assert workflow.settings.book.use_cached_chapters_content is False
 
+
+class TestWorkflowRun:
+    """Test workflow run method."""
 
     @patch.object(BookComposerWorkflow, '_build_graph')
     def test_run_creates_initial_state(self, mock_build_graph, tmp_path):

@@ -1,8 +1,6 @@
 """Unit tests for PreprocessAgent."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
 from src.ai_book_composer.agents.preprocess_agent import PreprocessAgent
 from src.ai_book_composer.agents.state import create_initial_state
