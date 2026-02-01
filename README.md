@@ -21,28 +21,32 @@ AI Book Composer is a tool that automatically generates high-quality books from 
 
 The system follows the Deep-Agent pattern with four phases:
 
-### Phase 1: The Planner (Product Manager)
+### Phase 1: The Pr- Processor
+- File listing and reading
+- Read all text files
+- Extract images from PDF files
+- Transcribe audio files
+- Describe images
+
+### Phase 2: The Planner (Product Manager)
 - Analyzes input files
 - Creates a structured plan for book generation
 - Determines chapter structure and content mapping
 
-### Phase 2: The Executor (Worker)
+### Phase 3: The Executor (Worker)
 - Executes tasks using specialized tools:
-  - File listing and reading
-  - Audio/video transcription (ffmpeg + faster-whisper)
-  - Image extraction from PDFs
-  - Image listing from input directory
+  - Chapter list generation
   - Chapter generation
   - Book compilation
 - Generates content based on the plan
 
-### Phase 3: The Decorator (Visual Content Specialist)
+### Phase 4: The Decorator (Visual Content Specialist)
 - Analyzes chapter content and available images
 - Decides optimal image placement in chapters
 - Ensures images enhance reader understanding
 - Limits images per chapter to maintain readability
 
-### Phase 4: The Critic (Quality Assurance)
+### Phase 5: The Critic (Quality Assurance)
 - Evaluates generated content quality
 - Provides constructive feedback
 - Decides whether to approve or request revisions
@@ -309,7 +313,7 @@ result = audio_transcriber.run("english_audio.mp3", language="en")
 
 Common language codes:
 - `en` - English
-- `he` - Hebrew (עברית)
+- `he` - Hebrew
 - `es` - Spanish
 - `fr` - French
 - `de` - German
@@ -353,6 +357,7 @@ image_processing:
    - Lists all existing image files in the input directory
    - Extracts images from PDF files
    - Stores image metadata (path, format, source)
+   - Describe the images using a specialized vision LLM
 
 2. **Image Decoration**: After chapters are generated, the Decorator agent:
    - Analyzes each chapter's content
@@ -375,73 +380,6 @@ The tool generates an RTF (Rich Text Format) book with:
 3. **Chapters**: Generated content organized by chapters with embedded images
 4. **References**: List of source files used
 
-## Tools
-
-The system uses the following specialized tools:
-
-- **FileListingTool**: Lists all files in input directory
-- **ImageListingTool**: Lists all image files in input directory
-- **ImageExtractorTool**: Extracts images from PDF files
-- **TextFileReaderTool**: Reads text files with line range support
-- **AudioTranscriptionTool**: Transcribes audio using faster-whisper
-- **VideoTranscriptionTool**: Extracts and transcribes video audio
-- **ChapterWriterTool**: Writes individual chapters
-- **ChapterListWriterTool**: Saves chapter planning
-- **BookGeneratorTool**: Generates final RTF book
-
-### Tool Integration with LangChain
-
-Tools are exposed to the LLM through LangChain's tool binding system, making them accessible during the execution flow. The `ToolRegistry` class manages all tools and converts them to LangChain-compatible format:
-
-```python
-from ai_book_composer.langchain_tools import ToolRegistry
-
-# Initialize tools
-registry = ToolRegistry(input_directory, output_directory)
-
-# Get LangChain tools for binding to LLM
-tools = registry.get_langchain_tools()
-
-# Bind tools to LLM
-llm_with_tools = llm.bind_tools(tools)
-```
-
-The executor agent automatically binds these tools to its LLM instance, allowing the AI to discover and use them during task execution. This architecture makes it easy to add new tools without modifying the core workflow.
-
-## Development
-
-### Project Structure
-
-```
-ai-book-composer/
-├── src/
-│   └── ai_book_composer/
-│       ├── agents/          # Deep-Agent components
-│       │   ├── planner.py   # Planning agent
-│       │   ├── executor.py  # Execution agent
-│       │   ├── critic.py    # Critique agent
-│       │   └── state.py     # State management
-│       ├── tools/           # Tool implementations
-│       │   ├── base_tools.py
-│       │   └── book_generator.py
-│       ├── workflow.py      # LangGraph workflow
-│       ├── llm.py          # LLM provider abstraction
-│       ├── config.py       # Configuration
-│       └── cli.py          # CLI interface
-├── requirements.txt
-├── setup.py
-└── README.md
-```
-
-### Running Tests
-
-```bash
-# Install dev dependencies
-pip install pytest pytest-cov
-
-# Run tests
-pytest tests/
-```
 
 ## LLM Provider Setup
 
@@ -559,24 +497,3 @@ ai-book-composer \
   -a "Corporate Authors" \
   --style-instructions "I want it to be professional reading material suitable for executives and managers"
 ```
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Acknowledgments
-
-- LangGraph for orchestration framework
-- Faster Whisper for audio transcription
-- OpenAI, Google, and other LLM providers
-- FFmpeg for media processing
