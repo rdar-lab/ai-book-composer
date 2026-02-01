@@ -91,7 +91,6 @@ class AgentBase:
             response_content = result
         return response_content
 
-
     # noinspection PyUnusedLocal
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
     def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None) -> Any:

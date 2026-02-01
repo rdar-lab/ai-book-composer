@@ -11,7 +11,7 @@ from ..parallel_utils import execute_parallel
 from ..progress_display import progress
 from ..utils import file_utils
 from ..utils.file_utils import list_input_files, read_text_file, read_audio_file, read_video_file, \
-    extract_images_from_pdf, list_images, write_cache
+    extract_images_from_pdf, list_images, write_cache, describe_image
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +266,55 @@ class PreprocessAgent(AgentBase):
                         progress.show_observation(f"⚠ No images found in {pdf_name}")
 
         progress.show_observation(f"Image gathering complete: {len(all_images)} total image(s) available")
+
+        # Describe all images
+        if all_images:
+            progress.show_thought("Describing images for better placement decisions")
+            self._describe_all_images(all_images)
+
         return all_images
+
+    def _describe_all_images(self, images: list[dict[str, Any]]) -> None:
+        """Describe all images using LLM (with caching).
+        
+        Args:
+            images: List of image dictionaries to describe (modified in place)
+        """
+        progress.show_action(f"Generating descriptions for {len(images)} image(s)")
+
+        # Describe images in parallel
+        execute_parallel(self.settings, self._describe_single_image, images)
+
+        progress.show_observation(f"✓ Image descriptions generated")
+
+    def _describe_single_image(self, image: dict[str, Any]) -> dict[str, Any]:
+        """Describe a single image using LLM.
+        
+        Args:
+            image: Image dictionary with at least 'path' key
+            
+        Returns:
+            Image dictionary with added 'description' key
+        """
+        image_path = image.get("path", "")
+        language = self.state.get('language', 'en-US')
+
+        try:
+            description = describe_image(
+                self.settings,
+                image_path,
+                self.prompts,
+                language=language,
+                cache_results=True
+            )
+            image['description'] = description
+            logger.info(f"Generated description for {image.get('filename', 'unknown')}: {description[:100]}...")
+        except Exception as e:
+            logger.exception(f"Error describing image {image_path}: {str(e)}")
+            # Use filename as fallback description
+            image['description'] = f"Image: {image.get('filename', 'unknown')}"
+
+        return image
 
     def _gather_all_content(self, files: list[dict[str, Any]]) -> dict[Any, Any]:
         gathered_content = {}

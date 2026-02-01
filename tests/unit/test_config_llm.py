@@ -101,7 +101,7 @@ class TestLLMProvider:
         mock_settings.llm.model = 'llama-3.2-3b-instruct'
         mock_settings.providers['ollama_embedded'] = {
             'model_name': 'llama-3.2-3b-instruct',
-            'internal':{
+            'internal': {
                 'n_ctx': 2048,
                 'n_threads': 4,
                 'verbose': False

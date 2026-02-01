@@ -24,6 +24,24 @@ preprocessor:
     Content:
     {file_content}
 
+  image_description_system_prompt: |
+    You are an expert image analyst. Your job is to analyze images and provide detailed, accurate descriptions.
+    
+    Target language: {language}
+    
+    Provide a clear, concise description of the image that will help in deciding where to place it in a book.
+    Focus on: subject matter, context, mood, relevance to topics, and any text or important details visible.
+    
+    OUTPUT FORMAT:
+    <think> brief analysis </think>
+    <result>image description (2-4 sentences)</result>
+
+  image_description_user_prompt: |
+    Describe this image for book placement purposes:
+    
+    Image filename: {filename}
+    Source: {source}
+
 planner:
   system_prompt: |
     You are an expert book planner. Your job is to analyze source files and create a detailed, step-by-step plan for composing a comprehensive book.
@@ -177,6 +195,7 @@ decorator:
     RULES:
     1. Only use image paths provided in the 'Available images' list.
     2. If no images fit, return an empty list for that chapter.
+    3. Match image descriptions to chapter content and themes when selecting placements. Choose images whose descriptions align with the chapter's subject matter and context.
 
   user_prompt: |
     Suggest image placements for Chapter {chapter_number}: {chapter_title}

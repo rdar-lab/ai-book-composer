@@ -2,9 +2,9 @@
 
 from unittest.mock import Mock, patch
 
-from src.ai_book_composer.workflow import BookComposerWorkflow
 from src.ai_book_composer.agents.state import create_initial_state
 from src.ai_book_composer.config import Settings
+from src.ai_book_composer.workflow import BookComposerWorkflow
 
 
 class TestWorkflowInitialization:
@@ -15,13 +15,13 @@ class TestWorkflowInitialization:
         settings = Settings()
         input_dir = str(tmp_path / "input")
         output_dir = str(tmp_path / "output")
-        
+
         workflow = BookComposerWorkflow(
             settings=settings,
             input_directory=input_dir,
             output_directory=output_dir
         )
-        
+
         assert workflow.settings == settings
         assert workflow.input_directory == input_dir
         assert workflow.output_directory == output_dir
@@ -33,7 +33,7 @@ class TestWorkflowInitialization:
     def test_init_with_custom_parameters(self, tmp_path):
         """Test initialization with custom parameters."""
         settings = Settings()
-        
+
         workflow = BookComposerWorkflow(
             settings=settings,
             input_directory=str(tmp_path),
@@ -44,7 +44,7 @@ class TestWorkflowInitialization:
             max_iterations=5,
             style_instructions="Academic style"
         )
-        
+
         assert workflow.language == "es-ES"
         assert workflow.book_title == "Mi Libro"
         assert workflow.book_author == "Autor"
@@ -54,13 +54,13 @@ class TestWorkflowInitialization:
     def test_init_creates_agents(self, tmp_path):
         """Test that all agents are created during initialization."""
         settings = Settings()
-        
+
         workflow = BookComposerWorkflow(
             settings=settings,
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         assert workflow.preprocessor is not None
         assert workflow.planner is not None
         assert workflow.executor is not None
@@ -70,19 +70,20 @@ class TestWorkflowInitialization:
     def test_init_builds_graph(self, tmp_path):
         """Test that graph is built during initialization."""
         settings = Settings()
-        
+
         workflow = BookComposerWorkflow(
             settings=settings,
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         assert workflow.graph is not None
 
 
 class TestWorkflowNodeMethods:
     """Test individual workflow node methods."""
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_preprocess_node_success(self, tmp_path):
         """Test preprocess node execution."""
@@ -94,17 +95,18 @@ class TestWorkflowNodeMethods:
             "gathered_content": {},
             "images": []
         })
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         result = workflow._preprocess_node(state)
-        
+
         assert result["status"] == "preprocessed"
         workflow.preprocessor.preprocess.assert_called_once()
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_plan_node_success(self, tmp_path):
         """Test plan node execution."""
@@ -114,17 +116,18 @@ class TestWorkflowNodeMethods:
             "status": "planned",
             "plan": [{"task": "Generate chapter 1"}]
         })
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         result = workflow._plan_node(state)
-        
+
         assert result["status"] == "planned"
         workflow.planner.plan.assert_called_once()
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_execute_node_success(self, tmp_path):
         """Test execute node execution."""
@@ -134,17 +137,18 @@ class TestWorkflowNodeMethods:
             "status": "executing",
             "current_task_index": 1
         })
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         result = workflow._execute_node(state)
-        
+
         assert result["status"] == "executing"
         workflow.executor.execute.assert_called_once()
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_decorate_node_success(self, tmp_path):
         """Test decorate node execution."""
@@ -154,17 +158,18 @@ class TestWorkflowNodeMethods:
             "status": "decorated",
             "chapters": []
         })
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         result = workflow._decorate_node(state)
-        
+
         assert result["status"] == "decorated"
         workflow.decorator.decorate.assert_called_once()
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_critique_node_success(self, tmp_path):
         """Test critique node execution."""
@@ -174,22 +179,23 @@ class TestWorkflowNodeMethods:
             "status": "approved",
             "quality_score": 0.95
         })
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         result = workflow._critique_node(state)
-        
+
         assert result["status"] == "approved"
         workflow.critic.critique.assert_called_once()
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_finalize_node(self, tmp_path):
         """Test finalize node execution."""
         workflow = BookComposerWorkflow()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
@@ -198,15 +204,16 @@ class TestWorkflowNodeMethods:
         state["references"] = ["Ref1"]
         state["iterations"] = 2
         state["quality_score"] = 0.92
-        
+
         result = workflow._finalize_node(state)
-        
+
         assert result["status"] == "completed"
 
 
 class TestWorkflowConditionalLogic:
     """Test workflow conditional edge logic."""
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_should_continue_execution_when_tasks_remain(self, tmp_path):
         """Test execution continues when tasks remain."""
@@ -223,31 +230,33 @@ class TestWorkflowConditionalLogic:
             {"task": "Task 2"},
             {"task": "Task 3"}
         ]
-        
+
         result = workflow._should_continue_execution(state)
-        
+
         assert result == "continue"
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_should_continue_execution_when_completed(self, tmp_path):
         """Test execution moves to decorate when completed."""
         workflow = BookComposerWorkflow()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
         state["status"] = "book_generated"
-        
+
         result = workflow._should_continue_execution(state)
-        
+
         assert result == "decorate"
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_should_continue_execution_when_plan_finished(self, tmp_path):
         """Test execution moves to decorate when plan is finished."""
         workflow = BookComposerWorkflow()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
@@ -258,54 +267,57 @@ class TestWorkflowConditionalLogic:
             {"task": "Task 2"},
             {"task": "Task 3"}
         ]
-        
+
         result = workflow._should_continue_execution(state)
-        
+
         assert result == "decorate"
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_should_revise_when_approved(self, tmp_path):
         """Test workflow finalizes when approved."""
         workflow = BookComposerWorkflow()
         workflow.max_iterations = 3
         workflow.settings = Settings()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
         state["status"] = "approved"
         state["iterations"] = 1
-        
+
         result = workflow._should_revise(state)
-        
+
         assert result == "finalize"
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_should_revise_when_max_iterations_reached(self, tmp_path):
         """Test workflow finalizes when max iterations reached."""
         workflow = BookComposerWorkflow()
         workflow.max_iterations = 3
         workflow.settings = Settings()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
         state["status"] = "needs_revision"
         state["iterations"] = 3
-        
+
         result = workflow._should_revise(state)
-        
+
         assert result == "finalize"
 
+    # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
     def test_should_revise_when_needs_improvement(self, tmp_path):
         """Test workflow revises when improvement needed."""
         workflow = BookComposerWorkflow()
         workflow.max_iterations = 3
         workflow.settings = Settings()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
@@ -313,9 +325,9 @@ class TestWorkflowConditionalLogic:
         state["status"] = "needs_revision"
         state["iterations"] = 1
         state["current_task_index"] = 5
-        
+
         result = workflow._should_revise(state)
-        
+
         assert result == "revise"
         # Should reset task index for revision
         assert state["current_task_index"] == 0
@@ -338,7 +350,7 @@ class TestWorkflowRun:
             "references": []
         })
         mock_build_graph.return_value = mock_graph
-        
+
         workflow = BookComposerWorkflow(
             settings=settings,
             input_directory=str(tmp_path / "input"),
@@ -348,12 +360,12 @@ class TestWorkflowRun:
             book_author="Auteur",
             style_instructions="Style formel"
         )
-        
+
         workflow.run()
-        
+
         # Verify graph was invoked
         mock_graph.invoke.assert_called_once()
-        
+
         # Check initial state passed to graph
         call_args = mock_graph.invoke.call_args[0][0]
         assert call_args["language"] == "fr-FR"
@@ -372,17 +384,17 @@ class TestWorkflowRun:
             "iterations": 2,
             "quality_score": 0.95
         }
-        
+
         mock_graph = Mock()
         mock_graph.invoke = Mock(return_value=expected_final_state)
         mock_build_graph.return_value = mock_graph
-        
+
         workflow = BookComposerWorkflow(
             settings=settings,
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
         )
-        
+
         result = workflow.run()
-        
+
         assert result == expected_final_state
