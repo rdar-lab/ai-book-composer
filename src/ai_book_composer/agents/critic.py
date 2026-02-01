@@ -2,8 +2,6 @@
 
 from typing import Dict, Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
 from .agent_base import AgentBase
 from .state import AgentState
 from ..config import Settings
@@ -22,13 +20,12 @@ class CriticAgent(AgentBase):
 
     def critique(self, state: AgentState) -> Dict[str, Any]:
         """Critique the generated book and provide feedback.
-        
-        Args:
-            state: Current agent state
-            
+
         Returns:
             Updated state with critique feedback
         """
+        self.state = state
+
         with progress.agent_context(
                 "Critic",
                 "Evaluating book quality and providing constructive feedback"
@@ -77,17 +74,12 @@ class CriticAgent(AgentBase):
                 chapter_summaries=chapter_summaries
             )
 
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-
-            response = self.llm.invoke(messages)
+            response = self._invoke_agent(system_prompt, user_prompt, state)
 
             progress.show_observation("Received critique feedback, analyzing results")
 
             # Parse critique (simplified)
-            quality_score, feedback, decision = self._parse_critique(response.content)
+            quality_score, feedback, decision = self._parse_critique(response)
 
             # Show critique summary
             progress.show_critique_summary(quality_score, feedback)

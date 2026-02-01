@@ -3,24 +3,20 @@
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
-# noinspection PyUnresolvedReferences
-from ai_book_composer.agents.executor import ExecutorAgent
-# noinspection PyUnresolvedReferences
-from ai_book_composer.agents.state import create_initial_state
-# noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings
+
+from src.ai_book_composer.agents.executor import ExecutorAgent
+from src.ai_book_composer.agents.state import create_initial_state
+from src.ai_book_composer.config import Settings
 
 
 class TestChapterByChapterGeneration:
     """Test that chapters are generated one at a time."""
 
-    @patch('ai_book_composer.agents.agent_base.load_prompts')
-    @patch('ai_book_composer.mcp_client.get_tools')
-    @patch('ai_book_composer.agents.agent_base.get_llm')
+    @patch('src.ai_book_composer.agents.agent_base.load_prompts')
+    @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
     def test_plan_chapters_creates_individual_tasks(
             self,
-            mock_get_llm,
-            get_tools_mock,
+            mock_invoke_agent,
             mock_load_prompts
     ):
         """Test that plan_chapters creates individual chapter generation tasks."""
@@ -28,31 +24,19 @@ class TestChapterByChapterGeneration:
         mock_load_prompts.return_value = {
             'executor': {
                 'chapter_planning_system_prompt': 'Plan chapters in {language}',
-                'chapter_planning_user_prompt': 'Content: {content_summary}',
+                'chapter_planning_user_prompt': 'Content: {file_summary}',
                 'chapter_generation_system_prompt': 'Generate chapter',
                 'chapter_generation_user_prompt': 'Generate chapter {chapter_number}'
             }
         }
 
-        # Mock LLM response for chapter planning
-        mock_llm = Mock()
-        mock_response = Mock()
         # Simulate LLM response with chapter structure
-        mock_response.content = """
+        mock_response = """
 Chapter 1: Introduction
 Chapter 2: Core Concepts
 Chapter 3: Applications
 """
-        mock_llm.invoke.return_value = mock_response
-        mock_llm.bind_tools.return_value = mock_llm
-        mock_get_llm.return_value = mock_llm
-
-        # Mock ToolRegistry
-        write_chapter_list_instance = Mock()
-        write_chapter_list_instance.name = "write_chapter_list"
-        write_chapter_list_instance.ainvoke = AsyncMock(return_value={"success": True})
-
-        get_tools_mock.return_value = [write_chapter_list_instance]
+        mock_invoke_agent.return_value = mock_response
 
         settings = Settings()
         settings.parallel.parallel_execution = False  # Disable parallel execution for this test
@@ -60,7 +44,6 @@ Chapter 3: Applications
         # Create executor
         executor = ExecutorAgent(
             settings,
-            input_directory="/tmp/test_input",
             output_directory="/tmp/test_output"
         )
 
@@ -98,13 +81,11 @@ Chapter 3: Applications
             assert "title" in chapter
             assert "description" in chapter
 
-    @patch('ai_book_composer.agents.agent_base.load_prompts')
-    @patch('ai_book_composer.mcp_client.get_tools')
-    @patch('ai_book_composer.agents.agent_base.get_llm')
+    @patch('src.ai_book_composer.agents.agent_base.load_prompts')
+    @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
     def test_generate_single_chapter_adds_to_chapters_list(
             self,
-            mock_get_llm,
-            get_tools_mock,
+            mock_invoke_agent,
             mock_load_prompts
     ):
         """Test that generate_single_chapter adds chapter to the list."""
@@ -117,23 +98,16 @@ Chapter 3: Applications
         }
 
         # Mock LLM response for chapter content
-        mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.content = "This is the generated chapter content."
-        mock_llm.invoke.return_value = mock_response
-        mock_get_llm.return_value = mock_llm
-        mock_llm.bind_tools.return_value = mock_llm
+        mock_response = "This is the generated chapter content."
+        mock_invoke_agent.return_value = mock_response
 
         write_chapter = Mock()
         write_chapter.name = "write_chapter"
         write_chapter.ainvoke = AsyncMock(return_value={"success": True})
 
-        get_tools_mock.return_value = [write_chapter]
-
         # Create executor
         executor = ExecutorAgent(
             Settings(),
-            input_directory="/tmp/test_input",
             output_directory="/tmp/test_output"
         )
 
@@ -168,7 +142,6 @@ Chapter 3: Applications
         assert result["chapters"][0]["number"] == 1
         assert result["chapters"][0]["title"] == "Introduction"
         assert "content" in result["chapters"][0]
-        assert result["current_task_index"] == 3
 
 
 if __name__ == "__main__":

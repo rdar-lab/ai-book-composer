@@ -1,16 +1,20 @@
 """LangGraph workflow for Deep-Agent architecture."""
-
+import logging
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
+from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from .agents.critic import CriticAgent
 from .agents.decorator import DecoratorAgent
 from .agents.executor import ExecutorAgent
 from .agents.planner import PlannerAgent
+from .agents.preprocess_agent import PreprocessAgent
 from .agents.state import AgentState, create_initial_state
 from .config import Settings
 from .progress_display import progress, show_workflow_start, show_node_transition
+
+logger = logging.getLogger(__name__)
 
 
 class BookComposerWorkflow:
@@ -48,8 +52,9 @@ class BookComposerWorkflow:
         self.style_instructions = style_instructions
 
         # Initialize agents
+        self.preprocessor = PreprocessAgent(settings, input_directory, output_directory)
         self.planner = PlannerAgent(settings)
-        self.executor = ExecutorAgent(settings, input_directory, output_directory)
+        self.executor = ExecutorAgent(settings, output_directory)
         self.decorator = DecoratorAgent(settings)
         self.critic = CriticAgent(settings)
 
@@ -67,7 +72,7 @@ class BookComposerWorkflow:
         workflow = StateGraph(AgentState)
 
         # Add nodes
-        workflow.add_node("list_files", self._list_files_node)
+        workflow.add_node("preprocess", self._preprocess_node)
         workflow.add_node("plan", self._plan_node)
         workflow.add_node("execute", self._execute_node)
         workflow.add_node("decorate", self._decorate_node)
@@ -75,10 +80,10 @@ class BookComposerWorkflow:
         workflow.add_node("finalize", self._finalize_node)
 
         # Set entry point
-        workflow.set_entry_point("list_files")
+        workflow.set_entry_point("preprocess")
 
         # Add edges
-        workflow.add_edge("list_files", "plan")
+        workflow.add_edge("preprocess", "plan")
         workflow.add_edge("plan", "execute")
 
         # Conditional edge from execute
@@ -109,43 +114,74 @@ class BookComposerWorkflow:
 
         return workflow.compile()
 
-    def _list_files_node(self, _: AgentState) -> Dict[str, Any]:
-        """Node to list all files in input directory."""
-        show_node_transition(None, "list_files", "Starting workflow")
-        progress.show_phase(
-            "File Discovery",
-            "Scanning input directory for source files"
-        )
-
-        progress.show_action(f"Listing files in: {self.input_directory}")
-        files = self.executor.list_files()
-
-        progress.show_observation(f"Found {len(files)} file(s) to process")
-        if files:
-            progress.show_files(files)
-
-        return {"files": files, "status": "files_listed"}
+    def _preprocess_node(self, state: AgentState) -> Dict[str, Any]:
+        """Node for planning phase."""
+        show_node_transition(None, "preprocess", "Start Execution")
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+            with attempt:
+                logger.info("Starting preprocessing phase.")
+                try:
+                    return self.preprocessor.preprocess(state)
+                except Exception as e:
+                    logger.exception(f"Preprocessing attempt failed: {e}")
+                    raise
+        raise RuntimeError("Preprocessing failed after multiple attempts.")
 
     def _plan_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for planning phase."""
-        show_node_transition("list_files", "plan", "Files discovered")
-        return self.planner.plan(state)
+        show_node_transition("preprocess", "plan", "Files discovered and processed")
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+            with attempt:
+                logger.info("Starting planning phase.")
+                try:
+                    return self.planner.plan(state)
+                except Exception as e:
+                    logger.exception(f"Planning attempt failed: {e}")
+                    raise
+        raise RuntimeError("Planning failed after multiple attempts.")
 
     def _execute_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for execution phase."""
         prev_node = "plan" if state.get("current_task_index", 0) == 0 else "execute"
         show_node_transition(prev_node, "execute", "Executing next task")
-        return self.executor.execute(state)
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+            with attempt:
+                logger.info("Starting execution phase.")
+                try:
+                    return self.executor.execute(state)
+                except Exception as e:
+                    logger.exception(f"Execution attempt failed: {e}")
+                    raise
+        raise RuntimeError("Execution failed after multiple attempts.")
 
     def _decorate_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for decorator phase."""
         show_node_transition("execute", "decorate", "Adding images to chapters")
-        return self.decorator.decorate(state)
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+            with attempt:
+                logger.info("Starting decoration phase.")
+                try:
+                    return self.decorator.decorate(state)
+                except Exception as e:
+                    logger.exception(f"Decoration attempt failed: {e}")
+                    raise
+        logger.warning("Decoration failed after multiple attempts. Skipping decoration.")
+        return {
+            "status": "decoration_failed"
+        }
 
     def _critique_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for critique phase."""
         show_node_transition("decorate", "critique", "Image decoration complete, evaluating quality")
-        return self.critic.critique(state)
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+            with attempt:
+                logger.info("Starting critique phase.")
+                try:
+                    return self.critic.critique(state)
+                except Exception as e:
+                    logger.exception(f"Critique attempt failed: {e}")
+                    raise
+        raise RuntimeError("Critique failed after multiple attempts.")
 
     # noinspection PyMethodMayBeStatic
     def _finalize_node(self, state: AgentState) -> Dict[str, Any]:
@@ -203,10 +239,16 @@ class BookComposerWorkflow:
         if status == "approved" or iterations >= self.max_iterations:
             return "finalize"
         else:
+            # Reset the state for revision
+            state['current_task_index'] = 0
+
+            # Change settings to ignore cached content for revision
+            self.settings.book.use_cached_chapters_list = False
+            self.settings.book.use_cached_chapters_content = False
+
             # Reset task index for revision
             return "revise"
 
-    # noinspection PyUnresolvedReferences
     def run(self) -> Dict[str, Any]:
         """Run the workflow.
         
@@ -236,6 +278,7 @@ class BookComposerWorkflow:
         )
 
         # Run the graph
+        # noinspection PyUnresolvedReferences
         final_state = self.graph.invoke(initial_state)
 
         return final_state

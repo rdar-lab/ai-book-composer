@@ -4,13 +4,13 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import yaml
+from click.testing import CliRunner
 
-# noinspection PyUnresolvedReferences
-from ai_book_composer.agents.state import create_initial_state
-# noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings, BookConfig
-# noinspection PyUnresolvedReferences
-from ai_book_composer.workflow import BookComposerWorkflow
+from src.ai_book_composer.agents.state import create_initial_state
+from src.ai_book_composer.cli import main as cli_main
+from src.ai_book_composer.config import Settings, BookConfig
+from src.ai_book_composer.config import load_prompts
+from src.ai_book_composer.workflow import BookComposerWorkflow
 
 
 class TestStyleInstructionsConfig:
@@ -90,10 +90,10 @@ class TestStyleInstructionsState:
 class TestStyleInstructionsWorkflow:
     """Test style instructions in workflow."""
 
-    @patch('ai_book_composer.workflow.PlannerAgent')
-    @patch('ai_book_composer.workflow.ExecutorAgent')
-    @patch('ai_book_composer.workflow.DecoratorAgent')
-    @patch('ai_book_composer.workflow.CriticAgent')
+    @patch('src.ai_book_composer.workflow.PlannerAgent')
+    @patch('src.ai_book_composer.workflow.ExecutorAgent')
+    @patch('src.ai_book_composer.workflow.DecoratorAgent')
+    @patch('src.ai_book_composer.workflow.CriticAgent')
     def test_workflow_accepts_style_instructions(
             self,
             mock_critic,
@@ -115,10 +115,10 @@ class TestStyleInstructionsWorkflow:
 
         assert workflow.style_instructions == 'I want kids/fun reading material'
 
-    @patch('ai_book_composer.workflow.PlannerAgent')
-    @patch('ai_book_composer.workflow.ExecutorAgent')
-    @patch('ai_book_composer.workflow.DecoratorAgent')
-    @patch('ai_book_composer.workflow.CriticAgent')
+    @patch('src.ai_book_composer.workflow.PlannerAgent')
+    @patch('src.ai_book_composer.workflow.ExecutorAgent')
+    @patch('src.ai_book_composer.workflow.DecoratorAgent')
+    @patch('src.ai_book_composer.workflow.CriticAgent')
     def test_workflow_default_empty_style_instructions(
             self,
             mock_critic,
@@ -140,9 +140,9 @@ class TestStyleInstructionsWorkflow:
 class TestStyleInstructionsIntegration:
     """Integration tests for style instructions feature."""
 
-    @patch('ai_book_composer.cli.BookComposerWorkflow')
-    @patch('ai_book_composer.cli.Settings')
-    @patch('ai_book_composer.cli.setup_logging')
+    @patch('src.ai_book_composer.cli.BookComposerWorkflow')
+    @patch('src.ai_book_composer.cli.Settings')
+    @patch('src.ai_book_composer.cli.setup_logging')
     def test_cli_passes_style_instructions_to_workflow(
             self,
             mock_setup_logging,
@@ -150,9 +150,6 @@ class TestStyleInstructionsIntegration:
             mock_workflow
     ):
         """Test that CLI properly passes style instructions to workflow."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.cli import main
-        from click.testing import CliRunner
 
         # Mock settings
         mock_settings_instance = Mock()
@@ -183,7 +180,8 @@ class TestStyleInstructionsIntegration:
             Path('input').mkdir()
             Path('output').mkdir()
 
-            result = runner.invoke(main, [
+            # noinspection PyTypeChecker
+            result = runner.invoke(cli_main, [
                 '-i', 'input',
                 '-o', 'output',
                 '--style-instructions', 'I want an academic book'
@@ -194,20 +192,15 @@ class TestStyleInstructionsIntegration:
             call_kwargs = mock_workflow.call_args[1]
             assert call_kwargs['style_instructions'] == 'I want an academic book'
 
-    @patch('ai_book_composer.cli.BookComposerWorkflow')
-    @patch('ai_book_composer.cli.Settings')
-    @patch('ai_book_composer.cli.setup_logging')
+    @patch('src.ai_book_composer.cli.BookComposerWorkflow')
+    @patch('src.ai_book_composer.cli.Settings')
+    @patch('src.ai_book_composer.cli.setup_logging')
     def test_cli_uses_config_style_instructions_when_not_provided(
             self,
             mock_setup_logging,
             mock_settings,
             mock_workflow
     ):
-        """Test that CLI uses config style instructions when not provided via CLI."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.cli import main
-        from click.testing import CliRunner
-
         # Mock settings with style instructions in config
         mock_settings_instance = Mock()
         mock_settings_instance.book.default_title = "Default Title"
@@ -237,7 +230,8 @@ class TestStyleInstructionsIntegration:
             Path('input').mkdir()
             Path('output').mkdir()
 
-            result = runner.invoke(main, [
+            # noinspection PyTypeChecker
+            result = runner.invoke(cli_main, [
                 '-i', 'input',
                 '-o', 'output'
             ])
@@ -253,8 +247,6 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_planner_prompt_includes_style_instructions(self):
         """Test that planner prompt includes style instructions placeholder."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
         planner_prompt = prompts['planner']['system_prompt']
@@ -274,8 +266,6 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_critic_prompt_includes_style_instructions(self):
         """Test that critic prompt includes style instructions placeholder."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
         critic_prompt = prompts['critic']['system_prompt']
@@ -296,8 +286,6 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_decorator_prompt_includes_style_instructions(self):
         """Test that decorator prompt includes style instructions placeholder."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
         decorator_prompt = prompts['decorator']['system_prompt']
@@ -318,8 +306,6 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_executor_prompt_already_has_style_instructions(self):
         """Test that executor prompt already includes style instructions (from previous implementation)."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
         executor_chapter_gen_prompt = prompts['executor']['chapter_generation_system_prompt']
@@ -330,8 +316,6 @@ class TestAgentPromptsWithStyleInstructions:
 
     def test_all_prompts_work_with_empty_style_instructions(self):
         """Test that all prompts work correctly when style instructions are empty."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.config import load_prompts
 
         prompts = load_prompts()
 

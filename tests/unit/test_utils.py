@@ -1,21 +1,21 @@
 """Unit tests for AI Book Composer tools with mocked LLMs."""
 
 import json
-from pathlib import Path
 from unittest.mock import Mock, patch
 
-# noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings
-# noinspection PyUnresolvedReferences
-from ai_book_composer.tools.base_tools import (
-    FileListingTool,
-    TextFileReaderTool,
-    ChapterWriterTool,
-    ChapterListWriterTool,
-    AudioTranscriptionTool,
-    VideoTranscriptionTool,
+import pytest
+
+from src.ai_book_composer.config import Settings
+from src.ai_book_composer.utils import file_utils
+from src.ai_book_composer.utils.file_utils import (
     is_path_safe,
-    is_file_size_within_limits
+    is_file_size_within_limits,
+    read_text_file,
+    list_input_files,
+    read_audio_file,
+    read_video_file,
+    list_images,
+    extract_images_from_pdf
 )
 
 
@@ -64,8 +64,7 @@ class TestFileListingTool:
         subdir.mkdir()
         (subdir / "file3.txt").write_text("content3")
 
-        tool = FileListingTool(Settings(), str(tmp_path))
-        files = tool.run()
+        files = list_input_files(Settings(), str(tmp_path))
 
         assert len(files) == 3
         assert all('path' in f for f in files)
@@ -74,8 +73,7 @@ class TestFileListingTool:
 
     def test_list_empty_directory(self, tmp_path):
         """Test listing empty directory."""
-        tool = FileListingTool(Settings(), str(tmp_path))
-        files = tool.run()
+        files = list_input_files(Settings(), str(tmp_path))
         assert files == []
 
 
@@ -88,23 +86,17 @@ class TestTextFileReaderTool:
         content = "\n".join([f"Line {i}" for i in range(1, 11)])
         test_file.write_text(content)
 
-        tool = TextFileReaderTool(Settings())
-        result = tool.run(str(test_file), start_line=1, end_line=5)
+        result = read_text_file(Settings(), str(test_file))
 
         assert "content" in result
-        assert result["start_line"] == 1
-        assert result["end_line"] == 5
-        assert result["total_lines"] == 10
-        assert result["has_more"] == True
+        assert "Line 1" in result["content"]
 
     def test_read_nonexistent_file(self):
-        """Test reading nonexistent file."""
-        tool = TextFileReaderTool(Settings())
-        result = tool.run("/nonexistent/file.txt")
-        assert "error" in result
-        assert result["content"] == ""
+        with pytest.raises(Exception):
+            """Test reading nonexistent file."""
+            read_text_file(Settings(), "/nonexistent/file.txt")
 
-    @patch('ai_book_composer.tools.base_tools.DocxDocument')
+    @patch('src.ai_book_composer.utils.file_utils.DocxDocument')
     def test_read_docx_file(self, mock_docx, tmp_path):
         """Test reading DOCX file."""
         test_file = tmp_path / "test.docx"
@@ -119,69 +111,17 @@ class TestTextFileReaderTool:
         mock_doc.paragraphs = [mock_para1, mock_para2]
         mock_docx.return_value = mock_doc
 
-        tool = TextFileReaderTool(Settings())
-        result = tool.run(str(test_file))
+        result = read_text_file(Settings(), str(test_file))
 
         assert "content" in result
         assert "Paragraph 1" in result["content"]
         assert "Paragraph 2" in result["content"]
 
 
-class TestChapterWriterTool:
-    """Test ChapterWriterTool."""
-
-    def test_write_chapter(self, tmp_path):
-        """Test writing chapter."""
-        tool = ChapterWriterTool(Settings(), str(tmp_path))
-        result = tool.run(1, "Introduction", "This is the intro content")
-
-        assert result["success"] == True
-        assert "file_path" in result
-        assert Path(result["file_path"]).exists()
-
-        # Check content
-        content = Path(result["file_path"]).read_text()
-        assert "Chapter 1: Introduction" in content
-        assert "This is the intro content" in content
-
-    def test_write_chapter_special_chars(self, tmp_path):
-        """Test writing chapter with special characters in title."""
-        tool = ChapterWriterTool(Settings(), str(tmp_path))
-        result = tool.run(1, "Test: Chapter/Name", "Content")
-
-        assert result["success"] == True
-        assert Path(result["file_path"]).exists()
-
-
-class TestChapterListWriterTool:
-    """Test ChapterListWriterTool."""
-
-    def test_write_chapter_list(self, tmp_path):
-        """Test writing chapter list."""
-        tool = ChapterListWriterTool(Settings(), str(tmp_path))
-        chapters = [
-            {"number": 1, "title": "Chapter 1", "description": "Desc 1"},
-            {"number": 2, "title": "Chapter 2", "description": "Desc 2"}
-        ]
-
-        result = tool.run(chapters)
-
-        assert result["success"] == True
-        assert result["chapter_count"] == 2
-        assert Path(result["file_path"]).exists()
-
-        # Check content
-        import json
-        with open(result["file_path"]) as f:
-            saved_chapters = json.load(f)
-        assert len(saved_chapters) == 2
-        assert saved_chapters[0]["title"] == "Chapter 1"
-
-
 class TestAudioTranscriptionTool:
     """Test AudioTranscriptionTool with caching and language support."""
 
-    @patch('ai_book_composer.tools.base_tools.WhisperModel')
+    @patch('src.ai_book_composer.utils.file_utils.WhisperModel')
     def test_transcribe_audio_with_cache(self, mock_whisper_model, tmp_path):
         """Test audio transcription with caching."""
         # Setup mock settings
@@ -209,9 +149,7 @@ class TestAudioTranscriptionTool:
         mock_model_instance.transcribe.return_value = ([mock_segment], mock_info)
         mock_whisper_model.return_value = mock_model_instance
 
-        # First call - should transcribe and cache
-        tool = AudioTranscriptionTool(settings)
-        result1 = tool.run(str(test_audio))
+        result1 = read_audio_file(settings, str(test_audio))
 
         assert result1["transcription"] == "Hello world"
         assert result1["language"] == "en"
@@ -219,7 +157,7 @@ class TestAudioTranscriptionTool:
         assert len(result1["segments"]) == 1
 
         # Check cache file was created
-        cache_path = tmp_path / ".test.mp3.txt"
+        cache_path = file_utils.get_cache_path(settings, test_audio)
         assert cache_path.exists()
 
         # Verify cache content
@@ -230,12 +168,12 @@ class TestAudioTranscriptionTool:
 
         # Second call - should use cache (transcribe should not be called again)
         mock_model_instance.transcribe.reset_mock()
-        result2 = tool.run(str(test_audio))
+        result2 = read_audio_file(Settings(), str(test_audio))
 
         assert result2 == result1
         mock_model_instance.transcribe.assert_not_called()
 
-    @patch('ai_book_composer.tools.base_tools.WhisperModel')
+    @patch('src.ai_book_composer.utils.file_utils.WhisperModel')
     def test_transcribe_audio_with_hebrew(self, mock_whisper_model, tmp_path):
         """Test audio transcription with Hebrew language specification."""
         # Setup mock settings
@@ -263,15 +201,13 @@ class TestAudioTranscriptionTool:
         mock_model_instance.transcribe.return_value = ([mock_segment], mock_info)
         mock_whisper_model.return_value = mock_model_instance
 
-        # Transcribe with Hebrew language
-        tool = AudioTranscriptionTool(settings)
-        result = tool.run(str(test_audio), language="he")
+        result = read_audio_file(settings, str(test_audio), language="he")
 
         assert result["transcription"] == "שלום עולם"
         assert result["language"] == "he"
 
         # Check cache file was created with language suffix
-        cache_path = tmp_path / ".test_hebrew.mp3_he.txt"
+        cache_path = file_utils.get_cache_path(settings, test_audio, language="he")
         assert cache_path.exists()
 
         # Verify language parameter was passed to Whisper
@@ -280,7 +216,7 @@ class TestAudioTranscriptionTool:
         assert call_kwargs["language"] == "he"
 
     # noinspection PyUnusedLocal
-    @patch('ai_book_composer.tools.base_tools.WhisperModel')
+    @patch('src.ai_book_composer.utils.file_utils.WhisperModel')
     def test_transcribe_audio_file_not_found(self, mock_whisper_model):
         """Test audio transcription with non-existent file."""
         settings = Settings()
@@ -289,19 +225,16 @@ class TestAudioTranscriptionTool:
         settings.whisper.local = {"device": "cpu", "compute_type": "int8"}
         settings.security.max_file_size_mb = 500
 
-        tool = AudioTranscriptionTool(settings)
-        result = tool.run("/nonexistent/file.mp3")
-
-        assert "error" in result
-        assert result["transcription"] == ""
+        with pytest.raises(Exception):
+            result = read_audio_file(settings, "/nonexistent/file.mp3")
 
 
 class TestVideoTranscriptionTool:
     """Test VideoTranscriptionTool with caching and language support."""
 
-    @patch('ai_book_composer.tools.base_tools.ffmpeg')
-    @patch('ai_book_composer.tools.base_tools.AudioTranscriptionTool')
-    def test_transcribe_video_with_cache(self, mock_audio_tool_class, mock_ffmpeg, tmp_path):
+    @patch('src.ai_book_composer.utils.file_utils.ffmpeg')
+    @patch('src.ai_book_composer.utils.file_utils.transcribe_local')
+    def test_transcribe_video_with_cache(self, mock_transcribe_local, mock_ffmpeg, tmp_path):
         """Test video transcription with caching."""
         # Setup mock settings
         settings = Settings()
@@ -318,34 +251,29 @@ class TestVideoTranscriptionTool:
         }
 
         # Setup mock audio transcription tool
-        mock_audio_tool = Mock()
-        mock_audio_tool.mode = "local"
-        mock_audio_tool.transcribe_local.return_value = {
+        mock_transcribe_local.return_value = {
             "transcription": "Video content",
             "segments": [{"start": 0.0, "end": 10.0, "text": "Video content"}],
             "language": "en",
             "duration": 10.0
         }
-        mock_audio_tool_class.return_value = mock_audio_tool
 
-        # First call - should transcribe and cache
-        tool = VideoTranscriptionTool(settings)
-        result1 = tool.run(str(test_video))
+        result1 = read_video_file(settings, str(test_video))
 
         assert result1["transcription"] == "Video content"
         assert result1["language"] == "en"
 
         # Check cache file was created
-        cache_path = tmp_path / ".test.mp4.txt"
+        cache_path = file_utils.get_cache_path(settings, test_video)
         assert cache_path.exists()
 
         # Second call - should use cache
-        result2 = tool.run(str(test_video))
+        result2 = read_video_file(settings, str(test_video))
         assert result2 == result1
 
-    @patch('ai_book_composer.tools.base_tools.ffmpeg')
-    @patch('ai_book_composer.tools.base_tools.AudioTranscriptionTool')
-    def test_transcribe_video_with_language(self, mock_audio_tool_class, mock_ffmpeg, tmp_path):
+    @patch('src.ai_book_composer.utils.file_utils.ffmpeg')
+    @patch('src.ai_book_composer.utils.file_utils.transcribe_local')
+    def test_transcribe_video_with_language(self, mock_transcribe_local, mock_ffmpeg, tmp_path):
         """Test video transcription with Hebrew language specification."""
         # Setup mock settings
         settings = Settings()
@@ -362,34 +290,28 @@ class TestVideoTranscriptionTool:
         }
 
         # Setup mock audio transcription tool
-        mock_audio_tool = Mock()
-        mock_audio_tool.mode = "local"
-        mock_audio_tool.transcribe_local.return_value = {
+        mock_transcribe_local.return_value = {
             "transcription": "תוכן וידאו",
             "segments": [{"start": 0.0, "end": 10.0, "text": "תוכן וידאו"}],
             "language": "he",
             "duration": 10.0
         }
-        mock_audio_tool_class.return_value = mock_audio_tool
 
         # Transcribe with Hebrew language
-        tool = VideoTranscriptionTool(settings)
-        result = tool.run(str(test_video), language="he")
+        result = read_video_file(settings, str(test_video), language="he")
 
         assert result["transcription"] == "תוכן וידאו"
         assert result["language"] == "he"
 
         # Check cache file was created with language suffix
-        cache_path = tmp_path / ".test_hebrew.mp4_he.txt"
+        cache_path = file_utils.get_cache_path(settings, test_video, language="he")
         assert cache_path.exists()
 
         # Verify language parameter was passed
-        mock_audio_tool.transcribe_local.assert_called_once()
-        call_args = mock_audio_tool.transcribe_local.call_args[0]
-        call_kwargs = mock_audio_tool.transcribe_local.call_args[1] if len(
-            mock_audio_tool.transcribe_local.call_args) > 1 else {}
+        mock_transcribe_local.assert_called_once()
+        call_args = mock_transcribe_local.call_args[0]
         # Language should be either in args or kwargs
-        assert call_kwargs.get('language') == "he" or (len(call_args) > 1 and call_args[1] == "he")
+        assert call_args[2] == "he"
 
 
 class TestImageListingTool:
@@ -397,8 +319,6 @@ class TestImageListingTool:
 
     def test_list_images(self, tmp_path):
         """Test listing images in directory."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.tools.base_tools import ImageListingTool
 
         # Create test image files
         (tmp_path / "image1.jpg").write_bytes(b"fake jpg")
@@ -410,8 +330,7 @@ class TestImageListingTool:
         # Create non-image files (should be ignored)
         (tmp_path / "text.txt").write_text("not an image")
 
-        tool = ImageListingTool(Settings(), str(tmp_path))
-        images = tool.run()
+        images = list_images(Settings(), str(tmp_path))
 
         assert len(images) == 3
         assert all('path' in img for img in images)
@@ -420,11 +339,8 @@ class TestImageListingTool:
 
     def test_list_empty_directory(self, tmp_path):
         """Test listing empty directory."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.tools.base_tools import ImageListingTool
 
-        tool = ImageListingTool(Settings(), str(tmp_path))
-        images = tool.run()
+        images = list_images(Settings(), str(tmp_path))
         assert images == []
 
 
@@ -433,11 +349,5 @@ class TestImageExtractorTool:
 
     def test_extract_images_file_not_found(self, tmp_path):
         """Test extract images from non-existent file."""
-        # noinspection PyUnresolvedReferences
-        from ai_book_composer.tools.base_tools import ImageExtractorTool
-
-        tool = ImageExtractorTool(Settings(), str(tmp_path))
-        result = tool.run(str(tmp_path / "nonexistent.pdf"))
-
-        assert "error" in result
-        assert result.get("images", []) == []
+        with pytest.raises(Exception):
+            extract_images_from_pdf(Settings(), str(tmp_path / "nonexistent.pdf"))

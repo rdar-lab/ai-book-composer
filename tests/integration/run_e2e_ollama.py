@@ -1,23 +1,21 @@
 """Integration test using Docker and Ollama."""
-import uuid
+import datetime
+import shutil
 from pathlib import Path
 
-import pytest
 import yaml
-# noinspection PyUnresolvedReferences
-from ai_book_composer.workflow import BookComposerWorkflow
-# noinspection PyUnresolvedReferences
-from ai_book_composer.config import Settings
-# noinspection PyUnresolvedReferences
-from ai_book_composer import config
 
-@pytest.fixture
-def test_config(tmp_path):
+from src.ai_book_composer import logging_config
+from src.ai_book_composer.config import Settings
+from src.ai_book_composer.workflow import BookComposerWorkflow
+
+
+def generate_config_file(config_dir, logs_dir, cache_dir):
     """Create test configuration."""
     config = {
         'llm': {
             'provider': 'ollama_embedded',
-            'model': 'tinyllama',
+            'model': 'qwen2.5-7b-instruct',
             'temperature': {
                 'planning': 0.3,
                 'execution': 0.7,
@@ -26,11 +24,15 @@ def test_config(tmp_path):
         },
         'providers': {
             'ollama_embedded': {
-                'model': 'tinyllama',
-                'n_ctx': 2048,
-                'n_threads': 4,
-                'run_on_gpu': False,
-                'verbose': False
+                'internal': {
+                    'n_ctx': 16384,
+                    'max_tokens': 8192,
+                    'n_batch': 512,
+                    'n_threads': 4,
+                    'verbose': False,
+                    'chat_format': "qwen"
+                },
+                'run_on_gpu': False
             }
         },
         'whisper': {
@@ -47,27 +49,27 @@ def test_config(tmp_path):
         },
         'logging': {
             'level': 'DEBUG',
-            'file': str(tmp_path / 'test.log'),
-            'console_output': True
+            'file': str(logs_dir / f'run_{datetime.datetime.now()}.log'),
+            'console_output': False
         },
         'parallel': {
             'parallel_execution': False,
             'parallel_workers': 1
+        },
+        'general': {
+            'cache_dir': str(cache_dir)
         }
     }
 
-    config_file = tmp_path / "test_config.yaml"
+    config_file = config_dir / "config.yaml"
     with open(config_file, 'w') as f:
         yaml.dump(config, f)
 
     return str(config_file)
 
 
-@pytest.fixture
-def test_input(tmp_path):
+def generate_input_dir(input_dir):
     """Create test input files."""
-    input_dir = tmp_path / "input"
-    input_dir.mkdir()
 
     # Copy all files from the /tests/fixtures directory to the input directory
     fixtures_dir = Path(__file__).parent.parent / "fixtures"
@@ -79,26 +81,51 @@ def test_input(tmp_path):
     return str(input_dir)
 
 
-def test_book_generation_end_to_end(test_config, test_input):
+def run_book_generation_end_to_end():
     """Test complete book generation workflow."""
-
-    settings = Settings(test_config)
 
     # Get project root path
     project_root = Path(__file__).parent.parent.parent
 
-    # Generate a random output directory inside the 'ROOT'/output folder
-    output_dir = project_root / "output" / f"{uuid.uuid4()}"
-    output_dir.mkdir(parents=True)
+    run_dir = project_root / "run"
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    input_dir = run_dir / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+
+    cache_dir = run_dir / ".cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    output_dir = run_dir / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    config_dir = run_dir / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    logs_dir = run_dir / "logs"
+
+    if logs_dir.exists():
+        shutil.rmtree(logs_dir)
+
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate configuration file
+    config = generate_config_file(config_dir, logs_dir, cache_dir)
+    # Generate input directory
+    generate_input_dir(input_dir)
+
+    settings = Settings(config)
+    logging_config.setup_logging(settings)
 
     print(f"Running book generation test...")
-    print(f"Input: {test_input}")
+    print(f"Input: {input_dir}")
     print(f"Output: {output_dir}")
 
     # Create workflow
     workflow = BookComposerWorkflow(
         settings=settings,
-        input_directory=test_input,
+        input_directory=str(input_dir),
         output_directory=str(output_dir),
         language="en-US",
         book_title="Test AI Book",
@@ -123,3 +150,12 @@ def test_book_generation_end_to_end(test_config, test_input):
     print(f"  - Generated {len(final_state['chapters'])} chapters")
     print(f"  - Book saved to: {final_state['final_output_path']}")
     print(f"  - Quality score: {final_state.get('quality_score', 'N/A')}")
+
+
+if __name__ == "__main__":
+    try:
+        run_book_generation_end_to_end()
+    except Exception as e:
+        print(f"✗ Book generation test failed: {e}")
+        print(repr(e))
+        raise e
