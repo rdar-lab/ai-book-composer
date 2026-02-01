@@ -117,7 +117,7 @@ class BookComposerWorkflow:
     def _preprocess_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for planning phase."""
         show_node_transition(None, "preprocess", "Start Execution")
-        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
             with attempt:
                 logger.info("Starting preprocessing phase.")
                 try:
@@ -130,7 +130,7 @@ class BookComposerWorkflow:
     def _plan_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for planning phase."""
         show_node_transition("preprocess", "plan", "Files discovered and processed")
-        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
             with attempt:
                 logger.info("Starting planning phase.")
                 try:
@@ -144,7 +144,7 @@ class BookComposerWorkflow:
         """Node for execution phase."""
         prev_node = "plan" if state.get("current_task_index", 0) == 0 else "execute"
         show_node_transition(prev_node, "execute", "Executing next task")
-        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
             with attempt:
                 logger.info("Starting execution phase.")
                 try:
@@ -157,7 +157,7 @@ class BookComposerWorkflow:
     def _decorate_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for decorator phase."""
         show_node_transition("execute", "decorate", "Adding images to chapters")
-        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
             with attempt:
                 logger.info("Starting decoration phase.")
                 try:
@@ -173,7 +173,7 @@ class BookComposerWorkflow:
     def _critique_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for critique phase."""
         show_node_transition("decorate", "critique", "Image decoration complete, evaluating quality")
-        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(2)):
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
             with attempt:
                 logger.info("Starting critique phase.")
                 try:

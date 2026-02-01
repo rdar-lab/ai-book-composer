@@ -1,4 +1,5 @@
 """LLM provider abstraction."""
+import copy
 import json
 import logging
 import uuid
@@ -8,7 +9,7 @@ from typing import Optional, Dict, Any
 from huggingface_hub import hf_hub_download
 from langchain_community.chat_models import ChatOllama, ChatLlamaCpp
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, Runnable
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -193,7 +194,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         # 1. Execute the real model
         logger.info(f"Invoking LLM with ToolFixer.... input={input_messages}, config={config}, kwargs={kwargs}")
         history = input_messages if isinstance(input_messages, list) else []
-        msg = self.model.invoke(input_messages, config=config, **kwargs)
+        msg = self.model.invoke(self._prune_history(input_messages), config=config, **kwargs)
         logger.info(f"LLM response before fix: {msg}")
 
         # 2. Check and Fix Output
@@ -203,6 +204,37 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                 msg = self._patch_tool_call(msg, history)
 
         return msg
+
+    @staticmethod
+    def _prune_history(messages):
+        """
+        Creates a copy of messages and truncates OLD ToolMessages.
+        Keeps the System Prompt + Last 4 messages intact.
+        Everything else gets its heavy content removed.
+        """
+        if not isinstance(messages, list):
+            return messages
+
+        # Deep copy so we don't affect the actual agent state, only what the LLM sees
+        messages_copy = copy.deepcopy(messages)
+
+        # Heuristic: Keep System Prompt (idx 0) and the last 6 turns (User + AI + Tool...) full.
+        # Everything in the middle gets compressed.
+        keep_last_n = 6
+
+        if len(messages_copy) > keep_last_n:
+            # Iterate through the "Middle" messages (skipping first system msg)
+            for msg in messages_copy[1:-keep_last_n]:
+                # If it's a Tool Response (heavy file content)
+                if isinstance(msg, ToolMessage):
+                    # Replace 5000 chars with a placeholder
+                    msg.content = f"[...History: Output of tool '{msg.name}' was processed. Data removed to save context...]"
+
+                # Optional: Also trim old user prompts if they are huge
+                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > 1000:
+                    msg.content = str(msg.content)[:500] + "... [Truncated]"
+
+        return messages_copy
 
     @staticmethod
     def _extract_json_safely(text):

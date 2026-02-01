@@ -8,6 +8,7 @@ from typing import Dict
 from langchain.agents import create_agent
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from langchain_core.tools import tool, BaseTool
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from .state import AgentState
 from .. import progress_display
@@ -50,6 +51,7 @@ class AgentBase:
 
         return tools
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
     def _invoke_llm(self, system_prompt: str, user_prompt: str):
         llm = self._get_llm()
         logger.info(
@@ -67,6 +69,9 @@ class AgentBase:
         thought, action = self._extract_thought_and_action(response_content)
 
         logger.info(f"\n***LLM Thought***\n{thought}\n*** Action ***\n{action}")
+
+        if '<think>' in action:
+            raise Exception("Agent returned another <think> block in action, which is not allowed.")
 
         progress_display.progress.show_agent_response(thought, action)
         return action
@@ -86,7 +91,9 @@ class AgentBase:
             response_content = result
         return response_content
 
+
     # noinspection PyUnusedLocal
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
     def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None) -> Any:
         if not custom_tools:
             tools = self._generate_tools()
@@ -126,6 +133,9 @@ class AgentBase:
         thought, action = self._extract_thought_and_action(response_content)
 
         logger.info(f"\n***Agent Thought***\n{thought}\n*** Action ***\n{action}")
+
+        if '<think>' in action:
+            raise Exception("Agent returned another <think> block in action, which is not allowed.")
 
         progress_display.progress.show_agent_response(thought, action)
 
