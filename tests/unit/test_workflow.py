@@ -187,7 +187,7 @@ class TestWorkflowNodeMethods:
         workflow.critic.critique.assert_called_once()
 
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
-    def test_finalize_node(self, tmp_path):
+    def test_critique_node_success(self, tmp_path):
         """Test critique node execution."""
         workflow = BookComposerWorkflow()
         workflow.critic = Mock()
