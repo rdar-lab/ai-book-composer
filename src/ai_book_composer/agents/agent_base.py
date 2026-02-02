@@ -322,7 +322,13 @@ class AgentBase:
             for exec_record in recent_history:
                 node = exec_record.get("node", exec_record.get("task_type", "Unknown"))
                 exec_status = exec_record.get("status", "unknown")
-                summary_parts.append(f"  - {node}: {exec_status}")
+                
+                # If this is an execute node with task details, show the task info
+                if node == "execute" and exec_record.get("task_type"):
+                    task_type = exec_record.get("task_type")
+                    summary_parts.append(f"  - execute: {task_type} - {exec_status}")
+                else:
+                    summary_parts.append(f"  - {node}: {exec_status}")
         
         # Add critic feedback if present
         critic_feedback = self.state.get("critic_feedback")

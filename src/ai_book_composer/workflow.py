@@ -174,8 +174,23 @@ class BookComposerWorkflow:
                 logger.info("Starting execution phase.")
                 try:
                     result = self.executor.execute(state)
-                    # Merge execution history tracking
-                    result.update(self._record_execution(state, "execute", "completed"))
+                    # Record the specific plan step that was executed
+                    last_executed_task = result.get("last_executed_task")
+                    if last_executed_task:
+                        # Record with task details instead of just "execute"
+                        execution_history = state.get("execution_history", [])
+                        execution_record = {
+                            "node": "execute",
+                            "task_index": last_executed_task.get("task_index"),
+                            "task_type": last_executed_task.get("task_type"),
+                            "task_description": last_executed_task.get("task_description"),
+                            "status": "completed"
+                        }
+                        execution_history.append(execution_record)
+                        result["execution_history"] = execution_history
+                    else:
+                        # Fallback to generic execution tracking
+                        result.update(self._record_execution(state, "execute", "completed"))
                     return result
                 except Exception as e:
                     logger.exception(f"Execution attempt failed: {e}")

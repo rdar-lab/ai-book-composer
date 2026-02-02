@@ -84,7 +84,13 @@ class ExecutorAgent(AgentBase):
                 "references": self.state.get("references", []),
                 "final_output_path": self.state.get("final_output_path", ""),
                 "current_task_index": current_task_index + 1,
-                "status": "book_generate" if self.state.get("final_output_path") else "executing"
+                "status": "book_generate" if self.state.get("final_output_path") else "executing",
+                # Return the executed task info for workflow tracking
+                "last_executed_task": {
+                    "task_index": current_task_index,
+                    "task_type": task_type,
+                    "task_description": task_description
+                }
             }
 
     def _custom_agent_task(self, current_task: dict[str, Any]) -> str | list[str | dict] | AIMessage:
