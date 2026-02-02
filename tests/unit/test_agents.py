@@ -656,7 +656,7 @@ class TestAgentStateSummary:
             assert "Critic Feedback:" in summary
             assert "needs improvement" in summary
             assert "Iteration: 1" in summary
-            assert "Quality Score: 65" in summary
+            assert "Quality Score: 65.00%" in summary
 
     def test_get_agent_state_summary_empty_state(self):
         """Test state summary generation with empty state."""
