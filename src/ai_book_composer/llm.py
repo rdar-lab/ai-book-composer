@@ -19,6 +19,12 @@ from .config import Settings
 
 logger = logging.getLogger(__name__)
 
+# Message history pruning thresholds
+_KEEP_LAST_N_TURNS = 4  # Number of recent message turns to keep uncompressed
+_LARGE_TOOL_MESSAGE_THRESHOLD = 3000  # Characters - compress even recent messages above this
+_LARGE_USER_MESSAGE_THRESHOLD = 800  # Characters - trim old user messages above this
+_USER_MESSAGE_TRIM_LENGTH = 400  # Characters to keep when trimming user messages
+
 _mapping_cache: Optional[Dict[str, Any]] = None
 
 
@@ -224,9 +230,9 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         # Deep copy so we don't affect the actual agent state, only what the LLM sees
         messages_copy = copy.deepcopy(messages)
 
-        # Keep System Prompt (idx 0) and the last 4 turns (reduced from 6 for more aggressive pruning)
+        # Keep System Prompt (idx 0) and the last N turns
         # This is enough for the LLM to maintain context while preventing overflow
-        keep_last_n = 4
+        keep_last_n = _KEEP_LAST_N_TURNS
 
         if len(messages_copy) > keep_last_n:
             # Iterate through the "middle" messages (skipping first system msg and last N)
@@ -242,13 +248,13 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                     )
                 
                 # Also aggressively trim old user prompts if they are large
-                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > 800:
-                    msg.content = str(msg.content)[:400] + "... [Truncated to save context]"
+                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > _LARGE_USER_MESSAGE_THRESHOLD:
+                    msg.content = str(msg.content)[:_USER_MESSAGE_TRIM_LENGTH] + "... [Truncated to save context]"
         
-        # Additionally compress recent ToolMessages if they're exceptionally large (>3000 chars)
+        # Additionally compress recent ToolMessages if they're exceptionally large
         # This prevents even recent large file reads from consuming too much context
         for msg in messages_copy[-keep_last_n:]:
-            if isinstance(msg, ToolMessage) and len(str(msg.content)) > 3000:
+            if isinstance(msg, ToolMessage) and len(str(msg.content)) > _LARGE_TOOL_MESSAGE_THRESHOLD:
                 tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
                 original_length = len(str(msg.content))
                 # Keep a summary but compress the bulk

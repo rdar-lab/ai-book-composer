@@ -167,6 +167,9 @@ class TestMessagePruning:
 
     def test_prune_history_with_many_tool_calls(self):
         """Test pruning with many tool calls simulating file access pattern."""
+        # Expected compression ratio - at least 70% reduction
+        EXPECTED_MAX_SIZE_RATIO = 0.3  # 30% of original size remaining
+        
         messages = [SystemMessage(content="System prompt")]
         
         # Simulate 10 file access calls
@@ -183,7 +186,7 @@ class TestMessagePruning:
         original_size = sum(len(str(m.content)) for m in messages)
         pruned_size = sum(len(str(m.content)) for m in pruned)
         
-        assert pruned_size < original_size * 0.3  # At least 70% reduction
+        assert pruned_size < original_size * EXPECTED_MAX_SIZE_RATIO  # At least 70% reduction
         
         # Verify old tool messages are compressed
         # Messages[3] is first tool response (old)
