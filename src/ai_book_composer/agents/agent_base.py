@@ -34,13 +34,11 @@ class AgentBase:
                  settings: Settings,
                  llm_temperature=0.0,
                  input_directory: Optional[str] = None,
-                 output_directory: Optional[str] = None,
-                 include_agent_state: bool = True):
+                 output_directory: Optional[str] = None):
         self.settings = settings
         self.llm_temperature = llm_temperature
         self.input_directory = input_directory
         self.output_directory = output_directory
-        self.include_agent_state = include_agent_state
         self.prompts = load_prompts()
         self.state = None
 
@@ -57,11 +55,11 @@ class AgentBase:
         return tools
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
-    def _invoke_llm(self, system_prompt: str, user_prompt: str):
+    def _invoke_llm(self, system_prompt: str, user_prompt: str, include_agent_state: bool = True):
         llm = self._get_llm()
         
         # Add agent state summary to system prompt if enabled
-        if self.include_agent_state:
+        if include_agent_state:
             state_summary = self._get_agent_state_summary()
             if state_summary:
                 system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
@@ -105,7 +103,7 @@ class AgentBase:
 
     # noinspection PyUnusedLocal
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
-    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None) -> Any:
+    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None, include_agent_state: bool = True) -> Any:
         if not custom_tools:
             tools = self._generate_tools()
         else:
@@ -123,7 +121,7 @@ class AgentBase:
         tool_names = [tool_obj.name for tool_obj in tools]
         
         # Add agent state summary to system prompt if enabled
-        if self.include_agent_state:
+        if include_agent_state:
             state_summary = self._get_agent_state_summary()
             if state_summary:
                 system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
@@ -322,9 +320,9 @@ class AgentBase:
             # Show last 3 executions to keep context minimal
             recent_history = execution_history[-3:]
             for exec_record in recent_history:
-                task_type = exec_record.get("task_type", "Unknown")
+                node = exec_record.get("node", exec_record.get("task_type", "Unknown"))
                 exec_status = exec_record.get("status", "unknown")
-                summary_parts.append(f"  - {task_type}: {exec_status}")
+                summary_parts.append(f"  - {node}: {exec_status}")
         
         # Add critic feedback if present
         critic_feedback = self.state.get("critic_feedback")

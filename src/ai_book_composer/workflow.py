@@ -61,6 +61,25 @@ class BookComposerWorkflow:
         # Build graph
         self.graph = self._build_graph()
 
+    def _record_execution(self, state: AgentState, node_name: str, status: str = "completed") -> Dict[str, Any]:
+        """Record node execution in history.
+        
+        Args:
+            state: Current agent state
+            node_name: Name of the node that was executed
+            status: Execution status (default: "completed")
+            
+        Returns:
+            Dictionary with updated execution_history
+        """
+        execution_history = state.get("execution_history", [])
+        execution_record = {
+            "node": node_name,
+            "status": status
+        }
+        execution_history.append(execution_record)
+        return {"execution_history": execution_history}
+
     # noinspection PyTypeChecker
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow.
@@ -121,7 +140,10 @@ class BookComposerWorkflow:
             with attempt:
                 logger.info("Starting preprocessing phase.")
                 try:
-                    return self.preprocessor.preprocess(state)
+                    result = self.preprocessor.preprocess(state)
+                    # Merge execution history tracking
+                    result.update(self._record_execution(state, "preprocess", "completed"))
+                    return result
                 except Exception as e:
                     logger.exception(f"Preprocessing attempt failed: {e}")
                     raise
@@ -134,7 +156,10 @@ class BookComposerWorkflow:
             with attempt:
                 logger.info("Starting planning phase.")
                 try:
-                    return self.planner.plan(state)
+                    result = self.planner.plan(state)
+                    # Merge execution history tracking
+                    result.update(self._record_execution(state, "plan", "completed"))
+                    return result
                 except Exception as e:
                     logger.exception(f"Planning attempt failed: {e}")
                     raise
@@ -148,7 +173,10 @@ class BookComposerWorkflow:
             with attempt:
                 logger.info("Starting execution phase.")
                 try:
-                    return self.executor.execute(state)
+                    result = self.executor.execute(state)
+                    # Merge execution history tracking
+                    result.update(self._record_execution(state, "execute", "completed"))
+                    return result
                 except Exception as e:
                     logger.exception(f"Execution attempt failed: {e}")
                     raise
@@ -161,14 +189,18 @@ class BookComposerWorkflow:
             with attempt:
                 logger.info("Starting decoration phase.")
                 try:
-                    return self.decorator.decorate(state)
+                    result = self.decorator.decorate(state)
+                    # Merge execution history tracking
+                    result.update(self._record_execution(state, "decorate", "completed"))
+                    return result
                 except Exception as e:
                     logger.exception(f"Decoration attempt failed: {e}")
                     raise
         logger.warning("Decoration failed after multiple attempts. Skipping decoration.")
-        return {
-            "status": "decoration_failed"
-        }
+        result = {"status": "decoration_failed"}
+        # Still record the attempt even if it failed
+        result.update(self._record_execution(state, "decorate", "failed"))
+        return result
 
     def _critique_node(self, state: AgentState) -> Dict[str, Any]:
         """Node for critique phase."""
@@ -177,7 +209,10 @@ class BookComposerWorkflow:
             with attempt:
                 logger.info("Starting critique phase.")
                 try:
-                    return self.critic.critique(state)
+                    result = self.critic.critique(state)
+                    # Merge execution history tracking
+                    result.update(self._record_execution(state, "critique", "completed"))
+                    return result
                 except Exception as e:
                     logger.exception(f"Critique attempt failed: {e}")
                     raise

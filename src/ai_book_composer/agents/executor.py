@@ -77,16 +77,6 @@ class ExecutorAgent(AgentBase):
                 self._custom_agent_task(current_task)
 
             progress.show_task(task_type, "completed")
-            
-            # Record execution in history
-            execution_history = self.state.get("execution_history", [])
-            execution_record = {
-                "task_index": current_task_index,
-                "task_type": task_type,
-                "task_description": task_description,
-                "status": "completed"
-            }
-            execution_history.append(execution_record)
 
             return {
                 "chapter_list": self.state.get("chapter_list", []),
@@ -94,7 +84,6 @@ class ExecutorAgent(AgentBase):
                 "references": self.state.get("references", []),
                 "final_output_path": self.state.get("final_output_path", ""),
                 "current_task_index": current_task_index + 1,
-                "execution_history": execution_history,
                 "status": "book_generate" if self.state.get("final_output_path") else "executing"
             }
 
