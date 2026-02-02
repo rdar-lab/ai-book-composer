@@ -151,7 +151,8 @@ class AgentBase:
                 length: Number of characters to read (default: 5000, max: 10000)
 
             Returns:
-                Dictionary with file content, metadata, and pagination info
+                Dictionary with file content chunk, metadata, and pagination info.
+                Note: Response is kept compact to minimize message history size.
             """
             progress_display.progress.show_action(
                 f"Fetching file content. file_name={file_name}, start_char={start_char}, length={length}")
@@ -175,7 +176,7 @@ class AgentBase:
             content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
 
-            # Limit length to avoid excessive token usage
+            # Limit length to avoid excessive token usage in tool response
             length = min(length, 10000)
 
             # Extract the requested chunk
@@ -185,6 +186,7 @@ class AgentBase:
             progress_display.progress.show_observation(
                 f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}")
 
+            # Return response with file metadata
             response = {
                 "file_name": file_name,
                 "file_type": content_type,
@@ -194,8 +196,10 @@ class AgentBase:
                 "total_length": len(content),
                 "has_more": end_char < len(content)
             }
+            
             logger.info(
-                f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}. Full response: {response}")
+                f"Fetched content chunk from '{file_name}': start_char={start_char}, "
+                f"end_char={end_char}, chunk_size={len(chunk)}, total={len(content)}")
 
             return response
 

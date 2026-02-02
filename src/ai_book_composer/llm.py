@@ -19,6 +19,12 @@ from .config import Settings
 
 logger = logging.getLogger(__name__)
 
+# Message history pruning thresholds
+_KEEP_LAST_N_TURNS = 4  # Number of recent message turns to keep uncompressed
+_LARGE_TOOL_MESSAGE_THRESHOLD = 3000  # Characters - compress even recent messages above this
+_LARGE_USER_MESSAGE_THRESHOLD = 800  # Characters - trim old user messages above this
+_USER_MESSAGE_TRIM_LENGTH = 400  # Characters to keep when trimming user messages
+
 _mapping_cache: Optional[Dict[str, Any]] = None
 
 
@@ -208,9 +214,15 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
     @staticmethod
     def _prune_history(messages):
         """
-        Creates a copy of messages and truncates OLD ToolMessages.
-        Keeps the System Prompt + Last 4 messages intact.
-        Everything else gets its heavy content removed.
+        Creates a copy of messages and aggressively compresses ToolMessages to prevent context overflow.
+        
+        Strategy:
+        - Keep System Prompt intact
+        - Keep last 4 message turns full (recent context)
+        - Aggressively compress all older ToolMessages (file content responses)
+        - Trim large user prompts in middle messages
+        
+        This prevents message history from exploding when agents repeatedly access file content.
         """
         if not isinstance(messages, list):
             return messages
@@ -218,21 +230,45 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         # Deep copy so we don't affect the actual agent state, only what the LLM sees
         messages_copy = copy.deepcopy(messages)
 
-        # Heuristic: Keep System Prompt (idx 0) and the last 6 turns (User + AI + Tool...) full.
-        # Everything in the middle gets compressed.
-        keep_last_n = 6
+        # Keep System Prompt (idx 0) and the last N turns
+        # This is enough for the LLM to maintain context while preventing overflow
+        keep_last_n = _KEEP_LAST_N_TURNS
 
         if len(messages_copy) > keep_last_n:
-            # Iterate through the "Middle" messages (skipping first system msg)
+            # Iterate through the "middle" messages (skipping first system msg and last N)
             for msg in messages_copy[1:-keep_last_n]:
-                # If it's a Tool Response (heavy file content)
                 if isinstance(msg, ToolMessage):
-                    # Replace 5000 chars with a placeholder
-                    msg.content = f"[...History: Output of tool '{msg.name}' was processed. Data removed to save context...]"
-
-                # Optional: Also trim old user prompts if they are huge
-                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > 1000:
-                    msg.content = str(msg.content)[:500] + "... [Truncated]"
+                    # Keep a brief preview of the tool response content instead of removing completely
+                    # This helps the LLM understand what was retrieved previously
+                    tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
+                    original_content = str(msg.content)
+                    original_length = len(original_content)
+                    
+                    # Keep first 200 chars as preview + metadata (only if content is longer)
+                    if original_length > 200:
+                        preview = original_content[:200]
+                        msg.content = (
+                            f"{preview}... [Content truncated. Original length: {original_length} chars. "
+                            f"Tool: {tool_name}]"
+                        )
+                    # If content is 200 chars or less, keep as-is
+                
+                # Don't compress HumanMessages - they contain important user prompts
+                # that are crucial for generation
+        
+        # For recent ToolMessages, keep more content but still compress if very large
+        # This prevents even recent large file reads from consuming too much context
+        for msg in messages_copy[-keep_last_n:]:
+            if isinstance(msg, ToolMessage) and len(str(msg.content)) > _LARGE_TOOL_MESSAGE_THRESHOLD:
+                tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
+                original_content = str(msg.content)
+                original_length = len(original_content)
+                # Keep first 1000 chars for recent messages (more than old ones)
+                preview = original_content[:1000]
+                msg.content = (
+                    f"{preview}... [Content truncated to save context. "
+                    f"Original length: {original_length} chars. Tool: {tool_name}]"
+                )
 
         return messages_copy
 
