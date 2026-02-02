@@ -687,3 +687,31 @@ class TestAgentStateSummary:
             
             # Should return empty string when there's nothing relevant to report
             assert summary == ""
+
+    def test_get_agent_state_summary_quality_score_edge_cases(self):
+        """Test state summary with edge case quality scores."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            settings = Settings()
+            agent = CriticAgent(settings)
+            
+            # Test with 0.0 score
+            state = create_initial_state(
+                input_directory=tmpdir,
+                output_directory=tmpdir
+            )
+            state["quality_score"] = 0.0
+            agent.state = state
+            summary = agent._get_agent_state_summary()
+            assert "Quality Score: 0.00%" in summary
+            
+            # Test with 1.0 score
+            state["quality_score"] = 1.0
+            agent.state = state
+            summary = agent._get_agent_state_summary()
+            assert "Quality Score: 100.00%" in summary
+            
+            # Test with intermediate value
+            state["quality_score"] = 0.7542
+            agent.state = state
+            summary = agent._get_agent_state_summary()
+            assert "Quality Score: 75.42%" in summary

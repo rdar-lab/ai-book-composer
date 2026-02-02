@@ -25,6 +25,9 @@ _RE_JSON_EXTRACT = re.compile(r'([\[\{][\s\S]*[\]\}])')
 _RE_RESULT_BLOCK = re.compile(r'<result>.*?</result>', re.DOTALL)
 _RE_RESULT_TAGS = re.compile(r'^<result>|</result>$', re.DOTALL)
 
+# Constants for state summary
+MAX_CRITIC_FEEDBACK_LENGTH = 200  # Maximum length for critic feedback in state summary
+
 
 class AgentBase:
     def __init__(self,
@@ -312,8 +315,8 @@ class AgentBase:
         critic_feedback = self.state.get("critic_feedback")
         if critic_feedback:
             # Truncate long feedback to keep context minimal
-            if len(critic_feedback) > 200:
-                feedback_text = f"{critic_feedback[:200]}..."
+            if len(critic_feedback) > MAX_CRITIC_FEEDBACK_LENGTH:
+                feedback_text = f"{critic_feedback[:MAX_CRITIC_FEEDBACK_LENGTH]}..."
             else:
                 feedback_text = critic_feedback
             summary_parts.append(f"\nCritic Feedback: {feedback_text}")
