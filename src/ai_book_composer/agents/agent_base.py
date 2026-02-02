@@ -54,6 +54,12 @@ class AgentBase:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
     def _invoke_llm(self, system_prompt: str, user_prompt: str):
         llm = self._get_llm()
+        
+        # Add agent state summary to system prompt
+        state_summary = self._get_agent_state_summary()
+        if state_summary:
+            system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
+        
         logger.info(
             f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
         progress_display.progress.show_action("Running LLM...")
@@ -109,6 +115,11 @@ class AgentBase:
         )
 
         tool_names = [tool_obj.name for tool_obj in tools]
+        
+        # Add agent state summary to system prompt
+        state_summary = self._get_agent_state_summary()
+        if state_summary:
+            system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
 
         logger.info(
             f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
@@ -271,3 +282,48 @@ class AgentBase:
             for f in file_list
         ])
         return file_summary
+
+    def _get_agent_state_summary(self) -> str:
+        """Generate a minimal summary of the agent state to include in prompts.
+        
+        Returns:
+            Formatted state summary string
+        """
+        if not self.state:
+            return ""
+        
+        summary_parts = []
+        
+        # Add plan steps with their status
+        plan = self.state.get("plan", [])
+        if plan:
+            summary_parts.append("Plan Steps:")
+            for i, task in enumerate(plan, 1):
+                task_name = task.get("task", "Unknown")
+                task_desc = task.get("description", "")
+                status = task.get("status", "pending")
+                current_task_index = self.state.get("current_task_index", 0)
+                
+                # Mark current task
+                marker = " <- CURRENT" if i - 1 == current_task_index else ""
+                summary_parts.append(f"  {i}. [{status.upper()}] {task_name}: {task_desc}{marker}")
+        
+        # Add critic feedback if present
+        critic_feedback = self.state.get("critic_feedback")
+        if critic_feedback:
+            summary_parts.append(f"\nCritic Feedback: {critic_feedback[:200]}..." if len(critic_feedback) > 200 else f"\nCritic Feedback: {critic_feedback}")
+        
+        # Add iteration count
+        iterations = self.state.get("iterations", 0)
+        if iterations > 0:
+            summary_parts.append(f"\nIteration: {iterations}")
+        
+        # Add quality score if available
+        quality_score = self.state.get("quality_score")
+        if quality_score is not None:
+            summary_parts.append(f"Quality Score: {quality_score:.2%}")
+        
+        if not summary_parts:
+            return ""
+        
+        return "\n".join(summary_parts)
