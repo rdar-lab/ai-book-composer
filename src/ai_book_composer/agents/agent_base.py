@@ -323,10 +323,10 @@ class AgentBase:
                 node = exec_record.get("node", exec_record.get("task_type", "Unknown"))
                 exec_status = exec_record.get("status", "unknown")
                 
-                # If this is an execute node with task details, show the task info
-                if node == "execute" and exec_record.get("task_type"):
+                # If task details are available, show the task info
+                if exec_record.get("task_type"):
                     task_type = exec_record.get("task_type")
-                    summary_parts.append(f"  - execute: {task_type} - {exec_status}")
+                    summary_parts.append(f"  - {node}: {task_type} - {exec_status}")
                 else:
                     summary_parts.append(f"  - {node}: {exec_status}")
         
