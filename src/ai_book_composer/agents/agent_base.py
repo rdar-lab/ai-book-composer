@@ -31,15 +31,13 @@ class AgentBase:
                  settings: Settings,
                  llm_temperature=0.0,
                  input_directory: Optional[str] = None,
-                 output_directory: Optional[str] = None,
-                 long_term_memory=None):
+                 output_directory: Optional[str] = None):
         self.settings = settings
         self.llm_temperature = llm_temperature
         self.input_directory = input_directory
         self.output_directory = output_directory
         self.prompts = load_prompts()
         self.state = None
-        self.long_term_memory = long_term_memory
 
     def _get_llm(self):
         llm_instance = get_llm(self.settings, temperature=self.llm_temperature)
@@ -175,18 +173,8 @@ class AgentBase:
                 }
 
             content_info = gathered_content[file_path]
+            content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
-            
-            # Retrieve content - prefer from long-term memory if available to avoid
-            # pulling from state (though state has it, we want consistent access pattern)
-            content = None
-            if self.long_term_memory and self.long_term_memory.has_content(file_path):
-                content = self.long_term_memory.retrieve_content(file_path)
-                logger.info(f"Retrieved content from long-term memory for {file_name}")
-            else:
-                # Fallback to state content
-                content = content_info.get("content", "")
-                logger.info(f"Retrieved content from state for {file_name}")
 
             # Limit length to avoid excessive token usage in tool response
             length = min(length, 10000)

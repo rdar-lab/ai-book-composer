@@ -239,12 +239,12 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
             for msg in messages_copy[1:-keep_last_n]:
                 if isinstance(msg, ToolMessage):
                     # Compress tool responses to minimal metadata
-                    # File content is stored in long-term memory and can be retrieved if needed
+                    # Full content remains accessible in AgentState via get_file_content tool
                     tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
                     original_length = len(str(msg.content))
                     msg.content = (
                         f"[Compressed: Tool '{tool_name}' response ({original_length} chars) "
-                        f"removed to prevent context overflow. Content stored in long-term memory.]"
+                        f"removed to prevent context overflow.]"
                     )
                 
                 # Also aggressively trim old user prompts if they are large
@@ -260,8 +260,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                 # Keep a summary but compress the bulk
                 summary = str(msg.content)[:500]
                 msg.content = (
-                    f"{summary}... [Remaining {original_length - 500} chars compressed. "
-                    f"Full content in long-term memory.]"
+                    f"{summary}... [Remaining {original_length - 500} chars compressed.]"
                 )
 
         return messages_copy
