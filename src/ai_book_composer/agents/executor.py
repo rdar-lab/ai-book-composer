@@ -417,14 +417,13 @@ class ExecutorAgent(AgentBase):
 
     def get_custom_agent_tools(self) -> list[BaseTool]:
         """Extend base tools with built-in executor methods as LangChain tools."""
-        # Get MCP tools (as in base)
+        # Get base tools which already includes either get_relevant_documents or get_file_content
         base_tools = super()._generate_tools()
-        # Built-in tool wrappers
+        # Built-in tool wrappers (executor-specific tools)
         custom_tools: list[BaseTool] = [
             self.plan_chapters_tool(),
             self.generate_chapters_tool(),
             self.compile_references_tool(),
             self.generate_book_tool(),
-            self.get_file_content_tool()
         ]
         return list(base_tools) + custom_tools

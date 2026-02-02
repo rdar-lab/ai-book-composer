@@ -24,6 +24,8 @@ class AgentState(TypedDict):
 
     # Execution
     gathered_content: Dict[str, Any]
+    rag_manager: Optional[Any]  # RAG manager instance for vector retrieval
+    key_terms: List[str]  # Key terms extracted from documents
     chapter_list: List[Dict[str, Any]]
     chapters: List[Dict[str, Any]]  # chapters with title, content, and optional images
     references: List[str]
@@ -75,6 +77,8 @@ def create_initial_state(
         current_task_index=0,
         execution_history=[],
         gathered_content={},
+        rag_manager=None,
+        key_terms=[],
         chapter_list=[],
         chapters=[],
         references=[],

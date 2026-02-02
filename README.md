@@ -59,12 +59,25 @@ The system follows the Deep-Agent pattern with four phases:
 git clone https://github.com/rdar-lab/ai-book-composer.git
 cd ai-book-composer
 
-# Install dependencies
-pip install -r requirements.txt
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 
-# Install the package
-pip install -e .
+# Install dependencies
+pip install uv
+uv pip sync requirements.txt
+
 ```
+
+## Local Development Env
+
+```bash
+# Install dependencies for local development
+pip install uv
+uv pip sync requirements-dev.txt
+
+```
+
 
 ### Additional Requirements
 
@@ -154,7 +167,7 @@ book:
 Or provide them via the command line:
 
 ```bash
-ai-book-composer -i input -o output --style-instructions "I want it to be light reading"
+python -m src.ai-book-composer.cli -i input -o output --style-instructions "I want it to be light reading"
 ```
 
 **Note**: Style instructions are optional. If not provided, the AI will generate content in a neutral, informative style.
@@ -182,7 +195,7 @@ parallel:
 You can specify a custom config file using the `--config` parameter:
 
 ```bash
-ai-book-composer --config my-config.yaml -i input -o output
+python -m src.ai-book-composer.cli --config my-config.yaml -i input -o output
 ```
 
 ## Usage
@@ -190,7 +203,7 @@ ai-book-composer --config my-config.yaml -i input -o output
 ### Command Line Interface
 
 ```bash
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   --input-dir /path/to/source/files \
   --output-dir /path/to/output \
   --title "My Book Title" \
@@ -209,31 +222,6 @@ ai-book-composer \
 - `--language, -l`: Target language (default: "en-US")
 - `--max-iterations`: Maximum revision iterations (default: 3)
 - `--style-instructions, -s`: Instructions to guide the AI on book style (optional)
-
-### Python API
-
-```python
-from ai_book_composer import BookComposerWorkflow
-
-# Create workflow
-workflow = BookComposerWorkflow(
-    input_directory="/path/to/source/files",
-    output_directory="/path/to/output",
-    language="en-US",
-    book_title="My Book",
-    book_author="Author Name",
-    max_iterations=3,
-    style_instructions="I want an academic book"  # Optional
-)
-
-# Run workflow
-final_state = workflow.run()
-
-# Access results
-print(f"Status: {final_state['status']}")
-print(f"Output: {final_state['final_output_path']}")
-print(f"Quality Score: {final_state['quality_score']}")
-```
 
 ## Supported File Types
 
@@ -299,17 +287,6 @@ media_processing:
 ### Language Specification
 
 You can specify the language when transcribing to improve accuracy:
-
-```python
-# Auto-detect language
-result = audio_transcriber.run("file.mp3")
-
-# Force Hebrew transcription
-result = audio_transcriber.run("hebrew_audio.mp3", language="he")
-
-# Force English transcription
-result = audio_transcriber.run("english_audio.mp3", language="en")
-```
 
 Common language codes:
 - `en` - English
@@ -425,7 +402,7 @@ The default configuration uses embedded ollama execution, which runs models in-p
 
 ```bash
 # Just run - models download automatically!
-ai-book-composer -i input -o output
+python -m src.ai-book-composer.cli -i input -o output
 ```
 
 ## Examples
@@ -433,7 +410,7 @@ ai-book-composer -i input -o output
 ### Example 1: Generate Book from Blog Posts
 
 ```bash
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   -i ./blog-posts \
   -o ./output \
   -t "Best of My Blog" \
@@ -443,7 +420,7 @@ ai-book-composer \
 ### Example 2: Generate Book from Transcribed Videos
 
 ```bash
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   -i ./video-lectures \
   -o ./output \
   -t "Video Lecture Series" \
@@ -455,7 +432,7 @@ ai-book-composer \
 
 ```bash
 # Directory with .txt, .mp3, .mp4 files
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   -i ./mixed-content \
   -o ./output \
   -t "Comprehensive Guide" \
@@ -466,7 +443,7 @@ ai-book-composer \
 
 ```bash
 # Generate an academic-style book from research papers
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   -i ./research-papers \
   -o ./output \
   -t "Research Compilation" \
@@ -478,7 +455,7 @@ ai-book-composer \
 
 ```bash
 # Generate a casual, easy-to-read book
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   -i ./blog-posts \
   -o ./output \
   -t "Easy Reading Collection" \
@@ -490,7 +467,7 @@ ai-book-composer \
 
 ```bash
 # Generate a professional business book
-ai-book-composer \
+python -m src.ai-book-composer.cli \
   -i ./business-documents \
   -o ./output \
   -t "Business Insights" \

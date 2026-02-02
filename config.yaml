@@ -107,6 +107,14 @@ parallel:
   parallel_execution: true  # true = enabled, false = disabled
   parallel_workers: 4  # Number of worker threads/processes for parallel execution
 
+# RAG (Retrieval Augmented Generation) Configuration
+rag:
+  enabled: true  # Enable RAG-based document retrieval
+  embedding_model: all-MiniLM-L6-v2  # Sentence transformer model for embeddings
+  chunk_size: 1000  # Size of text chunks for vector database
+  chunk_overlap: 200  # Overlap between chunks
+  retrieval_k: 5  # Number of relevant chunks to retrieve per query
+
 # Logging Configuration
 logging:
   level: INFO  # Options: DEBUG, INFO, WARNING, ERROR

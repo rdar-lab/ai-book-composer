@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from huggingface_hub import hf_hub_download
 from langchain_community.chat_models import ChatOllama, ChatLlamaCpp
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
-from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig, Runnable
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -243,7 +243,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                     tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
                     original_content = str(msg.content)
                     original_length = len(original_content)
-                    
+
                     # Keep first 200 chars as preview + metadata (only if content is longer)
                     if original_length > 200:
                         preview = original_content[:200]
@@ -252,10 +252,10 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                             f"Tool: {tool_name}]"
                         )
                     # If content is 200 chars or less, keep as-is
-                
+
                 # Don't compress HumanMessages - they contain important user prompts
                 # that are crucial for generation
-        
+
         # For recent ToolMessages, keep more content but still compress if very large
         # This prevents even recent large file reads from consuming too much context
         for msg in messages_copy[-keep_last_n:]:

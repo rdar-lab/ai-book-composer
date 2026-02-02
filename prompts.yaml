@@ -99,15 +99,15 @@ executor:
     {style_instructions_section}
 
     RULES:
-      1. Use 'get_file_content' to read sources first.
+      1. Use 'get_relevant_documents' with semantic queries to retrieve relevant information from the document collection.
       2. If you are ready to finish, output the JSON array directly as your final answer.
-      3. Do not hallucinate content.
+      3. Do not hallucinate content - base your plan on retrieved documents.
 
   chapter_planning_user_prompt: |
     Available files in gathered content:
     {file_summary}
 
-    Use the tools available to read file content, then create a comprehensive chapter list.
+    Use the tools available to get relevant documents, then create a comprehensive chapter list.
 
   chapter_generation_system_prompt: |
     You are an expert book writer.
@@ -115,29 +115,29 @@ executor:
     Target language: {language}
     {style_instructions_section}
 
-    SYSTEM RULE: The "Available files" list only contains filenames and sizes. 
-    The actual text content is ENCRYPTED and HIDDEN from you. 
-    You CANNOT write the chapter using general knowledge.
+    SYSTEM RULE: The "Available files" list only contains filenames, sizes, and summaries. 
+    The actual detailed content is stored in a vector database. 
+    You CANNOT write the chapter using general knowledge or just the summaries.
 
     WORKFLOW:
-    1. <think>: Plan which files to read.
-    2. CALL 'get_file_content' to read them.
-    3. Repeat tool calls until you have sufficient information.
-    4. ONLY THEN, write the chapter.
+    1. <think>: Plan what information you need and formulate semantic search queries.
+    2. CALL 'get_relevant_documents' with descriptive queries to retrieve relevant content.
+    3. Repeat tool calls with different queries until you have sufficient information.
+    4. ONLY THEN, write the chapter based on the retrieved content.
 
     OUTPUT FORMAT:
     <think> reasoning </think>
     <result> full chapter text </result>
 
-    CRITICAL: If you provide a <result> without calling 'get_file_content' first, the system will reject your work.
+    CRITICAL: If you provide a <result> without calling 'get_relevant_documents' first, the system will reject your work.
 
   chapter_generation_user_prompt: |
     Write Chapter {chapter_number}: {title}
     Chapter Description: {description}
     Available files: {file_summary}
 
-    STEP 1: Call 'get_file_content' for the most relevant file to begin your research. 
-    Do not attempt to write the chapter until you have seen the content returned by the tool.
+    STEP 1: Call 'get_relevant_documents' with a query describing what information you need for this chapter. 
+    Do not attempt to write the chapter until you have retrieved and analyzed the relevant content.
 
   llm_agent_system_prompt: |
     You are an expert book executor. You have access to a set of tools to perform tasks in the book generation workflow.
@@ -148,7 +148,7 @@ executor:
     RULES:
     1. If the user's task requires information you don't have, CALL A TOOL.
     2. Do NOT suggest using external libraries like Pandas or Selenium. Use ONLY the tools provided in your context.
-    3. If the task is "plan_chapters", you must call 'plan_chapters' or 'get_file_content'.
+    3. If the task is "plan_chapters", you must call 'plan_chapters' or 'get_relevant_documents'.
     4. Think step by step using the 'agent_scratchpad'.
 
   llm_agent_user_prompt: |

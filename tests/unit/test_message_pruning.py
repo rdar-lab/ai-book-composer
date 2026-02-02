@@ -1,8 +1,9 @@
 """Unit tests for message history pruning functionality."""
+from typing import Any
 
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 
-from ai_book_composer.llm import ToolFixer
+from src.ai_book_composer.llm import ToolFixer
 
 
 class TestMessagePruning:
@@ -16,16 +17,16 @@ class TestMessagePruning:
             AIMessage(content="Hi there"),
             ToolMessage(content="Tool response", name="test_tool", tool_call_id="1"),
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         assert isinstance(pruned[0], SystemMessage)
         assert pruned[0].content == "You are a helpful assistant"
 
     def test_prune_history_compresses_old_tool_messages(self):
         """Test that old ToolMessages get compressed."""
         large_content = "x" * 10000  # 10KB of content
-        
+
         messages = [
             SystemMessage(content="System prompt"),
             HumanMessage(content="Request 1"),
@@ -40,14 +41,14 @@ class TestMessagePruning:
             HumanMessage(content="Request 4"),
             AIMessage(content="Response 4"),
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         # First tool message should be compressed (old) - keeps 200 char preview
         assert len(pruned[3].content) < 500  # Much smaller than original
         assert "truncated" in pruned[3].content.lower()
         assert "get_file_content" in pruned[3].content
-        
+
         # Second tool message should be compressed (old)
         assert len(pruned[6].content) < 500
         assert "truncated" in pruned[6].content.lower()
@@ -64,13 +65,13 @@ class TestMessagePruning:
             ToolMessage(content="Recent tool output", name="tool2", tool_call_id="2"),  # Recent - keep
             HumanMessage(content="Latest request"),
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         # Old tool message should be compressed - keeps 200 char preview
         assert len(pruned[3].content) < 500
         assert "truncated" in pruned[3].content.lower()
-        
+
         # Recent tool message should be kept (within last 4)
         assert pruned[6].content == "Recent tool output"
 
@@ -78,7 +79,7 @@ class TestMessagePruning:
         """Test that even recent ToolMessages get compressed if they're very large (>3000 chars)."""
         huge_content = "y" * 10000  # 10KB
         old_huge_content = "z" * 10000  # 10KB for old message
-        
+
         messages = [
             SystemMessage(content="System prompt"),
             HumanMessage(content="Old request 1"),
@@ -92,24 +93,24 @@ class TestMessagePruning:
             AIMessage(content="Response 4"),
             ToolMessage(content=huge_content, name="get_file_content", tool_call_id="1"),  # Recent and huge
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         # Old huge message should be compressed to 200 chars
         assert len(pruned[3].content) < 500
         assert "truncated" in pruned[3].content.lower()
-        
+
         # Recent huge message should be compressed but keep more (1000 chars)
         assert len(pruned[10].content) < 1500  # Smaller than original but more than old messages
         assert "truncated" in pruned[10].content.lower()
-        
+
         # Verify recent messages keep more content than old messages
         assert len(pruned[10].content) > len(pruned[3].content)
 
     def test_prune_history_trims_large_user_prompts(self):
         """Test that large user prompts in old messages are NOT trimmed anymore."""
         large_prompt = "x" * 5000
-        
+
         messages = [
             SystemMessage(content="System prompt"),
             HumanMessage(content=large_prompt),  # Old and large - but DON'T trim
@@ -119,12 +120,12 @@ class TestMessagePruning:
             ToolMessage(content="tool output", name="tool", tool_call_id="1"),
             HumanMessage(content="Latest"),
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         # HumanMessages should NOT be trimmed - they're important for generation
         assert pruned[1].content == large_prompt
-        
+
         # Recent prompts should be kept
         assert pruned[3].content == "Recent request"
         assert pruned[6].content == "Latest"
@@ -150,9 +151,9 @@ class TestMessagePruning:
             AIMessage(content="AI"),
             ToolMessage(content="Tool", name="tool", tool_call_id="1"),
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         assert isinstance(pruned[0], SystemMessage)
         assert isinstance(pruned[1], HumanMessage)
         assert isinstance(pruned[2], AIMessage)
@@ -162,7 +163,7 @@ class TestMessagePruning:
         """Test that pruning doesn't modify original messages."""
         large_content = "x" * 10000
         original_tool_msg = ToolMessage(content=large_content, name="tool", tool_call_id="1")
-        
+
         messages = [
             SystemMessage(content="System prompt"),
             HumanMessage(content="Old request"),
@@ -171,9 +172,9 @@ class TestMessagePruning:
             HumanMessage(content="Recent request"),
             AIMessage(content="Recent response"),
         ]
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         # Original should not be modified
         assert len(original_tool_msg.content) == 10000
         # Pruned should be compressed - keeps 1000 chars for recent messages
@@ -182,10 +183,8 @@ class TestMessagePruning:
     def test_prune_history_with_many_tool_calls(self):
         """Test pruning with many tool calls simulating file access pattern."""
         # Expected compression ratio - at least 70% reduction
-        EXPECTED_MAX_SIZE_RATIO = 0.3  # 30% of original size remaining
-        
-        messages = [SystemMessage(content="System prompt")]
-        
+        messages: list[Any] = [SystemMessage(content="System prompt")]
+
         # Simulate 10 file access calls
         for i in range(10):
             messages.extend([
@@ -193,15 +192,15 @@ class TestMessagePruning:
                 AIMessage(content=f"Getting file {i}"),
                 ToolMessage(content="x" * 5000, name="get_file_content", tool_call_id=str(i)),
             ])
-        
+
         pruned = ToolFixer._prune_history(messages)
-        
+
         # Verify total size is much smaller than original
         original_size = sum(len(str(m.content)) for m in messages)
         pruned_size = sum(len(str(m.content)) for m in pruned)
-        
-        assert pruned_size < original_size * EXPECTED_MAX_SIZE_RATIO  # At least 70% reduction
-        
+
+        assert pruned_size < original_size * 0.3  # At least 70% reduction
+
         # Verify old tool messages are compressed - keeps 200 char preview
         # Messages[3] is first tool response (old)
         assert "truncated" in pruned[3].content.lower()

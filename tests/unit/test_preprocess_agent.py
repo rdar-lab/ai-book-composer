@@ -505,8 +505,9 @@ class TestPreprocessAgentGatherContent:
 class TestPreprocessAgentPreprocess:
     """Test main preprocess method."""
 
+    @patch.object(PreprocessAgent, '_initialize_rag')
     @patch.object(PreprocessAgent, 'gather_content')
-    def test_preprocess_success(self, mock_gather_content, tmp_path):
+    def test_preprocess_success(self, mock_gather_content, mock_init_rag, tmp_path):
         """Test successful preprocessing."""
         settings = Settings()
         agent = PreprocessAgent(settings, str(tmp_path), str(tmp_path))
@@ -526,7 +527,12 @@ class TestPreprocessAgentPreprocess:
         assert result["status"] == "preprocessed"
         assert "gathered_content" in result
         assert "images" in result
+        assert "rag_manager" in result
+        assert "key_terms" in result
         mock_gather_content.assert_called_once()
+        # RAG initialization should be called if enabled
+        if settings.rag.enabled:
+            mock_init_rag.assert_called_once()
 
 
 class TestPreprocessAgentImageDescription:

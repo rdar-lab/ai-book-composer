@@ -165,8 +165,8 @@ class TestDecoratorAgentDecorate:
 
         # Mock LLM responses for each chapter
         mock_responses = [
-            json.dumps({"image_placements": [{"image_path": "/path/img1.jpg", "position": "start"}]}),
-            json.dumps({"image_placements": [{"image_path": "/path/img2.jpg", "position": "middle"}]})
+            json.dumps([{"image_path": "/path/img1.jpg", "position": "start"}]),
+            json.dumps([{"image_path": "/path/img2.jpg", "position": "middle"}])
         ]
         mock_invoke.side_effect = mock_responses
 
@@ -199,15 +199,13 @@ class TestDecoratorAgentGetImagePlacements:
         agent = DecoratorAgent(settings)
         agent.state = {}
 
-        mock_response = json.dumps({
-            "image_placements": [
-                {
-                    "image_path": "/path/to/image.jpg",
-                    "position": "start",
-                    "reasoning": "Great opener"
-                }
-            ]
-        })
+        mock_response = json.dumps([
+            {
+                "image_path": "/path/to/image.jpg",
+                "position": "start",
+                "reasoning": "Great opener"
+            }
+        ])
         mock_invoke.return_value = mock_response
 
         all_images = [{"path": "/path/to/image.jpg", "filename": "image.jpg"}]
@@ -234,15 +232,14 @@ class TestDecoratorAgentGetImagePlacements:
 
         mock_response = """Here's the placement:
 ```json
-{
-    "image_placements": [
-        {
-            "image_path": "/path/to/image.jpg",
-            "position": "middle",
-            "reasoning": "Relevant image"
-        }
-    ]
-}
+[
+    {
+        "image_path": "/path/to/image.jpg",
+        "position": "middle",
+        "reasoning": "Relevant image"
+    }
+]
+    
 ```
 """
         mock_invoke.return_value = mock_response
@@ -268,12 +265,10 @@ class TestDecoratorAgentGetImagePlacements:
         agent = DecoratorAgent(settings)
         agent.state = {}
 
-        mock_response = json.dumps({
-            "image_placements": [
-                {"image_path": "/valid/image.jpg", "position": "start"},
-                {"image_path": "/invalid/image.jpg", "position": "end"}  # Not in available images
-            ]
-        })
+        mock_response = json.dumps([
+            {"image_path": "/valid/image.jpg", "position": "start"},
+            {"image_path": "/invalid/image.jpg", "position": "end"}  # Not in available images
+        ])
         mock_invoke.return_value = mock_response
 
         all_images = [{"path": "/valid/image.jpg", "filename": "image.jpg"}]
@@ -299,13 +294,11 @@ class TestDecoratorAgentGetImagePlacements:
         agent = DecoratorAgent(settings)
         agent.state = {}
 
-        mock_response = json.dumps({
-            "image_placements": [
-                {"image_path": "/img1.jpg", "position": "start"},
-                {"image_path": "/img2.jpg", "position": "middle"},
-                {"image_path": "/img3.jpg", "position": "end"}
-            ]
-        })
+        mock_response = json.dumps([
+            {"image_path": "/img1.jpg", "position": "start"},
+            {"image_path": "/img2.jpg", "position": "middle"},
+            {"image_path": "/img3.jpg", "position": "end"}
+        ])
         mock_invoke.return_value = mock_response
 
         all_images = [
@@ -406,17 +399,13 @@ class TestDecoratorAgentIntegration:
 
         # Mock LLM responses
         mock_responses = [
-            json.dumps({
-                "image_placements": [
-                    {"image_path": "/img1.jpg", "position": "start", "reasoning": "Introduction"}
-                ]
-            }),
-            json.dumps({
-                "image_placements": [
-                    {"image_path": "/img2.jpg", "position": "middle", "reasoning": "Illustration"},
-                    {"image_path": "/img3.jpg", "position": "end", "reasoning": "Summary"}
-                ]
-            })
+            json.dumps([
+                {"image_path": "/img1.jpg", "position": "start", "reasoning": "Introduction"}
+            ]),
+            json.dumps([
+                {"image_path": "/img2.jpg", "position": "middle", "reasoning": "Illustration"},
+                {"image_path": "/img3.jpg", "position": "end", "reasoning": "Summary"}
+            ])
         ]
         mock_invoke.side_effect = mock_responses
 
