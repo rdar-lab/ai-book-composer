@@ -238,29 +238,34 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
             # Iterate through the "middle" messages (skipping first system msg and last N)
             for msg in messages_copy[1:-keep_last_n]:
                 if isinstance(msg, ToolMessage):
-                    # Compress tool responses to minimal metadata
-                    # Full content remains accessible in AgentState via get_file_content tool
+                    # Keep a brief preview of the tool response content instead of removing completely
+                    # This helps the LLM understand what was retrieved previously
                     tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
-                    original_length = len(str(msg.content))
+                    original_content = str(msg.content)
+                    original_length = len(original_content)
+                    
+                    # Keep first 200 chars as preview + metadata
+                    preview = original_content[:200] if original_length > 200 else original_content
                     msg.content = (
-                        f"[Compressed: Tool '{tool_name}' response ({original_length} chars) "
-                        f"removed to prevent context overflow.]"
+                        f"{preview}... [Content truncated. Original length: {original_length} chars. "
+                        f"Tool: {tool_name}]"
                     )
                 
-                # Also aggressively trim old user prompts if they are large
-                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > _LARGE_USER_MESSAGE_THRESHOLD:
-                    msg.content = str(msg.content)[:_USER_MESSAGE_TRIM_LENGTH] + "... [Truncated to save context]"
+                # Don't compress HumanMessages - they contain important user prompts
+                # that are crucial for generation
         
-        # Additionally compress recent ToolMessages if they're exceptionally large
+        # For recent ToolMessages, keep more content but still compress if very large
         # This prevents even recent large file reads from consuming too much context
         for msg in messages_copy[-keep_last_n:]:
             if isinstance(msg, ToolMessage) and len(str(msg.content)) > _LARGE_TOOL_MESSAGE_THRESHOLD:
                 tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
-                original_length = len(str(msg.content))
-                # Keep a summary but compress the bulk
-                summary = str(msg.content)[:500]
+                original_content = str(msg.content)
+                original_length = len(original_content)
+                # Keep first 1000 chars for recent messages (more than old ones)
+                preview = original_content[:1000]
                 msg.content = (
-                    f"{summary}... [Remaining {original_length - 500} chars compressed.]"
+                    f"{preview}... [Content truncated to save context. "
+                    f"Original length: {original_length} chars. Tool: {tool_name}]"
                 )
 
         return messages_copy

@@ -184,11 +184,12 @@ class AgentBase:
             chunk = content[start_char:end_char]
 
             progress_display.progress.show_observation(
-                f"Fetched content chunk from '{file_name}': {len(chunk)} chars")
+                f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}")
 
-            # Return compact response to minimize message history growth
+            # Return response with file metadata
             response = {
                 "file_name": file_name,
+                "file_type": content_type,
                 "chunk": chunk,
                 "start_char": start_char,
                 "end_char": min(end_char, len(content)),

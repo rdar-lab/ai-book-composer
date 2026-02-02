@@ -43,14 +43,14 @@ class TestMessagePruning:
         
         pruned = ToolFixer._prune_history(messages)
         
-        # First tool message should be compressed (old)
+        # First tool message should be compressed (old) - keeps 200 char preview
         assert len(pruned[3].content) < 500  # Much smaller than original
-        assert "Compressed" in pruned[3].content
+        assert "truncated" in pruned[3].content.lower()
         assert "get_file_content" in pruned[3].content
         
         # Second tool message should be compressed (old)
         assert len(pruned[6].content) < 500
-        assert "Compressed" in pruned[6].content
+        assert "truncated" in pruned[6].content.lower()
 
     def test_prune_history_keeps_recent_messages(self):
         """Test that recent messages (last 4) are kept full."""
@@ -67,9 +67,9 @@ class TestMessagePruning:
         
         pruned = ToolFixer._prune_history(messages)
         
-        # Old tool message should be compressed
+        # Old tool message should be compressed - keeps 200 char preview
         assert len(pruned[3].content) < 500
-        assert "Compressed" in pruned[3].content
+        assert "truncated" in pruned[3].content.lower()
         
         # Recent tool message should be kept (within last 4)
         assert pruned[6].content == "Recent tool output"
@@ -87,17 +87,17 @@ class TestMessagePruning:
         
         pruned = ToolFixer._prune_history(messages)
         
-        # Even though it's recent, huge content should be partially compressed
-        assert len(pruned[3].content) < 1000  # Much smaller than 10KB
-        assert "compressed" in pruned[3].content.lower()
+        # Even though it's recent, huge content should be partially compressed - keeps 1000 chars
+        assert len(pruned[3].content) < 1500  # Smaller than original but more than old messages
+        assert "truncated" in pruned[3].content.lower()
 
     def test_prune_history_trims_large_user_prompts(self):
-        """Test that large user prompts in old messages get trimmed."""
+        """Test that large user prompts in old messages are NOT trimmed anymore."""
         large_prompt = "x" * 5000
         
         messages = [
             SystemMessage(content="System prompt"),
-            HumanMessage(content=large_prompt),  # Old and large
+            HumanMessage(content=large_prompt),  # Old and large - but DON'T trim
             AIMessage(content="Response"),
             HumanMessage(content="Recent request"),
             AIMessage(content="Recent response"),
@@ -107,9 +107,8 @@ class TestMessagePruning:
         
         pruned = ToolFixer._prune_history(messages)
         
-        # Old large prompt should be truncated
-        assert len(pruned[1].content) < 500
-        assert "Truncated" in pruned[1].content
+        # HumanMessages should NOT be trimmed - they're important for generation
+        assert pruned[1].content == large_prompt
         
         # Recent prompts should be kept
         assert pruned[3].content == "Recent request"
@@ -162,8 +161,8 @@ class TestMessagePruning:
         
         # Original should not be modified
         assert len(original_tool_msg.content) == 10000
-        # Pruned should be compressed (much smaller than original)
-        assert len(pruned[3].content) < 1000  # Much smaller than 10KB original
+        # Pruned should be compressed - keeps 1000 chars for recent messages
+        assert len(pruned[3].content) < 1500  # Compressed but more than 200 since it's recent
 
     def test_prune_history_with_many_tool_calls(self):
         """Test pruning with many tool calls simulating file access pattern."""
@@ -188,8 +187,8 @@ class TestMessagePruning:
         
         assert pruned_size < original_size * EXPECTED_MAX_SIZE_RATIO  # At least 70% reduction
         
-        # Verify old tool messages are compressed
+        # Verify old tool messages are compressed - keeps 200 char preview
         # Messages[3] is first tool response (old)
-        assert "Compressed" in pruned[3].content
+        assert "truncated" in pruned[3].content.lower()
         # Last few should be less compressed or kept
         assert len(pruned) == len(messages)  # Same number of messages
