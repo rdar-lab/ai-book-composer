@@ -173,20 +173,20 @@ class PreprocessAgent(AgentBase):
         gathered_content = self._gather_all_content(files)
         self._summarize_all_files(gathered_content)
         
-        # Store full content in long-term memory and keep only summaries in state
-        gathered_content_summaries = {}
+        # Store full content in long-term memory for efficient retrieval
+        # This allows tools to access content without inflating message history
         for file_path, content_info in gathered_content.items():
-            summary_info = self.long_term_memory.store_content(file_path, content_info)
-            gathered_content_summaries[file_path] = summary_info
-            logger.info(f"Stored {file_path} in long-term memory (full: {len(content_info.get('content', ''))} chars, summary: {len(summary_info.get('summary', ''))} chars)")
+            self.long_term_memory.store_content(file_path, content_info)
+            logger.info(f"Stored {file_path} in long-term memory ({len(content_info.get('content', ''))} chars)")
 
         all_images = self._gather_images(files)
 
-        self.state["gathered_content"] = gathered_content_summaries
+        # Keep full content in state (state can handle it)
+        self.state["gathered_content"] = gathered_content
         self.state["images"] = all_images
 
         return {
-            "gathered_content": gathered_content_summaries,
+            "gathered_content": gathered_content,
             "images": all_images,
             "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "executing"

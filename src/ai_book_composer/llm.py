@@ -208,9 +208,15 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
     @staticmethod
     def _prune_history(messages):
         """
-        Creates a copy of messages and truncates OLD ToolMessages.
-        Keeps the System Prompt + Last 4 messages intact.
-        Everything else gets its heavy content removed.
+        Creates a copy of messages and aggressively compresses ToolMessages to prevent context overflow.
+        
+        Strategy:
+        - Keep System Prompt intact
+        - Keep last 4 message turns full (recent context)
+        - Aggressively compress all older ToolMessages (file content responses)
+        - Trim large user prompts in middle messages
+        
+        This prevents message history from exploding when agents repeatedly access file content.
         """
         if not isinstance(messages, list):
             return messages
@@ -218,21 +224,39 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         # Deep copy so we don't affect the actual agent state, only what the LLM sees
         messages_copy = copy.deepcopy(messages)
 
-        # Heuristic: Keep System Prompt (idx 0) and the last 6 turns (User + AI + Tool...) full.
-        # Everything in the middle gets compressed.
-        keep_last_n = 6
+        # Keep System Prompt (idx 0) and the last 4 turns (reduced from 6 for more aggressive pruning)
+        # This is enough for the LLM to maintain context while preventing overflow
+        keep_last_n = 4
 
         if len(messages_copy) > keep_last_n:
-            # Iterate through the "Middle" messages (skipping first system msg)
+            # Iterate through the "middle" messages (skipping first system msg and last N)
             for msg in messages_copy[1:-keep_last_n]:
-                # If it's a Tool Response (heavy file content)
                 if isinstance(msg, ToolMessage):
-                    # Replace 5000 chars with a placeholder
-                    msg.content = f"[...History: Output of tool '{msg.name}' was processed. Data removed to save context...]"
-
-                # Optional: Also trim old user prompts if they are huge
-                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > 1000:
-                    msg.content = str(msg.content)[:500] + "... [Truncated]"
+                    # Compress tool responses to minimal metadata
+                    # File content is stored in long-term memory and can be retrieved if needed
+                    tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
+                    original_length = len(str(msg.content))
+                    msg.content = (
+                        f"[Compressed: Tool '{tool_name}' response ({original_length} chars) "
+                        f"removed to prevent context overflow. Content stored in long-term memory.]"
+                    )
+                
+                # Also aggressively trim old user prompts if they are large
+                elif isinstance(msg, HumanMessage) and len(str(msg.content)) > 800:
+                    msg.content = str(msg.content)[:400] + "... [Truncated to save context]"
+        
+        # Additionally compress recent ToolMessages if they're exceptionally large (>3000 chars)
+        # This prevents even recent large file reads from consuming too much context
+        for msg in messages_copy[-keep_last_n:]:
+            if isinstance(msg, ToolMessage) and len(str(msg.content)) > 3000:
+                tool_name = msg.name if hasattr(msg, 'name') else 'unknown'
+                original_length = len(str(msg.content))
+                # Keep a summary but compress the bulk
+                summary = str(msg.content)[:500]
+                msg.content = (
+                    f"{summary}... [Remaining {original_length - 500} chars compressed. "
+                    f"Full content in long-term memory.]"
+                )
 
         return messages_copy
 

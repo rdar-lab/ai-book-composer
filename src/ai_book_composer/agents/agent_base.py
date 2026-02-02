@@ -153,7 +153,8 @@ class AgentBase:
                 length: Number of characters to read (default: 5000, max: 10000)
 
             Returns:
-                Dictionary with file content, metadata, and pagination info
+                Dictionary with file content chunk, metadata, and pagination info.
+                Note: Response is kept compact to minimize message history size.
             """
             progress_display.progress.show_action(
                 f"Fetching file content. file_name={file_name}, start_char={start_char}, length={length}")
@@ -176,17 +177,18 @@ class AgentBase:
             content_info = gathered_content[file_path]
             content_type = content_info.get("type", "unknown")
             
-            # Retrieve content from long-term memory if available
+            # Retrieve content - prefer from long-term memory if available to avoid
+            # pulling from state (though state has it, we want consistent access pattern)
             content = None
             if self.long_term_memory and self.long_term_memory.has_content(file_path):
                 content = self.long_term_memory.retrieve_content(file_path)
                 logger.info(f"Retrieved content from long-term memory for {file_name}")
             else:
-                # Fallback to state content if long-term memory not available
+                # Fallback to state content
                 content = content_info.get("content", "")
-                logger.warning(f"Long-term memory not available, using state content for {file_name}")
+                logger.info(f"Retrieved content from state for {file_name}")
 
-            # Limit length to avoid excessive token usage
+            # Limit length to avoid excessive token usage in tool response
             length = min(length, 10000)
 
             # Extract the requested chunk
@@ -194,19 +196,21 @@ class AgentBase:
             chunk = content[start_char:end_char]
 
             progress_display.progress.show_observation(
-                f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}")
+                f"Fetched content chunk from '{file_name}': {len(chunk)} chars")
 
+            # Return compact response to minimize message history growth
             response = {
                 "file_name": file_name,
-                "file_type": content_type,
                 "chunk": chunk,
                 "start_char": start_char,
                 "end_char": min(end_char, len(content)),
                 "total_length": len(content),
                 "has_more": end_char < len(content)
             }
+            
             logger.info(
-                f"Fetched content chunk from '{file_name}': start_char={start_char}, end_char={end_char}. Full response: {response}")
+                f"Fetched content chunk from '{file_name}': start_char={start_char}, "
+                f"end_char={end_char}, chunk_size={len(chunk)}, total={len(content)}")
 
             return response
 
@@ -263,14 +267,13 @@ class AgentBase:
         gathered_content = self.state.get("gathered_content", {})
         file_list = []
         for file_path, content_info in gathered_content.items():
-            # Handle both old format (with content) and new format (with content_length)
-            content_length = content_info.get("content_length", len(content_info.get("content", "")))
+            content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
             summary = content_info.get("summary", "")
             file_list.append({
                 "name": Path(file_path).name,
                 "type": content_type,
-                "size": content_length,
+                "size": len(content),
                 "summary": summary
             })
 
