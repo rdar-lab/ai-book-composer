@@ -77,19 +77,34 @@ class TestMessagePruning:
     def test_prune_history_compresses_large_recent_tool_messages(self):
         """Test that even recent ToolMessages get compressed if they're very large (>3000 chars)."""
         huge_content = "y" * 10000  # 10KB
+        old_huge_content = "z" * 10000  # 10KB for old message
         
         messages = [
             SystemMessage(content="System prompt"),
-            HumanMessage(content="Request"),
-            AIMessage(content="Response"),
-            ToolMessage(content=huge_content, name="get_file_content", tool_call_id="1"),  # Recent but huge
+            HumanMessage(content="Old request 1"),
+            AIMessage(content="Old response 1"),
+            ToolMessage(content=old_huge_content, name="get_file_content", tool_call_id="0"),  # Old and huge
+            HumanMessage(content="Request 2"),
+            AIMessage(content="Response 2"),
+            HumanMessage(content="Request 3"),
+            AIMessage(content="Response 3"),
+            HumanMessage(content="Request 4"),
+            AIMessage(content="Response 4"),
+            ToolMessage(content=huge_content, name="get_file_content", tool_call_id="1"),  # Recent and huge
         ]
         
         pruned = ToolFixer._prune_history(messages)
         
-        # Even though it's recent, huge content should be partially compressed - keeps 1000 chars
-        assert len(pruned[3].content) < 1500  # Smaller than original but more than old messages
+        # Old huge message should be compressed to 200 chars
+        assert len(pruned[3].content) < 500
         assert "truncated" in pruned[3].content.lower()
+        
+        # Recent huge message should be compressed but keep more (1000 chars)
+        assert len(pruned[10].content) < 1500  # Smaller than original but more than old messages
+        assert "truncated" in pruned[10].content.lower()
+        
+        # Verify recent messages keep more content than old messages
+        assert len(pruned[10].content) > len(pruned[3].content)
 
     def test_prune_history_trims_large_user_prompts(self):
         """Test that large user prompts in old messages are NOT trimmed anymore."""

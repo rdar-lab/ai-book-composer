@@ -244,12 +244,14 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                     original_content = str(msg.content)
                     original_length = len(original_content)
                     
-                    # Keep first 200 chars as preview + metadata
-                    preview = original_content[:200] if original_length > 200 else original_content
-                    msg.content = (
-                        f"{preview}... [Content truncated. Original length: {original_length} chars. "
-                        f"Tool: {tool_name}]"
-                    )
+                    # Keep first 200 chars as preview + metadata (only if content is longer)
+                    if original_length > 200:
+                        preview = original_content[:200]
+                        msg.content = (
+                            f"{preview}... [Content truncated. Original length: {original_length} chars. "
+                            f"Tool: {tool_name}]"
+                        )
+                    # If content is 200 chars or less, keep as-is
                 
                 # Don't compress HumanMessages - they contain important user prompts
                 # that are crucial for generation
