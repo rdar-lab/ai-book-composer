@@ -20,6 +20,7 @@ class AgentState(TypedDict):
     # Planning
     plan: List[Dict[str, Any]]
     current_task_index: int
+    execution_history: List[Dict[str, Any]]  # History of executed tasks with details
 
     # Execution
     gathered_content: Dict[str, Any]
@@ -72,6 +73,7 @@ def create_initial_state(
         images=[],
         plan=[],
         current_task_index=0,
+        execution_history=[],
         gathered_content={},
         chapter_list=[],
         chapters=[],

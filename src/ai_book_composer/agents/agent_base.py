@@ -34,11 +34,13 @@ class AgentBase:
                  settings: Settings,
                  llm_temperature=0.0,
                  input_directory: Optional[str] = None,
-                 output_directory: Optional[str] = None):
+                 output_directory: Optional[str] = None,
+                 include_agent_state: bool = True):
         self.settings = settings
         self.llm_temperature = llm_temperature
         self.input_directory = input_directory
         self.output_directory = output_directory
+        self.include_agent_state = include_agent_state
         self.prompts = load_prompts()
         self.state = None
 
@@ -58,10 +60,11 @@ class AgentBase:
     def _invoke_llm(self, system_prompt: str, user_prompt: str):
         llm = self._get_llm()
         
-        # Add agent state summary to system prompt
-        state_summary = self._get_agent_state_summary()
-        if state_summary:
-            system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
+        # Add agent state summary to system prompt if enabled
+        if self.include_agent_state:
+            state_summary = self._get_agent_state_summary()
+            if state_summary:
+                system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
         
         logger.info(
             f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
@@ -119,10 +122,11 @@ class AgentBase:
 
         tool_names = [tool_obj.name for tool_obj in tools]
         
-        # Add agent state summary to system prompt
-        state_summary = self._get_agent_state_summary()
-        if state_summary:
-            system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
+        # Add agent state summary to system prompt if enabled
+        if self.include_agent_state:
+            state_summary = self._get_agent_state_summary()
+            if state_summary:
+                system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
 
         logger.info(
             f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
@@ -310,6 +314,17 @@ class AgentBase:
                 # Mark current task
                 marker = " <- CURRENT" if i - 1 == current_task_index else ""
                 summary_parts.append(f"  {i}. [{status.upper()}] {task_name}: {task_desc}{marker}")
+        
+        # Add execution history (captures actual execution which may deviate from plan)
+        execution_history = self.state.get("execution_history", [])
+        if execution_history:
+            summary_parts.append("\nExecution History:")
+            # Show last 3 executions to keep context minimal
+            recent_history = execution_history[-3:]
+            for exec_record in recent_history:
+                task_type = exec_record.get("task_type", "Unknown")
+                exec_status = exec_record.get("status", "unknown")
+                summary_parts.append(f"  - {task_type}: {exec_status}")
         
         # Add critic feedback if present
         critic_feedback = self.state.get("critic_feedback")
