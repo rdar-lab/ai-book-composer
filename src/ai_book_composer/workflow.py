@@ -1,5 +1,6 @@
 """LangGraph workflow for Deep-Agent architecture."""
 import logging
+from pathlib import Path
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
@@ -12,6 +13,7 @@ from .agents.planner import PlannerAgent
 from .agents.preprocess_agent import PreprocessAgent
 from .agents.state import AgentState, create_initial_state
 from .config import Settings
+from .long_term_memory import LongTermMemory
 from .progress_display import progress, show_workflow_start, show_node_transition
 
 logger = logging.getLogger(__name__)
@@ -50,13 +52,21 @@ class BookComposerWorkflow:
         self.book_author = book_author
         self.max_iterations = max_iterations
         self.style_instructions = style_instructions
+        
+        # Initialize long-term memory storage (shared across all agents)
+        ltm_dir = Path(output_directory) / ".long_term_memory"
+        self.long_term_memory = LongTermMemory(str(ltm_dir))
 
-        # Initialize agents
+        # Initialize agents with long-term memory
         self.preprocessor = PreprocessAgent(settings, input_directory, output_directory)
         self.planner = PlannerAgent(settings)
+        self.planner.long_term_memory = self.long_term_memory
         self.executor = ExecutorAgent(settings, output_directory)
+        self.executor.long_term_memory = self.long_term_memory
         self.decorator = DecoratorAgent(settings)
+        self.decorator.long_term_memory = self.long_term_memory
         self.critic = CriticAgent(settings)
+        self.critic.long_term_memory = self.long_term_memory
 
         # Build graph
         self.graph = self._build_graph()

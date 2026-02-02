@@ -58,3 +58,4 @@ logs/
 
 run/
 **/.cache
+**/.long_term_memory/

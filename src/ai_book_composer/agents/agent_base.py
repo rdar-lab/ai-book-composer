@@ -31,13 +31,15 @@ class AgentBase:
                  settings: Settings,
                  llm_temperature=0.0,
                  input_directory: Optional[str] = None,
-                 output_directory: Optional[str] = None):
+                 output_directory: Optional[str] = None,
+                 long_term_memory=None):
         self.settings = settings
         self.llm_temperature = llm_temperature
         self.input_directory = input_directory
         self.output_directory = output_directory
         self.prompts = load_prompts()
         self.state = None
+        self.long_term_memory = long_term_memory
 
     def _get_llm(self):
         llm_instance = get_llm(self.settings, temperature=self.llm_temperature)
@@ -172,8 +174,17 @@ class AgentBase:
                 }
 
             content_info = gathered_content[file_path]
-            content = content_info.get("content", "")
             content_type = content_info.get("type", "unknown")
+            
+            # Retrieve content from long-term memory if available
+            content = None
+            if self.long_term_memory and self.long_term_memory.has_content(file_path):
+                content = self.long_term_memory.retrieve_content(file_path)
+                logger.info(f"Retrieved content from long-term memory for {file_name}")
+            else:
+                # Fallback to state content if long-term memory not available
+                content = content_info.get("content", "")
+                logger.warning(f"Long-term memory not available, using state content for {file_name}")
 
             # Limit length to avoid excessive token usage
             length = min(length, 10000)
@@ -252,13 +263,14 @@ class AgentBase:
         gathered_content = self.state.get("gathered_content", {})
         file_list = []
         for file_path, content_info in gathered_content.items():
-            content = content_info.get("content", "")
+            # Handle both old format (with content) and new format (with content_length)
+            content_length = content_info.get("content_length", len(content_info.get("content", "")))
             content_type = content_info.get("type", "unknown")
             summary = content_info.get("summary", "")
             file_list.append({
                 "name": Path(file_path).name,
                 "type": content_type,
-                "size": len(content),
+                "size": content_length,
                 "summary": summary
             })
 

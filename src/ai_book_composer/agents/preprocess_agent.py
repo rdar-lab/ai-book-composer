@@ -7,6 +7,7 @@ from .agent_base import AgentBase
 from .state import AgentState
 from .. import progress_display
 from ..config import Settings
+from ..long_term_memory import LongTermMemory
 from ..parallel_utils import execute_parallel
 from ..progress_display import progress
 from ..utils import file_utils
@@ -28,6 +29,9 @@ class PreprocessAgent(AgentBase):
             input_directory=input_directory,
             output_directory=output_directory
         )
+        # Initialize long-term memory storage
+        ltm_dir = Path(output_directory) / ".long_term_memory"
+        self.long_term_memory = LongTermMemory(str(ltm_dir))
 
     def list_files(self) -> List[Dict[str, Any]]:
         """List all files in the input directory using the appropriate tool.
@@ -168,14 +172,21 @@ class PreprocessAgent(AgentBase):
 
         gathered_content = self._gather_all_content(files)
         self._summarize_all_files(gathered_content)
+        
+        # Store full content in long-term memory and keep only summaries in state
+        gathered_content_summaries = {}
+        for file_path, content_info in gathered_content.items():
+            summary_info = self.long_term_memory.store_content(file_path, content_info)
+            gathered_content_summaries[file_path] = summary_info
+            logger.info(f"Stored {file_path} in long-term memory (full: {len(content_info.get('content', ''))} chars, summary: {len(summary_info.get('summary', ''))} chars)")
 
         all_images = self._gather_images(files)
 
-        self.state["gathered_content"] = gathered_content
+        self.state["gathered_content"] = gathered_content_summaries
         self.state["images"] = all_images
 
         return {
-            "gathered_content": gathered_content,
+            "gathered_content": gathered_content_summaries,
             "images": all_images,
             "current_task_index": self.state.get("current_task_index", 0) + 1,
             "status": "executing"
