@@ -311,14 +311,19 @@ class AgentBase:
         # Add critic feedback if present
         critic_feedback = self.state.get("critic_feedback")
         if critic_feedback:
-            summary_parts.append(f"\nCritic Feedback: {critic_feedback[:200]}..." if len(critic_feedback) > 200 else f"\nCritic Feedback: {critic_feedback}")
+            # Truncate long feedback to keep context minimal
+            if len(critic_feedback) > 200:
+                feedback_text = f"{critic_feedback[:200]}..."
+            else:
+                feedback_text = critic_feedback
+            summary_parts.append(f"\nCritic Feedback: {feedback_text}")
         
         # Add iteration count
         iterations = self.state.get("iterations", 0)
         if iterations > 0:
             summary_parts.append(f"\nIteration: {iterations}")
         
-        # Add quality score if available
+        # Add quality score if available (score is in 0.0-1.0 range)
         quality_score = self.state.get("quality_score")
         if quality_score is not None:
             summary_parts.append(f"Quality Score: {quality_score:.2%}")
