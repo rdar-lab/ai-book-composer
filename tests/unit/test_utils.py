@@ -404,7 +404,8 @@ class TestImageMeaningfulCheck:
 class TestImageDescription:
     """Test describe_image function."""
 
-    def test_describe_image_with_cache(self, tmp_path, monkeypatch):
+    @patch('src.ai_book_composer.utils.file_utils.get_llm')
+    def test_describe_image_with_cache(self, get_llm_mock, tmp_path):
         """Test image description with caching."""
 
         settings = Settings()
@@ -420,16 +421,7 @@ class TestImageDescription:
         mock_response.content = "<think>Analyzing image</think><result>A blue square image</result>"
         mock_llm.invoke.return_value = mock_response
 
-        # Create a mock get_llm function
-        # noinspection PyUnusedLocal,PyShadowingNames
-        def mock_get_llm(settings, temperature, model, provider):
-            return mock_llm
-
-        # Monkeypatch get_llm in the ai_book_composer.llm module namespace
-        # Since it's imported inside the function, we need to mock it in sys.modules
-        mock_llm_module = Mock()
-        mock_llm_module.get_llm = mock_get_llm
-        monkeypatch.setitem(sys.modules, 'src.ai_book_composer.llm', mock_llm_module)
+        get_llm_mock.return_value = mock_llm
 
         # Mock prompts
         prompts = {

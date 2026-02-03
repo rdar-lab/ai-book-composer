@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import tempfile
+from io import BytesIO
 from pathlib import Path
 from typing import List, Dict, Any
 from typing import Optional
@@ -20,6 +21,7 @@ from pypdf import PdfReader
 from striprtf.striprtf import rtf_to_text
 
 from ..config import Settings
+from ..llm import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -459,7 +461,6 @@ def is_image_meaningful(image_bytes: bytes, black_threshold: float = 0.95) -> bo
         True if image is meaningful, False if it's mostly black/empty
     """
     try:
-        from io import BytesIO
 
         # Load image
         img = Image.open(BytesIO(image_bytes))
@@ -658,8 +659,6 @@ def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
     Returns:
         String description of the image
     """
-    from ..llm import get_llm
-
     image_path = Path(image_path).resolve()
     logger.info(f"Describing image: {image_path}")
 

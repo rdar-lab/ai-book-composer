@@ -86,6 +86,16 @@ class ParallelConfig(BaseModel):
     parallel_workers: int = Field(default=4, ge=1, le=32)  # 1-32 workers
 
 
+class RAGConfig(BaseModel):
+    """RAG (Retrieval Augmented Generation) configuration."""
+    enabled: bool = True
+    embedding_model: str = "all-MiniLM-L6-v2"
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    retrieval_k: int = 5
+    max_allowed_distance: float = 0.9
+
+
 class LoggingConfig(BaseModel):
     """Logging configuration."""
     level: str = "INFO"
@@ -145,6 +155,7 @@ class Settings:
         self.logging = LoggingConfig(**self._config.get('logging', {}))
         self.security = SecurityConfig(**self._config.get('security', {}))
         self.parallel = ParallelConfig(**self._config.get('parallel', {}))
+        self.rag = RAGConfig(**self._config.get('rag', {}))
         self.general = GeneralConfig(**self._config.get('general', {}))
 
         # Store provider configurations
@@ -172,6 +183,7 @@ class Settings:
         self._config['logging'] = self.logging.model_dump()
         self._config['security'] = self.security.model_dump()
         self._config['parallel'] = self.parallel.model_dump()
+        self._config['rag'] = self.rag.model_dump()
         self._config['providers'] = self.providers
 
     def _replace_env_vars(self, data: Any) -> Any:
@@ -245,6 +257,14 @@ class Settings:
             'parallel': {
                 'parallel_execution': True,
                 'parallel_workers': 4
+            },
+            'rag': {
+                'enabled': True,
+                'embedding_model': 'all-MiniLM-L6-v2',
+                'chunk_size': 1000,
+                'chunk_overlap': 200,
+                'retrieval_k': 5,
+                'max_allowed_distance': 0.9
             },
             'providers': {
                 'openai': {'api_key': os.environ.get('OPENAI_API_KEY', '')},

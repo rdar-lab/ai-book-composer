@@ -9,14 +9,17 @@ from .. import progress_display
 from ..config import Settings
 from ..parallel_utils import execute_parallel
 from ..progress_display import progress
+from ..rag import RAGManager
 from ..utils import file_utils
 from ..utils.file_utils import list_input_files, read_text_file, read_audio_file, read_video_file, \
     extract_images_from_pdf, list_images, write_cache, describe_image
+from ..utils.term_extraction import extract_key_terms
 
 logger = logging.getLogger(__name__)
 
 _MIN_LENGTH_FOR_SUMMARIZATION = 2000  # Minimum length of content to consider summarization
 _MAX_LENGTH_FOR_SUMMARIZATION = 16384  # Maximum length of content to summarize
+_MAX_SUMMARY_LENGTH = 2000  # Maximum length of summary to store in state
 
 
 class PreprocessAgent(AgentBase):
@@ -57,11 +60,21 @@ class PreprocessAgent(AgentBase):
         ):
             self.gather_content()
 
+            # Initialize and populate RAG vector database if enabled
+            if self.settings.rag.enabled:
+                self._initialize_rag()
+            else:
+                logger.warning("*** RAG is disabled in settings; Expect poor quality of result ***")
+
+            self._extract_key_terms()
+
             return {
                 "status": "preprocessed",
                 "files": self.state.get("files", []),
                 "gathered_content": self.state.get("gathered_content", {}),
                 "images": self.state.get("images", []),
+                "rag_manager": self.state.get("rag_manager"),
+                "key_terms": self.state.get("key_terms", []),
             }
 
     def _process_single_file(self, file_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -219,11 +232,69 @@ class PreprocessAgent(AgentBase):
                 except Exception as exp:
                     logger.exception(
                         f"Error summarizing file content for file_name={file_name}. Using original content. exp={exp}")
-                    file_summary = file_content[:_MIN_LENGTH_FOR_SUMMARIZATION]
+                    file_summary = file_content[:_MAX_SUMMARY_LENGTH]
             write_cache(cache_name, file_summary)
 
-        gathered_file['summary'] = file_summary[:_MIN_LENGTH_FOR_SUMMARIZATION]
+        gathered_file['summary'] = file_summary[:_MAX_SUMMARY_LENGTH]
         return gathered_file
+
+    def _extract_key_terms(self):
+        progress.show_thought("Initializing key terms")
+        progress.show_action("Working on gathering the terms...")
+        try:
+            gathered_content = self.state.get("gathered_content", {})
+            gathered_documents = [
+                file_info.get("content", "") for file_info in gathered_content.values()
+            ]
+            key_terms = extract_key_terms(gathered_documents, max_terms=100)
+
+            if key_terms:
+                progress.show_observation(
+                    f"✓ Extracted {len(key_terms)} key terms: {', '.join(key_terms[:10])}..."
+                )
+                self.state["key_terms"] = key_terms
+            else:
+                progress.show_observation("⚠ No key terms extracted")
+                self.state["key_terms"] = []
+        except Exception as e:
+            logger.exception(f"Error extracting key terms: {str(e)}")
+            progress.show_observation(f"✗ Error extracting key terms: {str(e)}")
+            # Continue without key terms
+            self.state["key_terms"] = []
+
+
+    def _initialize_rag(self) -> None:
+        """Initialize RAG vector database and ingest documents."""
+        progress.show_thought("Initializing RAG vector database for efficient document retrieval")
+
+        try:
+            # Create RAG manager
+            progress.show_action("Creating RAG manager and loading embedding model...")
+            rag_manager = RAGManager(self.settings)
+
+            # Ingest all gathered content into vector database
+            gathered_content = self.state.get("gathered_content", {})
+            progress.show_action(f"Ingesting {len(gathered_content)} documents into vector database...")
+
+            result = rag_manager.ingest_documents(gathered_content)
+
+            if result.get("status") == "success":
+                total_docs = result.get("total_documents", 0)
+                total_chunks = result.get("total_chunks", 0)
+                progress.show_observation(
+                    f"✓ RAG database initialized: {total_docs} documents, {total_chunks} chunks"
+                )
+            else:
+                progress.show_observation("⚠ RAG initialization completed with no content")
+
+            # Store RAG manager in state
+            self.state["rag_manager"] = rag_manager
+
+        except Exception as e:
+            logger.exception(f"Error initializing RAG: {str(e)}")
+            progress.show_observation(f"✗ Error initializing RAG: {str(e)}")
+            # Continue without RAG on error
+            self.state["rag_manager"] = None
 
     def _gather_images(self, files: list[dict[str, Any]]) -> list[Any]:
         # Gather images from input directory and extract from PDFs

@@ -49,7 +49,7 @@ class AgentBase:
     def _generate_tools(self) -> list[BaseTool]:
         tools: list[BaseTool] = [
             system_notification,
-            self.get_file_content_tool()
+            self.get_relevant_documents_tool()
         ]
 
         return tools
@@ -62,7 +62,7 @@ class AgentBase:
         if include_agent_state:
             state_summary = self._get_agent_state_summary()
             if state_summary:
-                system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
+                system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}\n\n"
         
         logger.info(
             f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
@@ -212,7 +212,7 @@ class AgentBase:
                 "total_length": len(content),
                 "has_more": end_char < len(content)
             }
-            
+
             logger.info(
                 f"Fetched content chunk from '{file_name}': start_char={start_char}, "
                 f"end_char={end_char}, chunk_size={len(chunk)}, total={len(content)}")
@@ -220,6 +220,76 @@ class AgentBase:
             return response
 
         return get_file_content
+
+    def get_relevant_documents_tool(self):
+        @tool
+        def get_relevant_documents(query: str, num_results: int = 5) -> Dict[str, Any]:
+            """Retrieve relevant document chunks based on a semantic search query.
+
+            Args:
+                query: Natural language query describing the information needed
+                num_results: Number of relevant document chunks to retrieve (default: 5, max: 10)
+
+            Returns:
+                Dictionary with relevant document chunks and their metadata.
+                Each result includes content, source file, and relevance information.
+            """
+            progress_display.progress.show_action(
+                f"Searching for relevant documents. query='{query[:100]}...', num_results={num_results}")
+            logger.info(f"Searching for relevant documents. query='{query}', num_results={num_results}")
+
+            rag_manager = self.state.get("rag_manager")
+            if not rag_manager:
+                return {
+                    "error": "RAG system not initialized. Cannot retrieve documents.",
+                    "results": []
+                }
+
+            # Limit num_results to reasonable range
+            num_results = min(max(1, num_results), 10)
+
+            # Retrieve relevant documents
+            documents = rag_manager.retrieve_relevant_documents(
+                query=query,
+                k=num_results
+            )
+
+            if not documents:
+                progress_display.progress.show_observation(
+                    f"No relevant documents found for query: '{query[:50]}...'")
+                return {
+                    "query": query,
+                    "results": [],
+                    "message": "No relevant documents found"
+                }
+
+            # Format results for LLM consumption
+            results = []
+            for i, doc in enumerate(documents, 1):
+                metadata = doc.get("metadata", {})
+                results.append({
+                    "rank": i,
+                    "content": doc.get("content", ""),
+                    "file_name": metadata.get("file_name", "unknown"),
+                    "file_type": metadata.get("file_type", "unknown"),
+                    "similarity_score": doc.get("similarity_score", 0.0),
+                    "chunk_info": f"{metadata.get('chunk_index', 0) + 1}/{metadata.get('total_chunks', 1)}"
+                })
+
+            progress_display.progress.show_observation(
+                f"Retrieved {len(results)} relevant document(s) for query")
+
+            logger.info(
+                f"Retrieved {len(results)} relevant documents for query: '{query}'. "
+                f"Top file: {results[0]['file_name'] if results else 'none'}")
+
+            return {
+                "query": query,
+                "num_results": len(results),
+                "results": results
+            }
+
+        return get_relevant_documents
 
     @staticmethod
     def _extract_thought_and_action(result_text: str) -> tuple[str, str]:
@@ -286,6 +356,13 @@ class AgentBase:
             f"- {f['name']} ({f['type']}, {f['size']} chars) [Summary: {f['summary']}]"
             for f in file_list
         ])
+
+        # Add key terms if available
+        key_terms = self.state.get("key_terms", [])
+        if key_terms:
+            terms_str = ", ".join(key_terms[:30])  # Show first 30 terms
+            file_summary += f"\n\nKey terms across all documents: {terms_str}"
+
         return file_summary
 
     def _get_agent_state_summary(self) -> str:

@@ -167,8 +167,10 @@ class DecoratorAgent(AgentBase):
                 else:
                     json_text = response_text.strip()
 
-                result = json.loads(json_text)
-                placements = result.get("image_placements", [])
+                placements = json.loads(json_text)
+
+                if isinstance(placements, dict):
+                    placements = placements.get('image_placements', [])
 
                 # Validate that image paths in placements exist in available images
                 available_image_paths = {img.get("path") for img in all_images}

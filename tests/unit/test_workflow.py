@@ -218,7 +218,7 @@ class TestWorkflowConditionalLogic:
     def test_should_continue_execution_when_tasks_remain(self, tmp_path):
         """Test execution continues when tasks remain."""
         workflow = BookComposerWorkflow()
-        
+
         state = create_initial_state(
             input_directory=str(tmp_path),
             output_directory=str(tmp_path)
