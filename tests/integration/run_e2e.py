@@ -14,8 +14,8 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
     """Create test configuration."""
     config = {
         'llm': {
-            'provider': 'ollama_embedded',
-            'model': 'qwen2.5-7b-instruct',
+            'provider': 'ollama',
+            'model': 'qwen2.5:7b-instruct',
             'temperature': {
                 'planning': 0.3,
                 'execution': 0.7,
@@ -23,17 +23,9 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
             }
         },
         'providers': {
-            'ollama_embedded': {
-                'internal': {
-                    'n_ctx': 16384,
-                    'max_tokens': 8192,
-                    'n_batch': 512,
-                    'n_threads': 4,
-                    'verbose': False,
-                    'chat_format': "qwen"
-                },
-                'run_on_gpu': False
-            }
+            'ollama': {
+                    'base_url': 'http://localhost:11434'
+                }
         },
         'whisper': {
             'mode': 'local',
@@ -60,8 +52,8 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
             'cache_dir': str(cache_dir)
         },
         'vision_model': {
-            'provider': 'ollama_embedded',
-            'model': 'qwen2.5-7b-instruct',
+            'provider': 'ollama',
+            'model': 'moondream',
             'temperature': 0.3
         },
     }
