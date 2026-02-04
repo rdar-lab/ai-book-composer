@@ -752,8 +752,13 @@ def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
             ]
 
             message = HumanMessage(content=message_content)
+            logger.info(f"Calling LLM with message={message}")
             response = vision_llm.invoke([message])
+            logger.info(f"Response from LLM: {response}")
             description = response.content
+
+            if not description:
+                raise Exception("Got empty description")
 
             # Extract content from <result> tags if present
             if '<result>' in description and '</result>' in description:

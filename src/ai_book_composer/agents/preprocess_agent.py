@@ -370,6 +370,8 @@ class PreprocessAgent(AgentBase):
         language = self.state.get('language', 'en-US')
 
         try:
+            progress.show_action(f"Describing image {image_path}")
+
             description = describe_image(
                 self.settings,
                 image_path,
@@ -377,6 +379,9 @@ class PreprocessAgent(AgentBase):
                 language=language,
                 cache_results=True
             )
+
+            progress.show_observation(f"Image description: {description}")
+
             image['description'] = description
             logger.info(f"Generated description for {image.get('filename', 'unknown')}: {description[:100]}...")
         except Exception as e:
