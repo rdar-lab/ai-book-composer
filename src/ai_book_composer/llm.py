@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 from huggingface_hub import hf_hub_download
-from langchain_community.chat_models import ChatOllama, ChatLlamaCpp
+from langchain_ollama import ChatOllama
+from langchain_community.chat_models import ChatLlamaCpp
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig, Runnable

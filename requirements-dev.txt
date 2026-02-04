@@ -126,6 +126,7 @@ httpx==0.28.1
     #   huggingface-hub
     #   langgraph-sdk
     #   langsmith
+    #   ollama
     #   openai
     #   respx
 httpx-sse==0.4.3
@@ -185,12 +186,15 @@ langchain-core==1.2.8
     #   langchain-classic
     #   langchain-community
     #   langchain-google-genai
+    #   langchain-ollama
     #   langchain-openai
     #   langchain-text-splitters
     #   langgraph
     #   langgraph-checkpoint
     #   langgraph-prebuilt
 langchain-google-genai==4.2.0
+    # via -r requirements.in
+langchain-ollama==1.0.1
     # via -r requirements.in
 langchain-openai==1.1.7
     # via -r requirements.in
@@ -295,6 +299,8 @@ nvidia-nvtx-cu12==12.8.90
     # via torch
 oauthlib==3.3.1
     # via requests-oauthlib
+ollama==0.6.1
+    # via langchain-ollama
 onnxruntime==1.23.2
     # via
     #   chromadb
@@ -378,6 +384,7 @@ pydantic==2.12.5
     #   langchain-google-genai
     #   langgraph
     #   langsmith
+    #   ollama
     #   openai
     #   pydantic-settings
 pydantic-core==2.41.5
