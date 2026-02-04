@@ -77,7 +77,7 @@ Chapter 3: Applications
     @patch('src.ai_book_composer.utils.file_utils.write_cache')
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
     @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
-    def test_chapter_list_rejected_not_cached(
+    def test_chapter_list_rejected(
             self,
             mock_invoke_agent,
             mock_load_prompts,
@@ -101,7 +101,14 @@ Chapter 1: Introduction
 Chapter 2: Core Concepts
 Chapter 3: Applications
 """,
-            "REJECT - The chapter structure needs improvement. Topics are too broad."
+            "REJECT - The chapter structure needs improvement. Topics are too broad.",
+            """
+Chapter 1: Introduction
+Chapter 2: Core Concepts
+Chapter 3: Applications
+Chapter 4: Additional
+""",
+
         ]
 
         settings = Settings()
@@ -130,10 +137,8 @@ Chapter 3: Applications
 
         # Verify chapter list was created
         assert "chapter_list" in result
-        assert len(result["chapter_list"]) == 3
+        assert len(result["chapter_list"]) == 4
 
-        # Verify write_cache was NOT called (chapter list was rejected)
-        assert not mock_write_cache.called
 
     @patch('src.ai_book_composer.utils.file_utils.write_cache')
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
@@ -184,7 +189,7 @@ Chapter 3: Applications
         }
 
         executor.state = state
-        result = executor._generate_chapter_content(1, "Introduction", "Introduction chapter", "en-US")
+        result = executor._generate_chapter_content(1, "Introduction", "Introduction chapter")
 
         # Verify content was generated
         assert result == chapter_content
@@ -196,7 +201,7 @@ Chapter 3: Applications
     @patch('src.ai_book_composer.utils.file_utils.write_cache')
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
     @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
-    def test_chapter_content_rejected_not_cached(
+    def test_chapter_content_rejected(
             self,
             mock_invoke_agent,
             mock_load_prompts,
@@ -215,9 +220,12 @@ Chapter 3: Applications
 
         # First call returns chapter content, second call returns rejection
         chapter_content = "Short content."
+        good_chapter_content = "Very good content."
+
         mock_invoke_agent.side_effect = [
             chapter_content,
-            "REJECT - The chapter content is too brief and lacks substance."
+            "REJECT - The chapter content is too brief and lacks substance.",
+            good_chapter_content
         ]
 
         settings = Settings()
@@ -242,13 +250,10 @@ Chapter 3: Applications
         }
 
         executor.state = state
-        result = executor._generate_chapter_content(1, "Introduction", "Introduction chapter", "en-US")
+        result = executor._generate_chapter_content(1, "Introduction", "Introduction chapter")
 
         # Verify content was generated
-        assert result == chapter_content
-
-        # Verify write_cache was NOT called (content was rejected)
-        assert not mock_write_cache.called
+        assert result == good_chapter_content
 
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
     @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
@@ -271,12 +276,12 @@ Chapter 3: Applications
         )
 
         # Test chapter list evaluation without prompts
-        result = executor._evaluate_chapter_list_quality([], "en-US")
-        assert result is True  # Should approve by default
+        is_approved, reason = executor._evaluate_chapter_list_quality([])
+        assert is_approved is True  # Should approve by default
 
         # Test chapter content evaluation without prompts
-        result = executor._evaluate_chapter_content_quality(1, "Test", "Content", "en-US")
-        assert result is True  # Should approve by default
+        is_approved, reason = executor._evaluate_chapter_content_quality(1, "Test", "test", "Content")
+        assert is_approved is True  # Should approve by default
 
 
 if __name__ == "__main__":
