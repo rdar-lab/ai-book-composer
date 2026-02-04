@@ -14,8 +14,8 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
     """Create test configuration."""
     config = {
         'llm': {
-            'provider': 'openai',
-            'model': 'gpt-4',
+            'provider': 'ollama_embedded',
+            'model': 'qwen2.5-7b-instruct',
             'temperature': {
                 'planning': 0.3,
                 'execution': 0.7,
@@ -23,8 +23,16 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
             }
         },
         'providers': {
-            'openai': {
-                'api_key': "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"
+            'ollama_embedded': {
+                'internal': {
+                    'n_ctx': 16384,
+                    'max_tokens': 8192,
+                    'n_batch': 512,
+                    'n_threads': 4,
+                    'verbose': False,
+                    'chat_format': "qwen"
+                },
+                'run_on_gpu': False
             }
         },
         'whisper': {
@@ -50,7 +58,12 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
         },
         'general': {
             'cache_dir': str(cache_dir)
-        }
+        },
+        'vision_model': {
+            'provider': 'ollama_embedded',
+            'model': 'qwen2.5-7b-instruct',
+            'temperature': 0.3
+        },
     }
 
     config_file = config_dir / "config.yaml"
