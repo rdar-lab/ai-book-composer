@@ -1,7 +1,7 @@
 """Executor agent - Phase 2 of Deep-Agent architecture."""
 import logging
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool, BaseTool
@@ -110,38 +110,22 @@ class ExecutorAgent(AgentBase):
         chapter_list = file_utils.read_cache(
             cached_chapters_list_file) if self.settings.book.use_cached_chapters_list else None
         if not chapter_list:
-            language = self.state.get("language", "en-US")
-            style_instructions = self.state.get("style_instructions", "")
+            chapter_list = self._plan_chapters_with_llm()
 
-            progress.show_thought("Analyzing gathered content to determine optimal chapter structure")
-            progress.show_action("Using AI agent with tools to plan book chapters dynamically")
+            # Evaluate chapter list quality before caching
+            is_approved, reason = self._evaluate_chapter_list_quality(chapter_list)
 
-            # Load prompts from YAML and format with placeholders
-            system_prompt_template = self.prompts['executor']['chapter_planning_system_prompt']
-            user_prompt_template = self.prompts['executor']['chapter_planning_user_prompt']
-
-            # Format style instructions section
-            style_instructions_section = ""
-            if style_instructions:
-                style_instructions_section = f"Style Instructions: {style_instructions}\nPlease ensure the chapter structure and organization reflects this style."
-
-            system_prompt = system_prompt_template.format(
-                language=language,
-                style_instructions_section=style_instructions_section
-            )
-            user_prompt = user_prompt_template.format(
-                file_summary=self._get_files_summary()
-            )
-
-            # Use agent with tools to allow dynamic content reading
-            result = self._invoke_agent(system_prompt, user_prompt, self.state)
-
-            # Parse chapter list (simplified)
-            chapter_list = self._parse_chapter_list(result)
+            if not is_approved:
+                logger.warning(f"Plan was not approved with reason {reason}, trying again another try")
+                progress.show_observation(f"⚠ Chapter list quality check failed - reason: {reason}")
+                chapter_list = self._plan_chapters_with_llm()
+            else:
+                progress.show_observation("✓ Chapter list approved")
 
             progress.show_observation(f"Planned {len(chapter_list)} chapter(s) for the book")
             for chapter in chapter_list:
                 progress.show_observation(f"  • Chapter {chapter.get('number')}: {chapter.get('title')}")
+
             file_utils.write_cache(cached_chapters_list_file, chapter_list)
 
         # Save chapter list
@@ -151,12 +135,41 @@ class ExecutorAgent(AgentBase):
             "chapter_list": chapter_list,
         }
 
+    def _plan_chapters_with_llm(self) -> List[Dict[str, Any]]:
+        language = self.state.get("language", "en-US")
+        style_instructions = self.state.get("style_instructions", "")
+
+        progress.show_thought("Analyzing gathered content to determine optimal chapter structure")
+        progress.show_action("Using AI agent with tools to plan book chapters dynamically")
+
+        # Load prompts from YAML and format with placeholders
+        system_prompt_template = self.prompts['executor']['chapter_planning_system_prompt']
+        user_prompt_template = self.prompts['executor']['chapter_planning_user_prompt']
+
+        # Format style instructions section
+        style_instructions_section = ""
+        if style_instructions:
+            style_instructions_section = f"Style Instructions: {style_instructions}\nPlease ensure the chapter structure and organization reflects this style."
+
+        system_prompt = system_prompt_template.format(
+            language=language,
+            style_instructions_section=style_instructions_section
+        )
+        user_prompt = user_prompt_template.format(
+            file_summary=self._get_files_summary()
+        )
+
+        # Use agent with tools to allow dynamic content reading
+        response = self._invoke_agent(system_prompt, user_prompt, self.state)
+
+        # Parse chapter list (simplified)
+        chapter_list = self._parse_chapter_list(response)
+
+        return chapter_list
+
     # Create a helper function for parallel execution
     def generate_chapter_wrapper(self, chapter_info: Dict[str, Any]) -> Dict[str, Any]:
         """Wrapper function to generate a single chapter for parallel execution."""
-
-        language = self.state.get("language", "en-US")
-        style_instructions = self.state.get("style_instructions", "")
 
         chapter_num = chapter_info.get("number", 0)
         chapter_title = chapter_info.get("title", "Untitled")
@@ -170,8 +183,6 @@ class ExecutorAgent(AgentBase):
                 chapter_num,
                 chapter_title,
                 chapter_desc,
-                language,
-                style_instructions
             )
 
             word_count = len(content.split())
@@ -244,9 +255,7 @@ class ExecutorAgent(AgentBase):
             self,
             chapter_num: int,
             title: str,
-            description: str,
-            language: str,
-            style_instructions: str = ""
+            description: str
     ) -> str:
         """Generate content for a single chapter using agent with tools."""
 
@@ -257,35 +266,55 @@ class ExecutorAgent(AgentBase):
         content = file_utils.read_cache(cached_chapter_file) if self.settings.book.use_cached_chapters_content else None
 
         if not content:
-            # Load prompts from YAML and format with placeholders
-            system_prompt_template = self.prompts['executor']['chapter_generation_system_prompt']
-            user_prompt_template = self.prompts['executor']['chapter_generation_user_prompt']
+            content = self._generate_chapter_with_llm(chapter_num, title, description)
 
-            # Format style instructions section
-            style_instructions_section = ""
-            if style_instructions:
-                style_instructions_section = f"Style Instructions: {style_instructions}\nPlease write this chapter in accordance with these style guidelines."
-
-            system_prompt = system_prompt_template.format(
-                language=language,
-                chapter_number=chapter_num,
-                title=title,
-                description=description,
-                style_instructions_section=style_instructions_section
+            # Evaluate chapter content quality before caching
+            is_approved, reason = self._evaluate_chapter_content_quality(
+                chapter_num, title, description, content
             )
 
-            user_prompt = user_prompt_template.format(
-                chapter_number=chapter_num,
-                title=title,
-                description=description,
-                file_summary=self._get_files_summary()
-            )
+            if not is_approved:
+                logger.warning(f"Chapter content was not approved with reason={reason}, trying again another try")
+                progress.show_observation(f"⚠ Chapter content quality check failed. reason: {reason}")
+                content = self._generate_chapter_with_llm(chapter_num, title, description)
+            else:
+                progress.show_observation("✓ Chapter content approved")
 
-            # Use agent with tools to allow dynamic content reading
-            result = self._invoke_agent(system_prompt, user_prompt, self.state)
-            content = self._parse_chapter_content_response(result)
             file_utils.write_cache(cached_chapter_file, content)
 
+        return content
+
+    def _generate_chapter_with_llm(self, chapter_num: int, title: str, description: str) -> str:
+        language = self.state.get("language", "en-US")
+        style_instructions = self.state.get("style_instructions", "")
+
+        # Load prompts from YAML and format with placeholders
+        system_prompt_template = self.prompts['executor']['chapter_generation_system_prompt']
+        user_prompt_template = self.prompts['executor']['chapter_generation_user_prompt']
+
+        # Format style instructions section
+        style_instructions_section = ""
+        if style_instructions:
+            style_instructions_section = f"Style Instructions: {style_instructions}\nPlease write this chapter in accordance with these style guidelines."
+
+        system_prompt = system_prompt_template.format(
+            language=language,
+            chapter_number=chapter_num,
+            title=title,
+            description=description,
+            style_instructions_section=style_instructions_section
+        )
+
+        user_prompt = user_prompt_template.format(
+            chapter_number=chapter_num,
+            title=title,
+            description=description,
+            file_summary=self._get_files_summary()
+        )
+
+        # Use agent with tools to allow dynamic content reading
+        result = self._invoke_agent(system_prompt, user_prompt, self.state)
+        content = self._parse_chapter_content_response(result)
         return content
 
     def _parse_chapter_content_response(self, llm_response: str) -> str:
@@ -363,6 +392,137 @@ class ExecutorAgent(AgentBase):
         return {
             "final_output_path": output_path,
         }
+
+    def _evaluate_chapter_list_quality(self, chapter_list: List[Dict[str, Any]]) -> Tuple[bool, str]:
+        """Evaluate the quality of the chapter list before caching.
+        
+        Args:
+            chapter_list: List of chapter dictionaries
+
+        Returns:
+            True if the chapter list is approved, False otherwise and the detailed reason
+        """
+        logger.info("Evaluating chapter list quality")
+        progress.show_action("Evaluating chapter list quality")
+
+        try:
+            language = self.state.get("language", "en-US")
+            style_instructions = self.state.get("style_instructions", "")
+
+            # Load prompts from YAML
+            system_prompt_template = self.prompts['executor'].get('chapter_list_critic_system_prompt')
+            user_prompt_template = self.prompts['executor'].get('chapter_list_critic_user_prompt')
+
+            # Format style instructions section
+            style_instructions_section = ""
+            if style_instructions:
+                style_instructions_section = f"Style Instructions: {style_instructions}\nEvaluate whether the chapter structure aligns with these guidelines."
+
+            # Format chapter list for evaluation
+            chapter_summary = "\n".join([
+                f"Chapter {ch.get('number')}: {ch.get('title')} - {ch.get('description', 'No description')}"
+                for ch in chapter_list
+            ])
+
+            system_prompt = system_prompt_template.format(
+                language=language,
+                style_instructions_section=style_instructions_section
+            )
+
+            user_prompt = user_prompt_template.format(
+                chapter_count=len(chapter_list),
+                chapter_summary=chapter_summary
+            )
+
+            # Get evaluation from LLM
+            response = self._invoke_agent(system_prompt, user_prompt, self.state)
+
+            # Parse response for approval decision
+            response_lower = response.lower()
+
+            # Check for explicit approval or rejection
+            if "approve" in response_lower and "not approve" not in response_lower:
+                return True, response
+            elif "reject" in response_lower or "revise" in response_lower or "needs improvement" in response_lower:
+                progress.show_observation(f"⚠ Chapter list quality issue: {response[:200]}...")
+                return False, response
+
+            # Default to approve if decision is unclear
+            return True, response
+
+        except Exception as e:
+            logger.warning(f"Error evaluating chapter list quality: {str(e)}")
+            # On error, approve by default to not block workflow
+            return True, 'Unable to approve or reject'
+
+    def _evaluate_chapter_content_quality(
+            self,
+            chapter_num: int,
+            title: str,
+            description: str,
+            content: str,
+    ) -> Tuple[bool, str]:
+        """Evaluate the quality of chapter content before caching.
+        
+        Args:
+            chapter_num: Chapter number
+            title: Chapter title
+            description: Chapter description
+            content: Chapter content
+
+        Returns:
+            True if the chapter content is approved, False otherwise, and the detailed reason
+        """
+        try:
+            language = self.state.get("language", "en-US")
+            style_instructions = self.state.get("style_instructions", "")
+
+            # Load prompts from YAML
+            system_prompt_template = self.prompts['executor'].get('chapter_content_critic_system_prompt')
+            user_prompt_template = self.prompts['executor'].get('chapter_content_critic_user_prompt')
+
+            # Format style instructions section
+            style_instructions_section = ""
+            if style_instructions:
+                style_instructions_section = f"Style Instructions: {style_instructions}\nEvaluate whether the chapter content follows these guidelines."
+
+            # Create preview of content for evaluation (first 1000 characters)
+            content_preview = content[:1000] + ("..." if len(content) > 1000 else "")
+            word_count = len(content.split())
+
+            system_prompt = system_prompt_template.format(
+                language=language,
+                style_instructions_section=style_instructions_section
+            )
+
+            user_prompt = user_prompt_template.format(
+                chapter_number=chapter_num,
+                title=title,
+                description=description,
+                word_count=word_count,
+                content_preview=content_preview
+            )
+
+            # Get evaluation from LLM
+            response = self._invoke_agent(system_prompt, user_prompt, self.state)
+
+            # Parse response for approval decision
+            response_lower = response.lower()
+
+            # Check for explicit approval or rejection
+            if "approve" in response_lower and "not approve" not in response_lower:
+                return True, response
+            elif "reject" in response_lower or "revise" in response_lower or "needs improvement" in response_lower:
+                progress.show_observation(f"⚠ Chapter {chapter_num} quality issue: {response[:200]}...")
+                return False, response
+
+            # Default to approval if decision is unclear
+            return True, response
+
+        except Exception as e:
+            logger.warning(f"Error evaluating chapter {chapter_num} quality: {str(e)}")
+            # On error, approve by default to not block workflow
+            return True, 'Unable to approve or reject'
 
     def _parse_chapter_list(self, response_content: str) -> List[Dict[str, Any]]:
         """Parse chapter list from LLM response."""

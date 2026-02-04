@@ -61,7 +61,9 @@ class BookComposerWorkflow:
         # Build graph
         self.graph = self._build_graph()
 
-    def _record_execution(self, state: AgentState, node_name: str, status: str = "completed", step_index: int = None) -> Dict[str, Any]:
+    @staticmethod
+    def _record_execution(state: AgentState, node_name: str, status: str = "completed", step_index: int = None) -> \
+    Dict[str, Any]:
         """Record node execution in history.
         
         Args:
@@ -74,11 +76,11 @@ class BookComposerWorkflow:
             Dictionary with updated execution_history
         """
         execution_history = state.get("execution_history", [])
-        execution_record = {
+        execution_record: dict[str, Any] = {
             "node": node_name,
             "status": status
         }
-        
+
         # If step_index is provided, get task details from the plan
         if step_index is not None:
             plan = state.get("plan", [])
@@ -87,7 +89,7 @@ class BookComposerWorkflow:
                 execution_record["task_index"] = step_index
                 execution_record["task_type"] = task.get("task")
                 execution_record["task_description"] = task.get("description", "")
-        
+
         execution_history.append(execution_record)
         return {"execution_history": execution_history}
 
@@ -180,10 +182,10 @@ class BookComposerWorkflow:
         """Node for execution phase."""
         prev_node = "plan" if state.get("current_task_index", 0) == 0 else "execute"
         show_node_transition(prev_node, "execute", "Executing next task")
-        
+
         # Get the current task index before execution
         current_task_index = state.get("current_task_index", 0)
-        
+
         for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
             with attempt:
                 logger.info("Starting execution phase.")

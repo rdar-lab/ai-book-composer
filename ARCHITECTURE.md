@@ -84,12 +84,29 @@
 4. **Execution Phase**: Executor runs tasks sequentially:
    - Gathers content (reads text, transcribes audio/video)
    - Plans chapter structure
+   - **Evaluates chapter list quality (NEW)** - mini-critic step
    - Generates chapter content using LLM
+   - **Evaluates chapter content quality (NEW)** - mini-critic step per chapter
    - Compiles references
    - Generates final RTF book
-5. **Critique Phase**: Critic evaluates quality and provides feedback
+5. **Critique Phase**: Critic evaluates overall book quality and provides feedback
 6. **Iteration**: If quality is below threshold, return to execution
 7. **Finalization**: Once approved, output final book
+
+## Quality Control
+
+The system implements a two-tier quality control approach:
+
+1. **Executor Mini-Critics** (NEW): Evaluate individual outputs before caching
+   - Chapter list structure validation (logical flow, coverage, clarity)
+   - Chapter content validation (substance, length, relevance)
+   - Only caches outputs that pass quality checks
+   - Non-blocking: defaults to approval on errors
+
+2. **Final Critic**: Evaluates complete book quality
+   - Reviews all chapters holistically
+   - Provides detailed feedback for improvements
+   - Triggers iteration if quality is below threshold
 
 ## Key Features
 

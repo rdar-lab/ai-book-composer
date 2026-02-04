@@ -610,7 +610,7 @@ class TestAgentStateSummary:
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = Settings()
             agent = PlannerAgent(settings)
-            
+
             # Create a state with plan
             state = create_initial_state(
                 input_directory=tmpdir,
@@ -622,10 +622,10 @@ class TestAgentStateSummary:
                 {"task": "generate_book", "description": "Generate final book", "status": "pending"}
             ]
             state["current_task_index"] = 1
-            
+
             agent.state = state
             summary = agent._get_agent_state_summary()
-            
+
             # Verify the summary contains plan information
             assert "Plan Steps:" in summary
             assert "plan_chapters" in summary
@@ -639,7 +639,7 @@ class TestAgentStateSummary:
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = Settings()
             agent = CriticAgent(settings)
-            
+
             # Create a state with critic feedback
             state = create_initial_state(
                 input_directory=tmpdir,
@@ -648,10 +648,10 @@ class TestAgentStateSummary:
             state["critic_feedback"] = "The book needs improvement in chapter 2. Please revise for better clarity."
             state["quality_score"] = 0.65
             state["iterations"] = 1
-            
+
             agent.state = state
             summary = agent._get_agent_state_summary()
-            
+
             # Verify the summary contains critic feedback
             assert "Critic Feedback:" in summary
             assert "needs improvement" in summary
@@ -660,31 +660,30 @@ class TestAgentStateSummary:
 
     def test_get_agent_state_summary_empty_state(self):
         """Test state summary generation with empty state."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings = Settings()
-            agent = PlannerAgent(settings)
-            
-            # State is None
-            agent.state = None
-            summary = agent._get_agent_state_summary()
-            
-            assert summary == ""
+        settings = Settings()
+        agent = PlannerAgent(settings)
+
+        # State is None
+        agent.state = None
+        summary = agent._get_agent_state_summary()
+
+        assert summary == ""
 
     def test_get_agent_state_summary_minimal_state(self):
         """Test state summary generation with minimal state."""
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = Settings()
             agent = PlannerAgent(settings)
-            
+
             # Create a minimal state
             state = create_initial_state(
                 input_directory=tmpdir,
                 output_directory=tmpdir
             )
-            
+
             agent.state = state
             summary = agent._get_agent_state_summary()
-            
+
             # Should return empty string when there's nothing relevant to report
             assert summary == ""
 
@@ -693,7 +692,7 @@ class TestAgentStateSummary:
         with tempfile.TemporaryDirectory() as tmpdir:
             settings = Settings()
             agent = CriticAgent(settings)
-            
+
             # Test with 0.0 score
             state = create_initial_state(
                 input_directory=tmpdir,
@@ -703,13 +702,13 @@ class TestAgentStateSummary:
             agent.state = state
             summary = agent._get_agent_state_summary()
             assert "Quality Score: 0.00%" in summary
-            
+
             # Test with 1.0 score
             state["quality_score"] = 1.0
             agent.state = state
             summary = agent._get_agent_state_summary()
             assert "Quality Score: 100.00%" in summary
-            
+
             # Test with intermediate value
             state["quality_score"] = 0.7542
             agent.state = state

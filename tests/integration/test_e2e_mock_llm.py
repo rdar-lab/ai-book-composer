@@ -20,11 +20,13 @@ class FakeLLM:
     def __init__(self):
         self.tools_bound = False
 
+    # noinspection PyUnusedLocal
     def bind_tools(self, tools, **kwargs):
         # Returning self is enough; callers expect an object with invoke(...)
         self.tools_bound = True
         return self
 
+    # noinspection PyMethodMayBeStatic,PyBroadException
     def invoke(self, prompt_or_messages):
         print(f'FAKE LLM - Got prompt/messages: {prompt_or_messages}')
         # Normalize to string

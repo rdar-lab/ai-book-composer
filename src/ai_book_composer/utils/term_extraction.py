@@ -13,7 +13,7 @@ from typing import List, Set, Optional
 logger = logging.getLogger(__name__)
 
 # Cache for stop words to avoid repeated file reads
-_IGNORE_WORDS_CACHE:Optional[Set[str]] = None
+_IGNORE_WORDS_CACHE: Optional[Set[str]] = None
 _WORDS_EXTRACTION_REGEX = re.compile(r'\b[a-z][\w\-]*\b', re.IGNORECASE)
 
 
