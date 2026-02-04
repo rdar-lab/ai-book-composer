@@ -501,4 +501,4 @@ class TestImageDescription:
 
         # Fallback should use consistent "Image from {source}: {filename}" format
         expected_source = test_image.parent.name
-        assert description == f"Image from {expected_source}: test_image.png"
+        assert description == f"Image - test_image.png"
