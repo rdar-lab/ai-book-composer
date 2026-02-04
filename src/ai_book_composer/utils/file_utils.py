@@ -282,7 +282,7 @@ def write_cache(cache_path: Path, data: Any) -> None:
     try:
         with open(cache_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        logger.info(f"Cached transcription to {cache_path}")
+        logger.info(f"Cached written to {cache_path}")
     except Exception as e:
         logger.warning(f"Failed to write cache {cache_path}: {e}")
 
@@ -645,6 +645,35 @@ def list_images(settings: Settings, input_directory_str: str) -> List[Dict[str, 
         raise
 
 
+def resize_image(image_path, max_dimension=768):
+    """
+    Resizes image to max_dimension and returns base64 string.
+    768px is a sweet spot: high enough for detail, low enough for speed/context.
+    """
+    try:
+        with Image.open(image_path) as img:
+            # 1. Convert to RGB to handle PNGs with transparency or specialized modes
+            if img.mode in ('RGBA', 'P', 'LA'):
+                img = img.convert('RGB')
+
+            # 2. Get original dimensions
+            width, height = img.size
+
+            # 3. Calculate new size while preserving aspect ratio
+            # Only resize if the image is larger than the limit
+            if width > max_dimension or height > max_dimension:
+                img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+
+            # 4. Save to buffer (in memory, not on disk)
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG", quality=85)  # JPEG is efficient for LLMs
+
+            return buffered.getvalue()
+
+    except Exception as e:
+        raise Exception(f"Error resizing image: {e}")
+
+
 def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
                    language: str = "en-US", cache_results: bool = True) -> str:
     """Generate a description of an image using a vision-language model.
@@ -681,37 +710,12 @@ def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
 
     try:
         filename = image_path.name
-        source = image_path.parent.name
 
         # Get preprocessor prompts
         preprocessor_prompts = prompts.get('preprocessor', {})
         system_prompt_template = preprocessor_prompts.get('image_description_system_prompt', '')
-        user_prompt_template = preprocessor_prompts.get('image_description_user_prompt', '')
-
-        if not system_prompt_template or not user_prompt_template:
-            # Fallback if prompts not found - use consistent format
-            return f"Image from {source}: {filename}"
-
-        # Get image dimensions and format
-        try:
-            img = Image.open(image_path)
-            width, height = img.size
-            img_format = img.format or "unknown"
-            img.close()
-
-            metadata = f"Dimensions: {width}x{height}, Format: {img_format}"
-        except Exception as e:
-            logger.warning(f"Could not read image metadata: {e}")
-            metadata = "Metadata unavailable"
 
         system_prompt = system_prompt_template.format(language=language)
-        user_prompt = user_prompt_template.format(
-            filename=filename,
-            source=source
-        )
-
-        # Add metadata to user prompt
-        user_prompt += f"\n\nTechnical details: {metadata}"
 
         logger.info(f"Generating description for image: {filename}")
 
@@ -724,35 +728,25 @@ def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
                 provider=settings.vision_model.provider
             )
 
-            # Read and encode image as base64
-            with open(image_path, "rb") as image_file:
-                image_data = base64.b64encode(image_file.read()).decode("utf-8")
-
-            # Determine image mime type
-            image_ext = image_path.suffix.lower()
-            mime_type_map = {
-                '.jpg': 'image/jpeg',
-                '.jpeg': 'image/jpeg',
-                '.png': 'image/png',
-                '.gif': 'image/gif',
-                '.bmp': 'image/bmp',
-                '.webp': 'image/webp'
-            }
-            mime_type = mime_type_map.get(image_ext, 'image/jpeg')
+            image_data = resize_image(image_path)
+            b64_image_data = base64.b64encode(image_data).decode("utf-8")
 
             # Create message with image - separate system and user content
             message_content = [
-                {"type": "text", "text": f'{system_prompt}\n{user_prompt}'},
+                {
+                    "type": "text",
+                    "text": system_prompt
+                },
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:{mime_type};base64,{image_data}"
+                        "url": f"data:image/jpeg;base64,{b64_image_data}"
                     }
                 }
             ]
 
             message = HumanMessage(content=message_content)
-            logger.info(f"Calling LLM with message={message}")
+            logger.info(f"Calling LLM with message={str(message)[:100]}...")
             response = vision_llm.invoke([message])
             logger.info(f"Response from LLM: {response}")
             description = response.content
@@ -768,7 +762,7 @@ def describe_image(settings: Settings, image_path: str, prompts: Dict[str, Any],
 
         except Exception as e:
             logger.warning(f"Vision LLM description failed, using fallback: {e}")
-            description = f"Image from {source}: {filename}"
+            description = f"Image - {filename}"
 
         # Cache the description
         if cache_results:

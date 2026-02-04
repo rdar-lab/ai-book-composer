@@ -21,7 +21,7 @@ AI Book Composer is a tool that automatically generates high-quality books from 
 
 The system follows the Deep-Agent pattern with four phases:
 
-### Phase 1: The Pr- Processor
+### Phase 1: The Pre-Processor
 - File listing and reading
 - Read all text files
 - Extract images from PDF files
