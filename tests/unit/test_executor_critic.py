@@ -74,6 +74,7 @@ Chapter 3: Applications
         assert mock_write_cache.called
         assert mock_write_cache.call_count == 1
 
+    # noinspection PyUnusedLocal
     @patch('src.ai_book_composer.utils.file_utils.write_cache')
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
     @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
@@ -197,6 +198,7 @@ Chapter 4: Additional
         assert mock_write_cache.called
         assert mock_write_cache.call_count == 1
 
+    # noinspection PyUnusedLocal
     @patch('src.ai_book_composer.utils.file_utils.write_cache')
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
     @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
@@ -254,6 +256,7 @@ Chapter 4: Additional
         # Verify content was generated
         assert result == good_chapter_content
 
+    # noinspection PyUnusedLocal
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')
     @patch('src.ai_book_composer.agents.agent_base.AgentBase._invoke_agent')
     def test_critic_approves_by_default_on_error(

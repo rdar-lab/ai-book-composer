@@ -660,15 +660,14 @@ class TestAgentStateSummary:
 
     def test_get_agent_state_summary_empty_state(self):
         """Test state summary generation with empty state."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings = Settings()
-            agent = PlannerAgent(settings)
+        settings = Settings()
+        agent = PlannerAgent(settings)
 
-            # State is None
-            agent.state = None
-            summary = agent._get_agent_state_summary()
+        # State is None
+        agent.state = None
+        summary = agent._get_agent_state_summary()
 
-            assert summary == ""
+        assert summary == ""
 
     def test_get_agent_state_summary_minimal_state(self):
         """Test state summary generation with minimal state."""
