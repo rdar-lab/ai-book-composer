@@ -57,13 +57,13 @@ class AgentBase:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
     def _invoke_llm(self, system_prompt: str, user_prompt: str, include_agent_state: bool = True):
         llm = self._get_llm()
-        
+
         # Add agent state summary to system prompt if enabled
         if include_agent_state:
             state_summary = self._get_agent_state_summary()
             if state_summary:
                 system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}\n\n"
-        
+
         logger.info(
             f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
         progress_display.progress.show_action("Running LLM...")
@@ -103,7 +103,8 @@ class AgentBase:
 
     # noinspection PyUnusedLocal
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
-    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None, include_agent_state: bool = True) -> Any:
+    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None,
+                      include_agent_state: bool = True) -> Any:
         if not custom_tools:
             tools = self._generate_tools()
         else:
@@ -119,7 +120,7 @@ class AgentBase:
         )
 
         tool_names = [tool_obj.name for tool_obj in tools]
-        
+
         # Add agent state summary to system prompt if enabled
         if include_agent_state:
             state_summary = self._get_agent_state_summary()
@@ -373,9 +374,9 @@ class AgentBase:
         """
         if not self.state:
             return ""
-        
+
         summary_parts = []
-        
+
         # Add plan steps with their status
         plan = self.state.get("plan", [])
         if plan:
@@ -385,11 +386,11 @@ class AgentBase:
                 task_desc = task.get("description", "")
                 status = task.get("status", "pending")
                 current_task_index = self.state.get("current_task_index", 0)
-                
+
                 # Mark current task
                 marker = " <- CURRENT" if i - 1 == current_task_index else ""
                 summary_parts.append(f"  {i}. [{status.upper()}] {task_name}: {task_desc}{marker}")
-        
+
         # Add execution history (captures actual execution which may deviate from plan)
         execution_history = self.state.get("execution_history", [])
         if execution_history:
@@ -399,14 +400,14 @@ class AgentBase:
             for exec_record in recent_history:
                 node = exec_record.get("node", exec_record.get("task_type", "Unknown"))
                 exec_status = exec_record.get("status", "unknown")
-                
+
                 # If task details are available, show the task info
                 if exec_record.get("task_type"):
                     task_type = exec_record.get("task_type")
                     summary_parts.append(f"  - {node}: {task_type} - {exec_status}")
                 else:
                     summary_parts.append(f"  - {node}: {exec_status}")
-        
+
         # Add critic feedback if present
         critic_feedback = self.state.get("critic_feedback")
         if critic_feedback:
@@ -416,18 +417,18 @@ class AgentBase:
             else:
                 feedback_text = critic_feedback
             summary_parts.append(f"\nCritic Feedback: {feedback_text}")
-        
+
         # Add iteration count
         iterations = self.state.get("iterations", 0)
         if iterations > 0:
             summary_parts.append(f"\nIteration: {iterations}")
-        
+
         # Add quality score if available (score is in 0.0-1.0 range)
         quality_score = self.state.get("quality_score")
         if quality_score is not None:
             summary_parts.append(f"Quality Score: {quality_score:.2%}")
-        
+
         if not summary_parts:
             return ""
-        
+
         return "\n".join(summary_parts)

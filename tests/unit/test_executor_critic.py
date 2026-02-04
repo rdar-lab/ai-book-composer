@@ -1,6 +1,6 @@
 """Test executor critic step functionality."""
 
-from unittest.mock import Mock, patch, call
+from unittest.mock import patch
 
 import pytest
 
@@ -138,7 +138,6 @@ Chapter 4: Additional
         # Verify chapter list was created
         assert "chapter_list" in result
         assert len(result["chapter_list"]) == 4
-
 
     @patch('src.ai_book_composer.utils.file_utils.write_cache')
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')

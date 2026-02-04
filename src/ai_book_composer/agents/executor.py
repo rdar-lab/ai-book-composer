@@ -167,7 +167,6 @@ class ExecutorAgent(AgentBase):
 
         return chapter_list
 
-
     # Create a helper function for parallel execution
     def generate_chapter_wrapper(self, chapter_info: Dict[str, Any]) -> Dict[str, Any]:
         """Wrapper function to generate a single chapter for parallel execution."""

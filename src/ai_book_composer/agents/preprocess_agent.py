@@ -262,7 +262,6 @@ class PreprocessAgent(AgentBase):
             # Continue without key terms
             self.state["key_terms"] = []
 
-
     def _initialize_rag(self) -> None:
         """Initialize RAG vector database and ingest documents."""
         progress.show_thought("Initializing RAG vector database for efficient document retrieval")
