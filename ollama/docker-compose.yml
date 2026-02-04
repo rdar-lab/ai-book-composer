@@ -1,0 +1,14 @@
+services:
+  # Local LLM service using Ollama for testing
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama  # Persist Ollama model cache
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+
+volumes:
+  ollama-data:
