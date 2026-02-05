@@ -273,7 +273,7 @@ class TestAgentPromptsWithStyleInstructions:
         # Check for placeholder
         assert '{style_instructions_section}' in critic_prompt
         assert '{language}' in critic_prompt
-        assert 'Style Adherence' in critic_prompt  # New evaluation criteria
+        assert 'STYLE ADHERENCE' in critic_prompt  # New evaluation criteria
 
         # Test formatting with style instructions
         style_section = "Style Instructions: I want it to be light reading\nEvaluate whether the book adheres to this requested style."

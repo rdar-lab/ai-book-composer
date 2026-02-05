@@ -78,6 +78,7 @@ class BookConfig(BaseModel):
     use_cached_plan: bool = True  # Whether to cache the generated plan
     use_cached_chapters_list: bool = True  # Whether to cache the chapter list
     use_cached_chapters_content: bool = True  # Whether to cache individual chapter content
+    use_cached_decorations: bool = True  # Whether to cache decorated images
 
 
 class ParallelConfig(BaseModel):

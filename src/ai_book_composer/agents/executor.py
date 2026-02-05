@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Tuple
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool, BaseTool
+from tenacity import stop_after_attempt, retry
 
 from .agent_base import AgentBase
 from .state import AgentState
@@ -100,6 +101,7 @@ class ExecutorAgent(AgentBase):
 
         return plan_chapters
 
+    @retry(stop=stop_after_attempt(10))
     def _plan_chapters_inner(self) -> dict[str, list[dict[str, Any]] | int | str | Any]:
         cached_chapters_list_file = file_utils.get_cache_path(self.settings, "chapter_list.json")
         chapter_list = file_utils.read_cache(
@@ -110,18 +112,17 @@ class ExecutorAgent(AgentBase):
             # Evaluate chapter list quality before caching
             is_approved, reason = self._evaluate_chapter_list_quality(chapter_list)
 
-            if not is_approved:
+            if is_approved:
+                progress.show_observation("✓ Chapter list approved")
+                file_utils.write_cache(cached_chapters_list_file, chapter_list)
+            else:
                 logger.warning(f"Plan was not approved with reason {reason}, trying again another try")
                 progress.show_observation(f"⚠ Chapter list quality check failed - reason: {reason}")
-                chapter_list = self._plan_chapters_with_llm()
-            else:
-                progress.show_observation("✓ Chapter list approved")
+                raise Exception(f"Chapter list quality check failed - reason: {reason}")
 
-            progress.show_observation(f"Planned {len(chapter_list)} chapter(s) for the book")
-            for chapter in chapter_list:
-                progress.show_observation(f"  • Chapter {chapter.get('number')}: {chapter.get('title')}")
-
-            file_utils.write_cache(cached_chapters_list_file, chapter_list)
+        progress.show_observation(f"Planned {len(chapter_list)} chapter(s) for the book")
+        for chapter in chapter_list:
+            progress.show_observation(f"  • Chapter {chapter.get('number')}: {chapter.get('title')}")
 
         # Save chapter list
         self.state["chapter_list"] = chapter_list
@@ -163,6 +164,7 @@ class ExecutorAgent(AgentBase):
         return chapter_list
 
     # Create a helper function for parallel execution
+    @retry(stop=stop_after_attempt(10))
     def generate_chapter_wrapper(self, chapter_info: Dict[str, Any]) -> Dict[str, Any]:
         """Wrapper function to generate a single chapter for parallel execution."""
 
@@ -192,13 +194,7 @@ class ExecutorAgent(AgentBase):
         except Exception as e:
             logger.exception(f"Error generating Chapter {chapter_num}: {str(e)}")
             progress.show_observation(f"✗ Error generating Chapter {chapter_num}: {str(e)}")
-            return {
-                "number": chapter_num,
-                "title": chapter_title,
-                "content": "",
-                "status": "error",
-                "error": str(e)
-            }
+            raise
 
     def generate_chapters_tool(self):
         @tool
@@ -216,11 +212,11 @@ class ExecutorAgent(AgentBase):
         if not chapter_list:
             raise Exception("⚠ No chapters to generate")
 
-        progress.show_thought(f"Generating {len(chapter_list)} chapters in parallel")
-        progress.show_observation(f"Parallel execution enabled - generating chapters concurrently")
+        progress.show_thought(f"Generating {len(chapter_list)} chapters")
 
         # Generate all chapters in parallel
-        chapter_results = execute_parallel(self.settings, self.generate_chapter_wrapper, chapter_list)
+        chapter_results = execute_parallel(self.settings, self.generate_chapter_wrapper, chapter_list,
+                                           fail_on_error=True)
 
         # Sort results by chapter number to maintain order
         chapter_results.sort(key=lambda x: x.get("number", 0))
@@ -268,14 +264,13 @@ class ExecutorAgent(AgentBase):
                 chapter_num, title, description, content
             )
 
-            if not is_approved:
+            if is_approved:
+                progress.show_observation("✓ Chapter content approved")
+                file_utils.write_cache(cached_chapter_file, content)
+            else:
                 logger.warning(f"Chapter content was not approved with reason={reason}, trying again another try")
                 progress.show_observation(f"⚠ Chapter content quality check failed. reason: {reason}")
-                content = self._generate_chapter_with_llm(chapter_num, title, description)
-            else:
-                progress.show_observation("✓ Chapter content approved")
-
-            file_utils.write_cache(cached_chapter_file, content)
+                raise Exception(f"Chapter content quality check failed. reason: {reason}")
 
         return content
 

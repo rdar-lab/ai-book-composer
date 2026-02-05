@@ -1,12 +1,13 @@
 """Unit tests for parallel execution utilities."""
 import time
 
+import pytest
+
 from src.ai_book_composer.config import Settings
 from src.ai_book_composer.parallel_utils import (
     is_parallel_enabled,
     get_worker_count,
-    execute_parallel,
-    execute_parallel_with_context
+    execute_parallel
 )
 
 
@@ -92,7 +93,7 @@ class TestExecuteParallelSequential:
             return (item + offset) * multiplier
 
         items = [1, 2, 3]
-        results = execute_parallel(settings, add_values, items, 10, multiplier=2)
+        results = execute_parallel(settings, add_values, items, False, 10, multiplier=2)
 
         assert results == [22, 24, 26]
 
@@ -133,6 +134,21 @@ class TestExecuteParallelThreaded:
         assert results[2] == "processed_b"
         assert results[3] == "processed_c"
 
+    def test_execute_parallel_threaded_with_error_fail(self):
+        """Test parallel execution with errors."""
+        settings = Settings()
+        settings.parallel.parallel_execution = True
+        settings.parallel.parallel_workers = 3
+
+        def risky_operation(item):
+            if item == "error":
+                raise RuntimeError("Expected error")
+            return f"processed_{item}"
+
+        items = ["a", "error", "b", "c"]
+        with pytest.raises(RuntimeError, match="Expected error"):
+            results = execute_parallel(settings, risky_operation, items, fail_on_error=True)
+
     def test_execute_parallel_maintains_order(self):
         """Test that parallel execution maintains item order."""
         settings = Settings()
@@ -163,62 +179,6 @@ class TestExecuteParallelThreaded:
         results = execute_parallel(settings, process, items)
 
         assert results == [11, 21, 31]
-
-
-class TestExecuteParallelWithContext:
-    """Test parallel execution with shared context."""
-
-    def test_execute_with_context_sequential(self):
-        """Test context execution sequentially."""
-        settings = Settings()
-        settings.parallel.parallel_execution = False
-
-        context_param = {"multiplier": 5, "offset": 10}
-
-        def process_with_context(item, context):
-            return item * context["multiplier"] + context["offset"]
-
-        items = [1, 2, 3]
-        results = execute_parallel_with_context(
-            settings, process_with_context, items, context_param
-        )
-
-        assert results == [15, 20, 25]
-
-    def test_execute_with_context_parallel(self):
-        """Test context execution in parallel."""
-        settings = Settings()
-        settings.parallel.parallel_execution = True
-        settings.parallel.parallel_workers = 2
-
-        context_param = {"prefix": "result_", "suffix": "_end"}
-
-        def format_item(item, context):
-            return f"{context['prefix']}{item}{context['suffix']}"
-
-        items = ["a", "b", "c"]
-        results = execute_parallel_with_context(
-            settings, format_item, items, context_param
-        )
-
-        assert results == ["result_a_end", "result_b_end", "result_c_end"]
-
-    def test_execute_with_context_and_extra_args(self):
-        """Test context execution with additional arguments."""
-        settings = Settings()
-        settings.parallel.parallel_execution = False
-
-        context_param = {"base": 100}
-
-        def calculate(item, context, multiplier=1):
-            return context["base"] + (item * multiplier)
-
-        items = [1, 2, 3]
-        results = execute_parallel_with_context(
-            settings, calculate, items, context_param, multiplier=10
-        )
-
-        assert results == [110, 120, 130]
 
 
 class TestExecuteParallelEdgeCases:

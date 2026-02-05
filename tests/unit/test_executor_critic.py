@@ -247,10 +247,8 @@ Chapter 4: Additional
         }
 
         executor.state = state
-        result = executor._generate_chapter_content(1, "Introduction", "Introduction chapter")
-
-        # Verify content was generated
-        assert result == good_chapter_content
+        with pytest.raises(Exception, match="Chapter content quality check failed. reason: REJECT - The chapter content is too brief and lacks substance."):
+            result = executor._generate_chapter_content(1, "Introduction", "Introduction chapter")
 
     # noinspection PyUnusedLocal
     @patch('src.ai_book_composer.agents.agent_base.load_prompts')

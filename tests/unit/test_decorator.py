@@ -1,25 +1,23 @@
 """Unit tests for DecoratorAgent."""
 
 import json
+from pathlib import Path
+from typing import Optional
 from unittest.mock import patch
 
 import pytest
+from tenacity import RetryError
 
 from src.ai_book_composer.agents.decorator import DecoratorAgent
 from src.ai_book_composer.agents.state import create_initial_state
 from src.ai_book_composer.config import Settings
 
-
-class TestDecoratorAgentInitialization:
-    """Test DecoratorAgent initialization."""
-
-    def test_init_creates_agent(self):
-        """Test that DecoratorAgent can be initialized."""
+def _create_decorator_no_cache(settings: Optional[Settings] = None) -> DecoratorAgent:
+    if settings is None:
         settings = Settings()
-        agent = DecoratorAgent(settings)
-
-        assert agent.settings == settings
-        assert agent.llm_temperature == 0.3
+    settings.book.use_cached_decorations = False
+    agent = DecoratorAgent(settings)
+    return agent
 
 
 class TestDecoratorAgentFormatImages:
@@ -27,7 +25,7 @@ class TestDecoratorAgentFormatImages:
 
     def test_format_images_for_prompt_empty(self):
         """Test formatting empty image list."""
-        result = DecoratorAgent._format_images_for_prompt([])
+        result = _create_decorator_no_cache()._format_images_for_prompt([])
 
         assert result == "No images available."
 
@@ -42,11 +40,44 @@ class TestDecoratorAgentFormatImages:
             }
         ]
 
-        result = DecoratorAgent._format_images_for_prompt(images)
+        result = _create_decorator_no_cache()._format_images_for_prompt(images)
 
-        assert "1. photo.jpg" in result
-        assert "jpeg" in result
-        assert "documents/article.pdf" in result
+        assert "photo.jpg" in result
+        assert "A photo of a sunset" in result
+
+    def test_path_extraction(self):
+        """Test formatting single image."""
+        images = [
+            {
+                "path": "/folder/subfolder/photo.jpg",
+                "description": "A photo of a sunset"
+            }
+        ]
+
+        result = _create_decorator_no_cache()._format_images_for_prompt(images)
+
+        assert "folder" not in result
+        assert "subfolder" not in result
+        assert "photo.jpg" in result
+        assert "A photo of a sunset" in result
+
+    def test_relative_path_extraction(self):
+        """Test formatting single image."""
+        settings = Settings()
+        cache_folder = settings.general.cache_dir
+
+        images = [
+            {
+                "path": f"{Path(cache_folder) / 'subfolder' / 'photo.jpg'}",
+                "description": "A photo of a sunset"
+            }
+        ]
+
+        result = _create_decorator_no_cache()._format_images_for_prompt(images)
+
+        assert cache_folder not in result
+        assert "subfolder" in result
+        assert "photo.jpg" in result
         assert "A photo of a sunset" in result
 
     def test_format_images_for_prompt_multiple_images(self):
@@ -57,11 +88,11 @@ class TestDecoratorAgentFormatImages:
             {"filename": "image3.gif", "source_file": "input", "format": "gif", "description": "Third image"}
         ]
 
-        result = DecoratorAgent._format_images_for_prompt(images)
+        result = _create_decorator_no_cache()._format_images_for_prompt(images)
 
-        assert "1. image1.png" in result
-        assert "2. image2.jpg" in result
-        assert "3. image3.gif" in result
+        assert "image1.png" in result
+        assert "image2.jpg" in result
+        assert "image3.gif" in result
         assert "First image" in result
         assert "Second image" in result
         assert "Third image" in result
@@ -69,15 +100,14 @@ class TestDecoratorAgentFormatImages:
     def test_format_images_handles_missing_fields(self):
         """Test formatting when fields are missing."""
         images = [
-            {},  # Empty dict - no description
+            {"description": "Not-there"},  # no filename
             {"filename": "test.jpg", "description": "A test image"}  # Has description
         ]
 
-        result = DecoratorAgent._format_images_for_prompt(images)
+        result = _create_decorator_no_cache()._format_images_for_prompt(images)
 
-        assert "1. unknown" in result  # Default filename
-        assert "No description available" in result  # Missing description
-        assert "2. test.jpg" in result
+        assert "Not-there" not in result
+        assert "test.jpg" in result
         assert "A test image" in result
 
 
@@ -87,8 +117,7 @@ class TestDecoratorAgentDecorate:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_decorate_no_images(self, mock_invoke, tmp_path):
         """Test decoration when no images are available."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
 
         state = create_initial_state(
             input_directory=str(tmp_path),
@@ -107,8 +136,7 @@ class TestDecoratorAgentDecorate:
 
     def test_decorate_no_chapters_raises_error(self, tmp_path):
         """Test decoration raises error when no chapters."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
 
         state = create_initial_state(
             input_directory=str(tmp_path),
@@ -123,8 +151,7 @@ class TestDecoratorAgentDecorate:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_decorate_with_images(self, mock_invoke, tmp_path):
         """Test successful decoration with images."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
 
         # Mock LLM response
         mock_response = json.dumps({
@@ -160,8 +187,7 @@ class TestDecoratorAgentDecorate:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_decorate_multiple_chapters(self, mock_invoke, tmp_path):
         """Test decoration with multiple chapters."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
 
         # Mock LLM responses for each chapter
         mock_responses = [
@@ -195,8 +221,7 @@ class TestDecoratorAgentGetImagePlacements:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_get_image_placements_json_response(self, mock_invoke, tmp_path):
         """Test parsing JSON response from LLM."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
         agent.state = {}
 
         mock_response = json.dumps([
@@ -226,8 +251,7 @@ class TestDecoratorAgentGetImagePlacements:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_get_image_placements_json_with_code_block(self, mock_invoke, tmp_path):
         """Test parsing JSON inside code block."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
         agent.state = {}
 
         mock_response = """Here's the placement:
@@ -261,8 +285,7 @@ class TestDecoratorAgentGetImagePlacements:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_get_image_placements_validates_paths(self, mock_invoke, tmp_path):
         """Test that invalid image paths are filtered out."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
         agent.state = {}
 
         mock_response = json.dumps([
@@ -291,7 +314,7 @@ class TestDecoratorAgentGetImagePlacements:
         """Test that max images per chapter limit is enforced."""
         settings = Settings()
         settings.image_processing.max_images_per_chapter = 2
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache(settings)
         agent.state = {}
 
         mock_response = json.dumps([
@@ -322,8 +345,7 @@ class TestDecoratorAgentGetImagePlacements:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_get_image_placements_invalid_json_raises(self, mock_invoke, tmp_path):
         """Test that invalid JSON raises exception."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
         agent.state = {}
 
         mock_response = "This is not valid JSON at all"
@@ -331,7 +353,7 @@ class TestDecoratorAgentGetImagePlacements:
 
         all_images = [{"path": "/img.jpg", "filename": "img.jpg"}]
 
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(RetryError):
             agent._get_image_placements(
                 chapter_number=1,
                 chapter_title="Test",
@@ -344,8 +366,7 @@ class TestDecoratorAgentGetImagePlacements:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_get_image_placements_with_style_instructions(self, mock_invoke, tmp_path):
         """Test that style instructions are included in prompt."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
         agent.state = {}
 
         mock_response = json.dumps({"image_placements": []})
@@ -371,13 +392,12 @@ class TestDecoratorAgentGetImagePlacements:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_get_image_placements_error_propagates(self, mock_invoke, tmp_path):
         """Test that errors from LLM are propagated."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
         agent.state = {}
 
         mock_invoke.side_effect = Exception("LLM error")
 
-        with pytest.raises(Exception, match="LLM error"):
+        with pytest.raises(RetryError):
             agent._get_image_placements(
                 chapter_number=1,
                 chapter_title="Test",
@@ -394,8 +414,7 @@ class TestDecoratorAgentIntegration:
     @patch.object(DecoratorAgent, '_invoke_agent')
     def test_full_decoration_workflow(self, mock_invoke, tmp_path):
         """Test complete decoration workflow."""
-        settings = Settings()
-        agent = DecoratorAgent(settings)
+        agent = _create_decorator_no_cache()
 
         # Mock LLM responses
         mock_responses = [

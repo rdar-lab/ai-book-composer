@@ -2,8 +2,7 @@
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import partial
-from typing import Callable, List, Any, Dict
+from typing import Callable, List, Any
 
 from .config import Settings
 
@@ -34,6 +33,7 @@ def execute_parallel(
         settings: Settings,
         func: Callable,
         items: List[Any],
+        fail_on_error: bool = False,
         *args,
         **kwargs
 ) -> List[Any]:
@@ -43,6 +43,7 @@ def execute_parallel(
         settings: The application settings
         func: Function to execute. Should accept an item as first argument.
         items: List of items to process
+        fail_on_error: Optional flag to raise exception immediately on error instead of returning error in results
         *args: Additional positional arguments to pass to func
         **kwargs: Additional keyword arguments to pass to func
         
@@ -66,7 +67,10 @@ def execute_parallel(
                 results.append(result)
             except Exception as e:
                 logger.exception(f"Error processing item: {e}")
-                results.append({"error": str(e), "item": str(item)[:100]})  # Limit item string to 100 chars
+                if fail_on_error:
+                    raise
+                else:
+                    results.append({"error": str(e), "item": str(item)[:100]})  # Limit item string to 100 chars
         return results
 
     # Execute in parallel with ThreadPoolExecutor
@@ -88,34 +92,10 @@ def execute_parallel(
                 results[index] = result
             except Exception as e:
                 logger.exception(f"Error processing item at index {index}: {e}")
-                results[index] = {"error": str(e), "item": str(items[index])[:100]}  # Limit item string to 100 chars
+                if fail_on_error:
+                    raise
+                else:
+                    results[index] = {"error": str(e),
+                                      "item": str(items[index])[:100]}  # Limit item string to 100 chars
 
     return results
-
-
-def execute_parallel_with_context(
-        settings: Settings,
-        func: Callable,
-        items: List[Any],
-        context: Dict[str, Any],
-        *args,
-        **kwargs
-) -> List[Any]:
-    """Execute a function on items in parallel with a shared context.
-    
-    This is useful when you need to pass the same context to all function calls.
-    
-    Args:
-        settings: The application settings
-        func: Function to execute. Should accept (item, context, *args, **kwargs)
-        items: List of items to process
-        context: Shared context dictionary to pass to each function call
-        *args: Additional positional arguments to pass to func
-        **kwargs: Additional keyword arguments to pass to func
-        
-    Returns:
-        List of results in the same order as input items
-    """
-    # Create a partial function that includes the context
-    func_with_context = partial(func, context=context)
-    return execute_parallel(settings, func_with_context, items, *args, **kwargs)
