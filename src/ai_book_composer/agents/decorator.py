@@ -67,8 +67,7 @@ class DecoratorAgent(AgentBase):
 
             # Create decorated chapter with image placements
             decorated_chapter = {
-                "title": chapter_title,
-                "content": chapter_content,
+                **chapter,
                 "images": placements
             }
             decorated_chapters.append(decorated_chapter)

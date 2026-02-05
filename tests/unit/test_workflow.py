@@ -289,7 +289,7 @@ class TestWorkflowConditionalLogic:
 
         result = workflow._should_revise(state)
 
-        assert result == "finalize"
+        assert result == "write"
 
     # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)
@@ -308,7 +308,7 @@ class TestWorkflowConditionalLogic:
 
         result = workflow._should_revise(state)
 
-        assert result == "finalize"
+        assert result == "write"
 
     # noinspection PyArgumentList
     @patch.object(BookComposerWorkflow, '__init__', lambda x, **kwargs: None)

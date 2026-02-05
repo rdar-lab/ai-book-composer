@@ -43,8 +43,7 @@ Chapter 3: Applications
 
         # Create executor
         executor = ExecutorAgent(
-            settings,
-            output_directory="/tmp/test_output"
+            settings
         )
 
         # Create initial state with existing plan
@@ -107,8 +106,7 @@ Chapter 3: Applications
 
         # Create executor
         executor = ExecutorAgent(
-            Settings(),
-            output_directory="/tmp/test_output"
+            Settings()
         )
 
         # Create state

@@ -8,7 +8,7 @@ from ..config import Settings
 from ..progress_display import progress
 
 # Constants
-CHAPTER_PREVIEW_LENGTH = 200
+CHAPTER_PREVIEW_LENGTH = 1000
 
 
 class CriticAgent(AgentBase):
@@ -119,11 +119,16 @@ class CriticAgent(AgentBase):
             title = chapter.get("title", "Untitled")
             content = chapter.get("content", "")
             word_count = len(content.split())
-            preview = content[:CHAPTER_PREVIEW_LENGTH] if content else "No content"
+            if not content:
+                content_str = "No content"
+            elif len(content) > CHAPTER_PREVIEW_LENGTH:
+                content_str = f'Preview: {content[:CHAPTER_PREVIEW_LENGTH]}...'
+            else:
+                content_str = f'Content: {content}'
 
             summaries.append(
                 f"Chapter {num}: {title} ({word_count} words)\n"
-                f"Preview: {preview}..."
+                f"{content_str}"
             )
 
         return "\n\n".join(summaries)

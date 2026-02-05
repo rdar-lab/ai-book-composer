@@ -276,8 +276,7 @@ class TestExecutorAgent:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             executor = ExecutorAgent(
-                Settings(),
-                output_directory=tmpdir
+                Settings()
             )
             # Patch prompts to ensure LLM agent prompt is used
             executor.prompts['executor']['llm_agent_system_prompt'] = 'SYSTEM PROMPT'
@@ -306,300 +305,296 @@ class TestExecutorAgent:
 
     def test_chapters_planning_response_parsing(self):
         """Test parsing of chapter planning response."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings = Settings()
-            executor = ExecutorAgent(settings, output_directory=tmpdir)
+        settings = Settings()
+        executor = ExecutorAgent(settings)
 
-            thought, action = executor._extract_thought_and_action(TEST_RESPONSE_FOR_CHAPTERS)
-            assert thought == ''
-            chapters = executor._parse_chapter_list(action)
-            expected_chapters = \
-                [
-                    {
-                        'description': '- Overview of AI concepts and applications\n'
-                                       '- Historical development and current trends in AI\n',
-                        'number': 1,
-                        'title': '**Introduction to Artificial Intelligence**'
-                    },
-                    {
-                        'description': '- Core principles and algorithms\n'
-                                       '- Supervised, unsupervised, and reinforcement learning\n'
-                                       '- Evaluation metrics and model optimization\n',
-                        'number': 2,
-                        'title': '**Machine Learning Fundamentals**'
-                    },
-                    {
-                        'description': '- Neural networks and their architectures\n'
-                                       '- Convolutional and recurrent neural networks\n'
-                                       '- Deep learning applications in various domains\n',
-                        'number': 3,
-                        'title': '**Deep Learning Techniques**'
-                    },
-                    {
-                        'description': '- Understanding human cognition for AI design\n'
-                                       '- Psychological biases and their implications\n'
-                                       '- Enhancing AI systems with human-like reasoning\n',
-                        'number': 4,
-                        'title': '**The Illusion of Thinking: Cognitive Biases in AI Development**'
-                    },
-                    {
-                        'description': '- Data privacy and security\n'
-                                       '- Algorithmic bias and fairness\n'
-                                       '- Responsible deployment of AI technologies\n',
-                        'number': 5,
-                        'title': '**Ethical Considerations in Machine Learning**'
-                    },
-                    {
-                        'description': '- Healthcare: Diagnostics, personalized medicine\n'
-                                       '- Finance: Fraud detection, algorithmic trading\n'
-                                       '- Retail: Personalized customer experiences\n'
-                                       '- Beyond traditional industries: Future applications\n',
-                        'number': 6,
-                        'title': '**Applications of AI Across Industries**'
-                    },
-                    {
-                        'description': '- Recap of key concepts and advancements\n'
-                                       "- Challenges and opportunities in AI's evolution\n"
-                                       '- Final thoughts on the impact of AI on society',
-                        'number': 7,
-                        'title': '**Conclusion: The Future of Artificial Intelligence**'
-                    }
-                ]
+        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_FOR_CHAPTERS)
+        assert thought == ''
+        chapters = executor._parse_chapter_list(action)
+        expected_chapters = \
+            [
+                {
+                    'description': '- Overview of AI concepts and applications\n'
+                                   '- Historical development and current trends in AI\n',
+                    'number': 1,
+                    'title': '**Introduction to Artificial Intelligence**'
+                },
+                {
+                    'description': '- Core principles and algorithms\n'
+                                   '- Supervised, unsupervised, and reinforcement learning\n'
+                                   '- Evaluation metrics and model optimization\n',
+                    'number': 2,
+                    'title': '**Machine Learning Fundamentals**'
+                },
+                {
+                    'description': '- Neural networks and their architectures\n'
+                                   '- Convolutional and recurrent neural networks\n'
+                                   '- Deep learning applications in various domains\n',
+                    'number': 3,
+                    'title': '**Deep Learning Techniques**'
+                },
+                {
+                    'description': '- Understanding human cognition for AI design\n'
+                                   '- Psychological biases and their implications\n'
+                                   '- Enhancing AI systems with human-like reasoning\n',
+                    'number': 4,
+                    'title': '**The Illusion of Thinking: Cognitive Biases in AI Development**'
+                },
+                {
+                    'description': '- Data privacy and security\n'
+                                   '- Algorithmic bias and fairness\n'
+                                   '- Responsible deployment of AI technologies\n',
+                    'number': 5,
+                    'title': '**Ethical Considerations in Machine Learning**'
+                },
+                {
+                    'description': '- Healthcare: Diagnostics, personalized medicine\n'
+                                   '- Finance: Fraud detection, algorithmic trading\n'
+                                   '- Retail: Personalized customer experiences\n'
+                                   '- Beyond traditional industries: Future applications\n',
+                    'number': 6,
+                    'title': '**Applications of AI Across Industries**'
+                },
+                {
+                    'description': '- Recap of key concepts and advancements\n'
+                                   "- Challenges and opportunities in AI's evolution\n"
+                                   '- Final thoughts on the impact of AI on society',
+                    'number': 7,
+                    'title': '**Conclusion: The Future of Artificial Intelligence**'
+                }
+            ]
 
-            assert isinstance(chapters, list)
-            assert chapters == expected_chapters
+        assert isinstance(chapters, list)
+        assert chapters == expected_chapters
 
     def test_chapters_planning_response_parsing_kind_of_json(self):
         """Test parsing of chapter planning response."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings = Settings()
-            executor = ExecutorAgent(settings, output_directory=tmpdir)
+        settings = Settings()
+        executor = ExecutorAgent(settings)
 
-            thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTERS_WITH_KIND_OF_JSON)
+        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTERS_WITH_KIND_OF_JSON)
 
-            expected_thought = ('Okay, so I need to create a chapter structure based on the given files. Let '
-                                'me start by understanding what each file contains.\n'
-                                '\n'
-                                'First, 2307.06435v10.pdf is in text format with around 276,989 characters. '
-                                'The other files are articles: article1_ai_intro.txt (2,144 chars), '
-                                'article2_ml_fundamentals.txt (2,704 chars), and article3_deep_learning.txt '
-                                '(3,799 chars). All of them seem to be related to AI, ML, and deep learning.\n'
-                                '\n'
-                                'I should start with an introduction that gives an overview. Then, maybe a '
-                                "section on the basics since there's a general AI intro and specific ML and "
-                                'deep learning articles. After that, diving deeper into each technology makes '
-                                'sense—AI, ML, then deep learning as a subset of ML. Including practical '
-                                'applications would help tie everything together.\n'
-                                '\n'
-                                'I should make sure not to repeat topics but cover each area in order from '
-                                'basic concepts to more advanced ones like deep learning. Adding appendices '
-                                'for mathematical foundations and code examples could be useful for readers '
-                                'wanting more technical details. Finally, a conclusion to wrap up the chapter '
-                                'structure.')
+        expected_thought = ('Okay, so I need to create a chapter structure based on the given files. Let '
+                            'me start by understanding what each file contains.\n'
+                            '\n'
+                            'First, 2307.06435v10.pdf is in text format with around 276,989 characters. '
+                            'The other files are articles: article1_ai_intro.txt (2,144 chars), '
+                            'article2_ml_fundamentals.txt (2,704 chars), and article3_deep_learning.txt '
+                            '(3,799 chars). All of them seem to be related to AI, ML, and deep learning.\n'
+                            '\n'
+                            'I should start with an introduction that gives an overview. Then, maybe a '
+                            "section on the basics since there's a general AI intro and specific ML and "
+                            'deep learning articles. After that, diving deeper into each technology makes '
+                            'sense—AI, ML, then deep learning as a subset of ML. Including practical '
+                            'applications would help tie everything together.\n'
+                            '\n'
+                            'I should make sure not to repeat topics but cover each area in order from '
+                            'basic concepts to more advanced ones like deep learning. Adding appendices '
+                            'for mathematical foundations and code examples could be useful for readers '
+                            'wanting more technical details. Finally, a conclusion to wrap up the chapter '
+                            'structure.')
 
-            assert thought == expected_thought
+        assert thought == expected_thought
 
-            chapters = executor._parse_chapter_list(action)
-            expected_chapters = \
-                [{'description': 'An overview of artificial intelligence, its importance, and '
-                                 'its applications.',
-                  'number': 1,
-                  'title': 'Introduction'},
-                 {'description': 'Exploring fundamental concepts and principles of AI.',
-                  'number': 2,
-                  'title': 'Basics of Artificial Intelligence'},
-                 {'description': 'Understanding the core concepts and techniques in machine '
-                                 'learning.',
-                  'number': 3,
-                  'title': 'Machine Learning Fundamentals'},
-                 {'description': 'An introduction to deep learning and its relationship with '
-                                 'machine learning.',
-                  'number': 4,
-                  'title': 'Deep Learning Introduction'},
-                 {'description': 'Examining real-world applications and case studies of AI and '
-                                 'ML technologies.',
-                  'number': 5,
-                  'title': 'Applications of AI and Machine Learning'},
-                 {'description': 'Diving into the mathematical underpinnings necessary for '
-                                 'understanding AI algorithms.',
-                  'number': 6,
-                  'title': 'Mathematical Foundations'},
-                 {'description': 'Providing practical code examples to illustrate key concepts '
-                                 'and techniques.',
-                  'number': 7,
-                  'title': 'Code Examples'},
-                 {'description': 'Summarizing the key points covered in the chapter and '
-                                 'looking ahead at further topics.',
-                  'number': 8,
-                  'title': 'Conclusion'}]
+        chapters = executor._parse_chapter_list(action)
+        expected_chapters = \
+            [{'description': 'An overview of artificial intelligence, its importance, and '
+                             'its applications.',
+              'number': 1,
+              'title': 'Introduction'},
+             {'description': 'Exploring fundamental concepts and principles of AI.',
+              'number': 2,
+              'title': 'Basics of Artificial Intelligence'},
+             {'description': 'Understanding the core concepts and techniques in machine '
+                             'learning.',
+              'number': 3,
+              'title': 'Machine Learning Fundamentals'},
+             {'description': 'An introduction to deep learning and its relationship with '
+                             'machine learning.',
+              'number': 4,
+              'title': 'Deep Learning Introduction'},
+             {'description': 'Examining real-world applications and case studies of AI and '
+                             'ML technologies.',
+              'number': 5,
+              'title': 'Applications of AI and Machine Learning'},
+             {'description': 'Diving into the mathematical underpinnings necessary for '
+                             'understanding AI algorithms.',
+              'number': 6,
+              'title': 'Mathematical Foundations'},
+             {'description': 'Providing practical code examples to illustrate key concepts '
+                             'and techniques.',
+              'number': 7,
+              'title': 'Code Examples'},
+             {'description': 'Summarizing the key points covered in the chapter and '
+                             'looking ahead at further topics.',
+              'number': 8,
+              'title': 'Conclusion'}]
 
-            assert isinstance(chapters, list)
-            assert chapters == expected_chapters
+        assert isinstance(chapters, list)
+        assert chapters == expected_chapters
 
     def test_chapter_content_1(self):
         """Test parsing of chapter planning response."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings = Settings()
-            executor = ExecutorAgent(settings, output_directory=tmpdir)
+        settings = Settings()
+        executor = ExecutorAgent(settings)
 
-            thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_1)
+        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_1)
 
-            expected_thought = ('Alright, I need to write Chapter 1: Introduction for a book based on the '
-                                "provided files. Let me start by analyzing each file's content.\n"
-                                '\n'
-                                'First, **2307.06435v10.pdf** is quite large (276989 chars). It seems '
-                                'technical with a lot of equations and discussions about mathematical '
-                                'concepts. Maybe it covers foundational math needed for the book.\n'
-                                '\n'
-                                'Next, **the-illusion-of-thinking.pdf** is 81670 chars. The title suggests '
-                                "it's about cognitive biases. This could be useful for explaining common "
-                                'mistakes in reasoning or decision-making processes.\n'
-                                '\n'
-                                'Then, there are three files with "7.pdf": one is 92506 chars and the others '
-                                'are 3799 chars each. These might be case studies or examples related to '
-                                'specific theories or models discussed in the book.\n'
-                                '\n'
-                                '**article1_ai_intro.txt (2144 chars)** introduces AI basics, covering '
-                                'definitions, history, types of AI, applications, and ethical considerations. '
-                                'This is a solid foundation for Chapter 1.\n'
-                                '\n'
-                                '**article2_ml_fundamentals.txt (2704 chars)** focuses on machine learning '
-                                'within the broader context of AI. It likely explains key concepts like '
-                                'supervised vs unsupervised learning, algorithms, and model evaluation.\n'
-                                '\n'
-                                'Lastly, **article3_deep_learning.txt (3799 chars)** dives into deep '
-                                'learning, a subset of machine learning involving neural networks. It '
-                                'probably covers layers, activation functions, backpropagation, and '
-                                'applications.\n'
-                                '\n'
-                                'Putting this together, Chapter 1 should introduce the reader to AI and '
-                                'machine learning basics before diving deeper in subsequent chapters. The '
-                                'introduction should set up the context by mentioning how the book will build '
-                                'from foundational concepts into more complex areas like deep learning.')
+        expected_thought = ('Alright, I need to write Chapter 1: Introduction for a book based on the '
+                            "provided files. Let me start by analyzing each file's content.\n"
+                            '\n'
+                            'First, **2307.06435v10.pdf** is quite large (276989 chars). It seems '
+                            'technical with a lot of equations and discussions about mathematical '
+                            'concepts. Maybe it covers foundational math needed for the book.\n'
+                            '\n'
+                            'Next, **the-illusion-of-thinking.pdf** is 81670 chars. The title suggests '
+                            "it's about cognitive biases. This could be useful for explaining common "
+                            'mistakes in reasoning or decision-making processes.\n'
+                            '\n'
+                            'Then, there are three files with "7.pdf": one is 92506 chars and the others '
+                            'are 3799 chars each. These might be case studies or examples related to '
+                            'specific theories or models discussed in the book.\n'
+                            '\n'
+                            '**article1_ai_intro.txt (2144 chars)** introduces AI basics, covering '
+                            'definitions, history, types of AI, applications, and ethical considerations. '
+                            'This is a solid foundation for Chapter 1.\n'
+                            '\n'
+                            '**article2_ml_fundamentals.txt (2704 chars)** focuses on machine learning '
+                            'within the broader context of AI. It likely explains key concepts like '
+                            'supervised vs unsupervised learning, algorithms, and model evaluation.\n'
+                            '\n'
+                            'Lastly, **article3_deep_learning.txt (3799 chars)** dives into deep '
+                            'learning, a subset of machine learning involving neural networks. It '
+                            'probably covers layers, activation functions, backpropagation, and '
+                            'applications.\n'
+                            '\n'
+                            'Putting this together, Chapter 1 should introduce the reader to AI and '
+                            'machine learning basics before diving deeper in subsequent chapters. The '
+                            'introduction should set up the context by mentioning how the book will build '
+                            'from foundational concepts into more complex areas like deep learning.')
 
-            assert thought == expected_thought
+        assert thought == expected_thought
 
-            chapter_content = executor._parse_chapter_content_response(action)
-            expected_chapter_content = ('AI and machine learning are rapidly transforming the way we live, work, and '
-                                        'think. This chapter provides an overview of the fundamental concepts, tools, '
-                                        'and applications that form the basis of AI and machine learning. By '
-                                        "understanding these basics, you'll be well-prepared to explore more advanced "
-                                        'topics in later chapters.')
+        chapter_content = executor._parse_chapter_content_response(action)
+        expected_chapter_content = ('AI and machine learning are rapidly transforming the way we live, work, and '
+                                    'think. This chapter provides an overview of the fundamental concepts, tools, '
+                                    'and applications that form the basis of AI and machine learning. By '
+                                    "understanding these basics, you'll be well-prepared to explore more advanced "
+                                    'topics in later chapters.')
 
-            assert chapter_content == expected_chapter_content
+        assert chapter_content == expected_chapter_content
 
     def test_chapter_content_2(self):
         """Test parsing of chapter planning response."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings = Settings()
-            executor = ExecutorAgent(settings, output_directory=tmpdir)
+        settings = Settings()
+        executor = ExecutorAgent(settings)
 
-            thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_2)
+        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_2)
 
-            expected_thought = ("Alright, I'm trying to figure out how to write Chapter 2: Basics of "
-                                'Artificial Intelligence based on the files provided. Let me start by '
-                                'reviewing the available files and their content.\n'
-                                '\n'
-                                'First, there\'s "2307.06435v10.pdf" which seems to be a scientific paper '
-                                'with a lot of text—276,989 characters. It might contain advanced or '
-                                'technical details about AI that could be useful for a deeper understanding.\n'
-                                '\n'
-                                'Next, "the-illusion-of-thinking.pdf" has 81,670 characters and is titled '
-                                '"The Illusion of Thinking." This sounds intriguing—it might discuss human '
-                                'thought processes versus AI, which could provide a contrasting perspective '
-                                'to the chapter.\n'
-                                '\n'
-                                'Then, there\'s "7.pdf" with 92,506 characters. The title isn\'t provided, '
-                                'but given the numbering, it could be part of a series and possibly delve '
-                                'into specific aspects of AI in more detail.\n'
-                                '\n'
-                                'Additionally, two text files are available: "article1_ai_intro.txt" (2,144 '
-                                'chars) and "article2_ml_fundamentals.txt" (2704 chars), along with '
-                                '"article3_deep_learning.txt" (3,799 chars). These seem to be introductory '
-                                'materials on AI and machine learning fundamentals. The first one might be a '
-                                'broad introduction, while the others could cover specific areas like ML and '
-                                'deep learning.\n'
-                                '\n'
-                                'Starting with these files, I can outline the chapter by first introducing AI '
-                                'as a field, then moving into its subfields such as machine learning and deep '
-                                'learning. Using "2307.06435v10.pdf" for technical details, '
-                                '"the-illusion-of-thinking.pdf" to discuss human cognition, and the other '
-                                'articles to elaborate on specific concepts.\n'
-                                '\n'
-                                'I need to ensure that I cover fundamental concepts without diving too deep '
-                                'into advanced topics since this is an introductory chapter. The goal is to '
-                                'provide a comprehensive overview of AI basics, so integrating information '
-                                'from all these sources will give a well-rounded perspective.\n'
-                                '\n'
-                                "Now, I'll begin drafting the chapter using this plan.")
+        expected_thought = ("Alright, I'm trying to figure out how to write Chapter 2: Basics of "
+                            'Artificial Intelligence based on the files provided. Let me start by '
+                            'reviewing the available files and their content.\n'
+                            '\n'
+                            'First, there\'s "2307.06435v10.pdf" which seems to be a scientific paper '
+                            'with a lot of text—276,989 characters. It might contain advanced or '
+                            'technical details about AI that could be useful for a deeper understanding.\n'
+                            '\n'
+                            'Next, "the-illusion-of-thinking.pdf" has 81,670 characters and is titled '
+                            '"The Illusion of Thinking." This sounds intriguing—it might discuss human '
+                            'thought processes versus AI, which could provide a contrasting perspective '
+                            'to the chapter.\n'
+                            '\n'
+                            'Then, there\'s "7.pdf" with 92,506 characters. The title isn\'t provided, '
+                            'but given the numbering, it could be part of a series and possibly delve '
+                            'into specific aspects of AI in more detail.\n'
+                            '\n'
+                            'Additionally, two text files are available: "article1_ai_intro.txt" (2,144 '
+                            'chars) and "article2_ml_fundamentals.txt" (2704 chars), along with '
+                            '"article3_deep_learning.txt" (3,799 chars). These seem to be introductory '
+                            'materials on AI and machine learning fundamentals. The first one might be a '
+                            'broad introduction, while the others could cover specific areas like ML and '
+                            'deep learning.\n'
+                            '\n'
+                            'Starting with these files, I can outline the chapter by first introducing AI '
+                            'as a field, then moving into its subfields such as machine learning and deep '
+                            'learning. Using "2307.06435v10.pdf" for technical details, '
+                            '"the-illusion-of-thinking.pdf" to discuss human cognition, and the other '
+                            'articles to elaborate on specific concepts.\n'
+                            '\n'
+                            'I need to ensure that I cover fundamental concepts without diving too deep '
+                            'into advanced topics since this is an introductory chapter. The goal is to '
+                            'provide a comprehensive overview of AI basics, so integrating information '
+                            'from all these sources will give a well-rounded perspective.\n'
+                            '\n'
+                            "Now, I'll begin drafting the chapter using this plan.")
 
-            assert thought == expected_thought
+        assert thought == expected_thought
 
-            chapter_content = executor._parse_chapter_content_response(action)
-            expected_chapter_content = ('# Chapter 2: Basics of Artificial Intelligence\n'
-                                        '\n'
-                                        '## Introduction\n'
-                                        'Artificial Intelligence (AI) has become an integral part of modern '
-                                        'technology and society. From smartphones to self-driving cars, AI systems '
-                                        'are transforming how we live, work, and interact with the world around us. '
-                                        'This chapter provides an overview of AI basics, exploring its history, key '
-                                        'concepts, and applications.\n'
-                                        '\n'
-                                        '### The Evolution of AI\n'
-                                        'The concept of artificial intelligence dates back to ancient times, with '
-                                        'early ideas about mechanical toys and human-like machines. However, modern '
-                                        'AI as we know it today began to take shape in the mid-20th century with the '
-                                        'development of computers that could process information faster than ever '
-                                        'before (see "2307.06435v10.pdf" for more details).\n'
-                                        '\n'
-                                        '### Core Concepts in AI\n'
-                                        'AI is broadly defined as the simulation of human intelligence in machines '
-                                        'that are able to perform tasks that typically require human intelligence. '
-                                        'These tasks include learning, reasoning, problem-solving, perception, and '
-                                        'decision-making.\n'
-                                        '\n'
-                                        '#### Machine Learning (ML)\n'
-                                        'Machine learning is a subset of AI that involves training algorithms to '
-                                        'learn patterns from data without explicit programming. This process enables '
-                                        'models to make predictions or decisions based on new data. Key concepts in '
-                                        'ML include supervised learning, unsupervised learning, and reinforcement '
-                                        'learning.\n'
-                                        '\n'
-                                        '#### Deep Learning\n'
-                                        'Deep learning is a further specialization of machine learning that uses '
-                                        'neural networks with many layers (hence "deep"). These networks can '
-                                        'automatically learn features from raw data, making them particularly '
-                                        'effective for complex tasks such as image recognition and natural language '
-                                        'processing. ("Deep Learning" by Ian Goodfellow et al. provides an excellent '
-                                        'introduction to this field.)\n'
-                                        '\n'
-                                        '#### Applications of AI\n'
-                                        'AI has a wide range of applications across various industries:\n'
-                                        '- **Healthcare**: Diagnosing diseases, predicting patient outcomes, and '
-                                        'personalizing treatment plans.\n'
-                                        '- **Finance**: Automating trading, risk assessment, and fraud detection.\n'
-                                        '- **Transportation**: Developing autonomous vehicles and optimizing '
-                                        'logistics.\n'
-                                        '- **Entertainment**: Recommending content on platforms like Netflix and '
-                                        'Spotify.\n'
-                                        '- **Agriculture**: Monitoring crop conditions and optimizing farming '
-                                        'practices.\n'
-                                        '\n'
-                                        '### Current Challenges and Future Directions\n'
-                                        'Despite its progress, AI still faces significant challenges. Issues such as '
-                                        'bias in algorithms, ethical considerations, and the need for more powerful '
-                                        'computing resources are actively being addressed by researchers and industry '
-                                        'leaders.\n'
-                                        '\n'
-                                        'In conclusion, this chapter has provided an overview of the basics of AI, '
-                                        'touching on its history, key concepts, and applications. As we delve deeper '
-                                        'into this fascinating field, understanding these fundamentals will serve as '
-                                        'a solid foundation for exploring more complex topics in subsequent '
-                                        'chapters.\n'
-                                        '\n'
-                                        '[The complete chapter text continues here.]')
+        chapter_content = executor._parse_chapter_content_response(action)
+        expected_chapter_content = ('# Chapter 2: Basics of Artificial Intelligence\n'
+                                    '\n'
+                                    '## Introduction\n'
+                                    'Artificial Intelligence (AI) has become an integral part of modern '
+                                    'technology and society. From smartphones to self-driving cars, AI systems '
+                                    'are transforming how we live, work, and interact with the world around us. '
+                                    'This chapter provides an overview of AI basics, exploring its history, key '
+                                    'concepts, and applications.\n'
+                                    '\n'
+                                    '### The Evolution of AI\n'
+                                    'The concept of artificial intelligence dates back to ancient times, with '
+                                    'early ideas about mechanical toys and human-like machines. However, modern '
+                                    'AI as we know it today began to take shape in the mid-20th century with the '
+                                    'development of computers that could process information faster than ever '
+                                    'before (see "2307.06435v10.pdf" for more details).\n'
+                                    '\n'
+                                    '### Core Concepts in AI\n'
+                                    'AI is broadly defined as the simulation of human intelligence in machines '
+                                    'that are able to perform tasks that typically require human intelligence. '
+                                    'These tasks include learning, reasoning, problem-solving, perception, and '
+                                    'decision-making.\n'
+                                    '\n'
+                                    '#### Machine Learning (ML)\n'
+                                    'Machine learning is a subset of AI that involves training algorithms to '
+                                    'learn patterns from data without explicit programming. This process enables '
+                                    'models to make predictions or decisions based on new data. Key concepts in '
+                                    'ML include supervised learning, unsupervised learning, and reinforcement '
+                                    'learning.\n'
+                                    '\n'
+                                    '#### Deep Learning\n'
+                                    'Deep learning is a further specialization of machine learning that uses '
+                                    'neural networks with many layers (hence "deep"). These networks can '
+                                    'automatically learn features from raw data, making them particularly '
+                                    'effective for complex tasks such as image recognition and natural language '
+                                    'processing. ("Deep Learning" by Ian Goodfellow et al. provides an excellent '
+                                    'introduction to this field.)\n'
+                                    '\n'
+                                    '#### Applications of AI\n'
+                                    'AI has a wide range of applications across various industries:\n'
+                                    '- **Healthcare**: Diagnosing diseases, predicting patient outcomes, and '
+                                    'personalizing treatment plans.\n'
+                                    '- **Finance**: Automating trading, risk assessment, and fraud detection.\n'
+                                    '- **Transportation**: Developing autonomous vehicles and optimizing '
+                                    'logistics.\n'
+                                    '- **Entertainment**: Recommending content on platforms like Netflix and '
+                                    'Spotify.\n'
+                                    '- **Agriculture**: Monitoring crop conditions and optimizing farming '
+                                    'practices.\n'
+                                    '\n'
+                                    '### Current Challenges and Future Directions\n'
+                                    'Despite its progress, AI still faces significant challenges. Issues such as '
+                                    'bias in algorithms, ethical considerations, and the need for more powerful '
+                                    'computing resources are actively being addressed by researchers and industry '
+                                    'leaders.\n'
+                                    '\n'
+                                    'In conclusion, this chapter has provided an overview of the basics of AI, '
+                                    'touching on its history, key concepts, and applications. As we delve deeper '
+                                    'into this fascinating field, understanding these fundamentals will serve as '
+                                    'a solid foundation for exploring more complex topics in subsequent '
+                                    'chapters.\n'
+                                    '\n'
+                                    '[The complete chapter text continues here.]')
 
-            assert chapter_content == expected_chapter_content
+        assert chapter_content == expected_chapter_content
 
 
 class TestAgentStateSummary:

@@ -13,7 +13,6 @@ from ..config import Settings
 from ..parallel_utils import execute_parallel
 from ..progress_display import progress
 from ..utils import file_utils
-from ..utils.book_writer import BookWriter
 
 # Constants
 MIN_CHAPTER_COUNT = 3
@@ -26,11 +25,10 @@ logger = logging.getLogger(__name__)
 class ExecutorAgent(AgentBase):
     """The Executor (Worker) - performs tasks using available tools."""
 
-    def __init__(self, settings: Settings, output_directory: str):
+    def __init__(self, settings: Settings):
         super().__init__(
             settings,
-            llm_temperature=0.7,
-            output_directory=output_directory
+            llm_temperature=0.7
         )
 
     def execute(self, state: AgentState) -> Dict[str, Any]:
@@ -71,8 +69,6 @@ class ExecutorAgent(AgentBase):
                 self._generate_chapters_inner()
             elif task_type == "compile_references":
                 self._compile_references_inner()
-            elif task_type == "generate_book":
-                self._generate_book_inner()
             else:
                 self._custom_agent_task(current_task)
 
@@ -82,9 +78,8 @@ class ExecutorAgent(AgentBase):
                 "chapter_list": self.state.get("chapter_list", []),
                 "chapters": self.state.get("chapters", []),
                 "references": self.state.get("references", []),
-                "final_output_path": self.state.get("final_output_path", ""),
                 "current_task_index": current_task_index + 1,
-                "status": "book_generate" if self.state.get("final_output_path") else "executing"
+                "status": "executing" if current_task_index < len(plan) else "execution_complete"
             }
 
     def _custom_agent_task(self, current_task: dict[str, Any]) -> str | list[str | dict] | AIMessage:
@@ -357,42 +352,6 @@ class ExecutorAgent(AgentBase):
             "references": references,
         }
 
-    def generate_book_tool(self):
-        @tool
-        def generate_book() -> Dict[str, Any]:
-            """Generate the final book."""
-            progress_display.progress.show_action("Generating the final book document")
-            return self._generate_book_inner()
-
-        return generate_book
-
-    def _generate_book_inner(self) -> dict[str, int | str | Any]:
-        title = self.state.get("book_title", "Composed Book")
-        author = self.state.get("book_author", "AI Book Composer")
-        chapters = self.state.get("chapters", [])
-        references = self.state.get("references", [])
-
-        progress.show_action(f"Generating final book: '{title}' by {author}")
-        progress.show_observation(
-            f"Compiling {len(chapters)} chapters and {len(references)} references into RTF format")
-
-        result = BookWriter(self.settings, self.output_directory).run(
-            title=title,
-            author=author,
-            chapters=chapters,
-            references=references,
-            output_filename="final_book.rtf"
-        )
-
-        output_path = result.get("file_path")
-        progress.show_observation(f"✓ Book generated successfully: {output_path}")
-
-        self.state["final_output_path"] = output_path
-
-        return {
-            "final_output_path": output_path,
-        }
-
     def _evaluate_chapter_list_quality(self, chapter_list: List[Dict[str, Any]]) -> Tuple[bool, str]:
         """Evaluate the quality of the chapter list before caching.
         
@@ -584,6 +543,5 @@ class ExecutorAgent(AgentBase):
             self.plan_chapters_tool(),
             self.generate_chapters_tool(),
             self.compile_references_tool(),
-            self.generate_book_tool(),
         ]
         return list(base_tools) + custom_tools

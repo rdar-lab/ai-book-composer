@@ -47,8 +47,7 @@ Chapter 3: Applications
 
         # Create executor
         executor = ExecutorAgent(
-            settings,
-            output_directory="/tmp/test_output"
+            settings
         )
 
         # Create initial state
@@ -117,8 +116,7 @@ Chapter 4: Additional
 
         # Create executor
         executor = ExecutorAgent(
-            settings,
-            output_directory="/tmp/test_output"
+            settings
         )
 
         # Create initial state
@@ -172,8 +170,7 @@ Chapter 4: Additional
 
         # Create executor
         executor = ExecutorAgent(
-            settings,
-            output_directory="/tmp/test_output"
+            settings
         )
 
         # Create initial state
@@ -234,8 +231,7 @@ Chapter 4: Additional
 
         # Create executor
         executor = ExecutorAgent(
-            settings,
-            output_directory="/tmp/test_output"
+            settings
         )
 
         # Create initial state
@@ -271,7 +267,7 @@ Chapter 4: Additional
         }
 
         settings = Settings()
-        executor = ExecutorAgent(settings, output_directory="/tmp/test_output")
+        executor = ExecutorAgent(settings)
         executor.state = create_initial_state(
             input_directory="/tmp/test_input",
             output_directory="/tmp/test_output"

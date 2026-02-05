@@ -11,6 +11,7 @@ from .agents.executor import ExecutorAgent
 from .agents.planner import PlannerAgent
 from .agents.preprocess_agent import PreprocessAgent
 from .agents.state import AgentState, create_initial_state
+from .agents.writer import WriterAgent
 from .config import Settings
 from .progress_display import progress, show_workflow_start, show_node_transition
 
@@ -54,16 +55,17 @@ class BookComposerWorkflow:
         # Initialize agents
         self.preprocessor = PreprocessAgent(settings, input_directory, output_directory)
         self.planner = PlannerAgent(settings)
-        self.executor = ExecutorAgent(settings, output_directory)
+        self.executor = ExecutorAgent(settings)
         self.decorator = DecoratorAgent(settings)
         self.critic = CriticAgent(settings)
+        self.writer = WriterAgent(settings, output_directory)
 
         # Build graph
         self.graph = self._build_graph()
 
     @staticmethod
     def _record_execution(state: AgentState, node_name: str, status: str = "completed", step_index: int = None) -> \
-    Dict[str, Any]:
+            Dict[str, Any]:
         """Record node execution in history.
         
         Args:
@@ -109,6 +111,7 @@ class BookComposerWorkflow:
         workflow.add_node("execute", self._execute_node)
         workflow.add_node("decorate", self._decorate_node)
         workflow.add_node("critique", self._critique_node)
+        workflow.add_node("write", self._writer_node)
         workflow.add_node("finalize", self._finalize_node)
 
         # Set entry point
@@ -137,9 +140,11 @@ class BookComposerWorkflow:
             self._should_revise,
             {
                 "revise": "execute",
-                "finalize": "finalize"
+                "write": "write"
             }
         )
+
+        workflow.add_edge("write", "finalize")
 
         # End edge
         workflow.add_edge("finalize", END)
@@ -235,6 +240,22 @@ class BookComposerWorkflow:
                     raise
         raise RuntimeError("Critique failed after multiple attempts.")
 
+    def _writer_node(self, state: AgentState) -> Dict[str, Any]:
+        """Node for critique phase."""
+        show_node_transition("critique", "writer", "Quality approved")
+        for attempt in Retrying(stop=stop_after_attempt(3), wait=wait_fixed(60)):
+            with attempt:
+                logger.info("Starting writer phase.")
+                try:
+                    result = self.writer.write(state)
+                    # Merge execution history tracking
+                    result.update(self._record_execution(state, "writer", "completed"))
+                    return result
+                except Exception as e:
+                    logger.exception(f"Writer attempt failed: {e}")
+                    raise
+        raise RuntimeError("Writer failed after multiple attempts.")
+
     # noinspection PyMethodMayBeStatic
     def _finalize_node(self, state: AgentState) -> Dict[str, Any]:
         """Node to finalize the workflow."""
@@ -267,11 +288,10 @@ class BookComposerWorkflow:
         Returns:
             Next node name
         """
-        status = state.get("status", "")
         current_task_index = state.get("current_task_index", 0)
         plan = state.get("plan", [])
 
-        if status == "book_generated" or current_task_index >= len(plan):
+        if current_task_index >= len(plan):
             return "decorate"
         else:
             return "continue"
@@ -289,7 +309,7 @@ class BookComposerWorkflow:
         iterations = state.get("iterations", 0)
 
         if status == "approved" or iterations >= self.max_iterations:
-            return "finalize"
+            return "write"
         else:
             # Reset the state for revision
             state['current_task_index'] = 0

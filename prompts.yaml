@@ -38,7 +38,7 @@ planner:
     {style_instructions_section}
 
     The plan should be a list of tasks, where each task includes:
-    - task: The name of the task (e.g., "plan_chapters", "generate_chapters", "compile_references", "generate_book")
+    - task: The name of the task (e.g., "plan_chapters", "generate_chapters", "compile_references")
     - description: A brief description of what the task does
     - status: The initial status (always "pending")
     - files: (optional) List of relevant source files for the task
@@ -222,16 +222,18 @@ critic:
 
 decorator:
   system_prompt: |
-    You are a visual content specialist. Decide where images from the provided list should be placed in the chapters.
+    You are a visual content specialist. Decide which images from the provided list should be placed in the chapters.
 
-    CRITICAL: Your internal reasoning (thought block) must be brief. 
-    After thinking, you MUST call a tool to proceed.
-    
     Max images per chapter: {max_images_per_chapter}
     Target language: {language}
     {style_instructions_section}
     
-    Output format: JSON list of objects with (chapter_number, image_path, position, reasoning).
+    Output format: JSON list of objects with (image_path, position - can be start/middle/end, reasoning).
+    Example:
+    [
+      {{"image_path": "path/to/image.jpg", "position": "middle", "reasoning": "This image illustrates the main concept introduced in the first paragraph."}},
+      ...
+    ]
 
     RULES:
     1. Only use image paths provided in the 'Available images' list.
@@ -239,7 +241,7 @@ decorator:
     3. Match image descriptions to chapter content and themes when selecting placements. Choose images whose descriptions align with the chapter's subject matter and context.
 
   user_prompt: |
-    Suggest image placements for Chapter {chapter_number}: {chapter_title}
+    Suggest images for Chapter {chapter_number}: {chapter_title}
     
     Content: {chapter_content_preview}
     Images: {available_images}

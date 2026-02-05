@@ -111,13 +111,8 @@ class PlannerAgent(AgentBase):
                 "task": "compile_references",
                 "description": "Compile list of references",
                 "status": "pending"
-            },
-            # Task 4: Generate final book
-            {
-                "task": "generate_book",
-                "description": "Generate final book with all components",
-                "status": "pending"
-            }]
+            }
+        ]
 
         return plan
 
