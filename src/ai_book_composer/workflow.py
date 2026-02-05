@@ -259,7 +259,7 @@ class BookComposerWorkflow:
     # noinspection PyMethodMayBeStatic
     def _finalize_node(self, state: AgentState) -> Dict[str, Any]:
         """Node to finalize the workflow."""
-        show_node_transition("critique", "finalize", "Quality approved")
+        show_node_transition("writer", "finalize", "Book generated")
 
         progress.show_phase(
             "Finalization",
