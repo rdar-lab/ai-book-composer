@@ -116,7 +116,7 @@ class AgentBase:
         agent = create_agent(
             model=llm,
             tools=tools,
-            debug=True
+            debug=False
         )
 
         tool_names = [tool_obj.name for tool_obj in tools]

@@ -196,6 +196,16 @@ class BookComposerWorkflow:
                 logger.info("Starting execution phase.")
                 try:
                     result = self.executor.execute(state)
+
+                    # Update task as done
+                    plan = state.get("plan", [])
+                    if plan:
+                        if current_task_index < len(plan):
+                            task = plan[current_task_index]
+                            logger.info(
+                                f"Completed task {current_task_index}: {task.get('task')} - {task.get('description', '')}")
+                            task["status"] = "completed"
+
                     # Record execution with the step index from the plan
                     result.update(self._record_execution(state, "execute", "completed", step_index=current_task_index))
                     return result
@@ -317,6 +327,14 @@ class BookComposerWorkflow:
             # Change settings to ignore cached content for revision
             self.settings.book.use_cached_chapters_list = False
             self.settings.book.use_cached_chapters_content = False
+
+            # Update all plan items to pending
+
+            # Update task as done
+            plan = state.get("plan", [])
+            if plan:
+                for task in plan:
+                    task["status"] = "pending"
 
             # Reset task index for revision
             return "revise"

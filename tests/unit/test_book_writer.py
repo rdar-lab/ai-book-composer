@@ -249,12 +249,6 @@ class TestBookWriterImageHandling:
         test_image.write_bytes(b"fake image")
 
         mock_section = MagicMock()
-        mock_style_sheet = MagicMock()
-        mock_style_sheet.ParagraphStyles = MagicMock()
-        mock_style_sheet.ParagraphStyles.Normal = MagicMock()
-        mock_style_sheet.Fonts = MagicMock()
-        mock_style_sheet.Fonts.Arial = "Arial"
-
         img_info = {
             "image_path": str(test_image),
             "reasoning": "Test image"
@@ -262,7 +256,7 @@ class TestBookWriterImageHandling:
 
         with patch('src.ai_book_composer.utils.book_writer.Image') as mock_image, \
                 patch('src.ai_book_composer.utils.book_writer.Paragraph') as _:
-            writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
+            writer._add_image_to_section(mock_section, img_info)
 
             # Verify Image was created
             mock_image.assert_called_once_with(str(test_image))
@@ -273,7 +267,6 @@ class TestBookWriterImageHandling:
         writer = BookWriter(settings, str(tmp_path))
 
         mock_section = MagicMock()
-        mock_style_sheet = MagicMock()
 
         img_info = {
             "image_path": "/nonexistent/image.jpg",
@@ -281,7 +274,7 @@ class TestBookWriterImageHandling:
         }
 
         # Should not raise an error, just log warning
-        writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
+        writer._add_image_to_section(mock_section, img_info)
 
         # Section append should not be called
         assert mock_section.append.call_count == 0
@@ -295,9 +288,6 @@ class TestBookWriterImageHandling:
         test_image.write_bytes(b"fake image")
 
         mock_section = MagicMock()
-        mock_style_sheet = MagicMock()
-        mock_style_sheet.ParagraphStyles = MagicMock()
-        mock_style_sheet.ParagraphStyles.Normal = MagicMock()
 
         img_info = {
             "image_path": str(test_image),
@@ -306,7 +296,7 @@ class TestBookWriterImageHandling:
 
         with patch('src.ai_book_composer.utils.book_writer.Image') as mock_image, \
                 patch('src.ai_book_composer.utils.book_writer.Paragraph'):
-            writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
+            writer._add_image_to_section(mock_section, img_info)
 
             mock_image.assert_called_once()
 
@@ -319,9 +309,6 @@ class TestBookWriterImageHandling:
         test_image.write_bytes(b"fake image")
 
         mock_section = MagicMock()
-        mock_style_sheet = MagicMock()
-        mock_style_sheet.ParagraphStyles = MagicMock()
-        mock_style_sheet.ParagraphStyles.Normal = MagicMock()
 
         img_info = {
             "image_path": str(test_image),
@@ -331,7 +318,7 @@ class TestBookWriterImageHandling:
         with patch('src.ai_book_composer.utils.book_writer.Image', side_effect=Exception("Image error")), \
                 patch('src.ai_book_composer.utils.book_writer.Paragraph'):
             # Should not raise, just log warning
-            writer._add_image_to_section(mock_section, img_info, mock_style_sheet)
+            writer._add_image_to_section(mock_section, img_info)
 
 
 class TestBookWriterIntegration:

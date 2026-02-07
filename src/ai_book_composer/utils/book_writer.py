@@ -1,6 +1,7 @@
 """Enhanced tools with security, logging, and additional format support."""
 
 import logging
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -111,7 +112,7 @@ class BookWriter:
                 end_images = []
 
                 for img in chapter_images:
-                    position = img.get("position", "middle").lower()
+                    position = str(img.get("position", "middle")).lower()
                     if position == "start":
                         start_images.append(img)
                     elif position == "end":
@@ -121,7 +122,7 @@ class BookWriter:
 
                 # Add start images
                 for img in start_images:
-                    self._add_image_to_section(section, img, ss)
+                    self._add_image_to_section(section, img)
                     total_images_added += 1
 
                 # Chapter content - split into paragraphs
@@ -140,12 +141,12 @@ class BookWriter:
                         # Insert middle images at approximately the middle of the chapter
                         if para_idx == middle_insert_point and middle_images:
                             for img in middle_images:
-                                self._add_image_to_section(section, img, ss)
+                                self._add_image_to_section(section, img)
                                 total_images_added += 1
 
                 # Add end images
                 for img in end_images:
-                    self._add_image_to_section(section, img, ss)
+                    self._add_image_to_section(section, img)
                     total_images_added += 1
 
             # References
@@ -180,41 +181,60 @@ class BookWriter:
                 "error": str(e)
             }
 
+    # noinspection PyPep8Naming, PyBroadException
     @staticmethod
-    def _add_image_to_section(section, img_info: Dict[str, Any], style_sheet) -> None:
+    def _add_image_to_section(section, img_info: Dict[str, Any]) -> None:
         """Add an image to the document section.
 
         Args:
             section: RTF section to add image to
             img_info: Dictionary with image information (path, reasoning, etc.)
-            style_sheet: Document style sheet
         """
+        image_path = img_info.get("image_path", "")
+
+        if not image_path or not Path(image_path).exists():
+            logger.warning(f"Image not found: {image_path}")
+            return
+
+        # Try to normalize image to BMP (PyRTF often requires non-PNG formats)
+        temp_path = None
         try:
-            image_path = img_info.get("image_path", "")
-            reasoning = img_info.get("reasoning", "")
-
-            if not image_path or not Path(image_path).exists():
-                logger.warning(f"Image not found: {image_path}")
-                return
-
-            # Add image to document
-            # PyRTF3 Image takes the file path
             try:
-                image = Image(image_path)
-                para = Paragraph()
-                para.append(image)
-                section.append(para)
+                from PIL import Image as PILImage
+            except Exception:
+                PILImage = None
 
-                # Add caption if reasoning is provided
-                if reasoning:
-                    caption_para = Paragraph(style_sheet.ParagraphStyles.Normal)
-                    caption_style = TextStyle(TextPropertySet(font=style_sheet.Fonts.Arial, size=20, italic=True))
-                    caption_para.append(Text(f"Figure: {reasoning}", caption_style))
-                    section.append(caption_para)
+            image_path_to_use = image_path
 
-                logger.debug(f"Added image to document: {image_path}")
-            except Exception as img_error:
-                logger.warning(f"Could not add image {image_path}: {img_error}")
+            if PILImage is not None:
+                try:
+                    with PILImage.open(image_path) as pil_img:
+                        pil_img.verify()  # raises if image is corrupt
+                    # reopen for conversion (verify() leaves file closed)
+                    with PILImage.open(image_path) as pil_img:
+                        pil_rgb = pil_img.convert("RGB")
+                        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                        tmp.close()
+                        temp_path = tmp.name
+                        pil_rgb.save(temp_path, format="PNG", optimize=True)
+                        image_path_to_use = temp_path
+                except Exception as e:
+                    logger.exception(f"PIL cannot process image {image_path}: {repr(e)}. Falling back to original file.")
 
-        except Exception as e:
-            logger.warning(f"Error processing image: {e}")
+            # Create and append image
+            image = Image(image_path_to_use)
+            para = Paragraph()
+            para.append(image)
+            section.append(para)
+
+            logger.debug(f"Added image to document: {image_path}")
+        except Exception as img_error:
+            logger.exception(f"Could not add image {image_path}: {repr(img_error)}")
+        finally:
+            # cleanup temporary file if created
+            if temp_path:
+                try:
+                    import os
+                    os.remove(temp_path)
+                except Exception:
+                    pass
