@@ -1,18 +1,13 @@
 """Enhanced tools with security, logging, and additional format support."""
 
 import logging
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
 
-from PyRTF.Elements import Document, Text
-from PyRTF.PropertySets import TextPropertySet, ParagraphPropertySet
-from PyRTF.Renderer import Renderer
-from PyRTF.Styles import TextStyle
-from PyRTF.document.paragraph import Paragraph
-from PyRTF.document.section import Section
-from PyRTF.object.picture import Image
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from ..config import Settings
 
@@ -20,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class BookWriter:
-    """Tool to generate final book in RTF format."""
+    """Tool to generate final book in DOCX format."""
 
     def __init__(self, settings: Settings, output_directory: str):
         self.settings = settings
@@ -34,9 +29,9 @@ class BookWriter:
             author: str,
             chapters: List[Dict[str, Any]],
             references: List[str],
-            output_filename: str = "book.rtf"
+            output_filename: str = "book.docx"
     ) -> Dict[str, Any]:
-        """Generate final book in RTF format.
+        """Generate final book in DOCX format.
 
         Args:
             title: Book title
@@ -56,43 +51,42 @@ class BookWriter:
 
             # Create document
             doc = Document()
-            ss = doc.StyleSheet
-
-            # Define styles
-            title_style = TextStyle(TextPropertySet(font=ss.Fonts.Arial, size=48, bold=True))
-            heading1_style = TextStyle(TextPropertySet(font=ss.Fonts.Arial, size=32, bold=True))
-            heading2_style = TextStyle(TextPropertySet(font=ss.Fonts.Arial, size=24, bold=True))
-            normal_style = TextStyle(TextPropertySet(font=ss.Fonts.TimesNewRoman, size=24))
-
-            section = Section()
-            doc.Sections.append(section)
+            
+            # Set default font
+            style = doc.styles['Normal']
+            font = style.font
+            font.name = 'Times New Roman'
+            font.size = Pt(12)
 
             # Title page
-            p_title = Paragraph(ss.ParagraphStyles.Heading1)
-            p_title.append(Text(title, title_style))
-            section.append(p_title)
+            title_para = doc.add_paragraph()
+            title_run = title_para.add_run(title)
+            title_run.bold = True
+            title_run.font.size = Pt(24)
+            title_run.font.name = 'Arial'
+            title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            doc.add_paragraph()  # Add spacing
+            
+            author_para = doc.add_paragraph()
+            author_run = author_para.add_run(f"By {author}")
+            author_run.font.size = Pt(14)
+            author_run.font.name = 'Arial'
+            author_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            date_para = doc.add_paragraph()
+            date_run = date_para.add_run(datetime.now().strftime("%B %Y"))
+            date_run.font.size = Pt(12)
+            date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            p_author = Paragraph(ss.ParagraphStyles.Normal)
-            p_author.append(Text(f"By {author}", heading2_style))
-            section.append(p_author)
-
-            p_date = Paragraph(ss.ParagraphStyles.Normal)
-            p_date.append(Text(datetime.now().strftime("%B %Y"), normal_style))
-            section.append(p_date)
-
-            para_props_page_break_before = ParagraphPropertySet()
-            para_props_page_break_before.SetPageBreakBefore(True)
-
-            # Table of Contents
-            toc_heading = Paragraph(ss.ParagraphStyles.Heading1, para_props_page_break_before)
-            toc_heading.append(Text("Table of Contents", heading1_style))
-            section.append(toc_heading)
-
+            # Table of Contents (on new page)
+            doc.add_page_break()
+            
+            toc_heading = doc.add_heading("Table of Contents", level=1)
+            
             for i, chapter in enumerate(chapters, 1):
                 chapter_title = chapter.get("title", f"Chapter {i}")
-                toc_entry = Paragraph(ss.ParagraphStyles.Normal)
-                toc_entry.append(Text(f"Chapter {i}: {chapter_title}", normal_style))
-                section.append(toc_entry)
+                toc_entry = doc.add_paragraph(f"Chapter {i}: {chapter_title}")
 
             # Chapters
             total_images_added = 0
@@ -101,10 +95,9 @@ class BookWriter:
                 chapter_content = chapter.get("content", "")
                 chapter_images = chapter.get("images", [])
 
-                # Chapter heading
-                ch_heading = Paragraph(ss.ParagraphStyles.Heading1, para_props_page_break_before)
-                ch_heading.append(Text(f"Chapter {i}: {chapter_title}", heading1_style))
-                section.append(ch_heading)
+                # Chapter heading (on new page)
+                doc.add_page_break()
+                doc.add_heading(f"Chapter {i}: {chapter_title}", level=1)
 
                 # Categorize images by position
                 start_images = []
@@ -122,8 +115,8 @@ class BookWriter:
 
                 # Add start images
                 for img in start_images:
-                    self._add_image_to_section(section, img)
-                    total_images_added += 1
+                    if self._add_image_to_doc(doc, img):
+                        total_images_added += 1
 
                 # Chapter content - split into paragraphs
                 paragraphs = chapter_content.split('\n\n')
@@ -134,36 +127,29 @@ class BookWriter:
 
                 for para_idx, para_text in enumerate(paragraphs):
                     if para_text.strip():
-                        para = Paragraph(ss.ParagraphStyles.Normal)
-                        para.append(Text(para_text.strip(), normal_style))
-                        section.append(para)
+                        doc.add_paragraph(para_text.strip())
 
                         # Insert middle images at approximately the middle of the chapter
                         if para_idx == middle_insert_point and middle_images:
                             for img in middle_images:
-                                self._add_image_to_section(section, img)
-                                total_images_added += 1
+                                if self._add_image_to_doc(doc, img):
+                                    total_images_added += 1
 
                 # Add end images
                 for img in end_images:
-                    self._add_image_to_section(section, img)
-                    total_images_added += 1
+                    if self._add_image_to_doc(doc, img):
+                        total_images_added += 1
 
             # References
             if references:
-                ref_heading = Paragraph(ss.ParagraphStyles.Heading1, para_props_page_break_before)
-                ref_heading.append(Text("References", heading1_style))
-                section.append(ref_heading)
+                doc.add_page_break()
+                doc.add_heading("References", level=1)
 
                 for ref in references:
-                    ref_para = Paragraph(ss.ParagraphStyles.Normal)
-                    ref_para.append(Text(ref, normal_style))
-                    section.append(ref_para)
+                    doc.add_paragraph(ref)
 
-            # Write to file
-            renderer = Renderer()
-            with open(file_path, 'w', encoding='utf-8') as f:
-                renderer.Write(doc, f)
+            # Save document
+            doc.save(str(file_path))
 
             logger.info(f"Book generated successfully: {file_path} with {total_images_added} images")
 
@@ -181,60 +167,38 @@ class BookWriter:
                 "error": str(e)
             }
 
-    # noinspection PyPep8Naming, PyBroadException
     @staticmethod
-    def _add_image_to_section(section, img_info: Dict[str, Any]) -> None:
-        """Add an image to the document section.
+    def _add_image_to_doc(doc: Document, img_info: Dict[str, Any]) -> bool:
+        """Add an image to the document.
 
         Args:
-            section: RTF section to add image to
+            doc: DOCX document to add image to
             img_info: Dictionary with image information (path, reasoning, etc.)
+            
+        Returns:
+            True if image was successfully added, False otherwise
         """
         image_path = img_info.get("image_path", "")
 
         if not image_path or not Path(image_path).exists():
             logger.warning(f"Image not found: {image_path}")
-            return
+            return False
 
-        # Try to normalize image to BMP (PyRTF often requires non-PNG formats)
-        temp_path = None
         try:
-            try:
-                from PIL import Image as PILImage
-            except Exception:
-                PILImage = None
-
-            image_path_to_use = image_path
-
-            if PILImage is not None:
-                try:
-                    with PILImage.open(image_path) as pil_img:
-                        pil_img.verify()  # raises if image is corrupt
-                    # reopen for conversion (verify() leaves file closed)
-                    with PILImage.open(image_path) as pil_img:
-                        pil_rgb = pil_img.convert("RGB")
-                        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-                        tmp.close()
-                        temp_path = tmp.name
-                        pil_rgb.save(temp_path, format="PNG", optimize=True)
-                        image_path_to_use = temp_path
-                except Exception as e:
-                    logger.exception(f"PIL cannot process image {image_path}: {repr(e)}. Falling back to original file.")
-
-            # Create and append image
-            image = Image(image_path_to_use)
-            para = Paragraph()
-            para.append(image)
-            section.append(para)
-
+            # Add image with reasonable width (6 inches, maintains aspect ratio)
+            doc.add_picture(str(image_path), width=Inches(6))
+            
+            # Add caption if reasoning is provided
+            reasoning = img_info.get("reasoning", "")
+            if reasoning:
+                caption_para = doc.add_paragraph()
+                caption_run = caption_para.add_run(f"Figure: {reasoning}")
+                caption_run.italic = True
+                caption_run.font.size = Pt(10)
+                caption_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
             logger.debug(f"Added image to document: {image_path}")
+            return True
         except Exception as img_error:
             logger.exception(f"Could not add image {image_path}: {repr(img_error)}")
-        finally:
-            # cleanup temporary file if created
-            if temp_path:
-                try:
-                    import os
-                    os.remove(temp_path)
-                except Exception:
-                    pass
+            return False

@@ -48,14 +48,14 @@ class WriterAgent(AgentBase):
 
         progress.show_action(f"Generating final book: '{title}' by {author}")
         progress.show_observation(
-            f"Compiling {len(chapters)} chapters and {len(references)} references into RTF format")
+            f"Compiling {len(chapters)} chapters and {len(references)} references into DOCX format")
 
         result = BookWriter(self.settings, self.output_directory).run(
             title=title,
             author=author,
             chapters=chapters,
             references=references,
-            output_filename="final_book.rtf"
+            output_filename="final_book.docx"
         )
 
         output_path = result.get("file_path")

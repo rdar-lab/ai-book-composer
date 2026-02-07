@@ -170,7 +170,7 @@ class TestStyleInstructionsIntegration:
             'references': [],
             'iterations': 0,
             'quality_score': 0.9,
-            'final_output_path': '/tmp/output/book.rtf'
+            'final_output_path': '/tmp/output/book.docx'
         }
         mock_workflow.return_value = mock_workflow_instance
 
@@ -220,7 +220,7 @@ class TestStyleInstructionsIntegration:
             'references': [],
             'iterations': 0,
             'quality_score': 0.9,
-            'final_output_path': '/tmp/output/book.rtf'
+            'final_output_path': '/tmp/output/book.docx'
         }
         mock_workflow.return_value = mock_workflow_instance
 

@@ -15,7 +15,7 @@ AI Book Composer is a tool that automatically generates high-quality books from 
 - **No API Keys Required**: Default configuration uses embedded ollama and local whisper - runs completely offline
 - **LangGraph Orchestration**: Uses LangGraph for robust workflow management
 - **Quality-Focused**: Iterative refinement with critic feedback for high-quality output
-- **Comprehensive Output**: Generates books with title page, table of contents, chapters, references, and embedded images in RTF format
+- **Comprehensive Output**: Generates books with title page, table of contents, chapters, references, and embedded images in DOCX format
 
 ## Architecture
 
