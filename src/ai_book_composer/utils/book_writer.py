@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
 
+from docx.document import Document as DocumentObject
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -82,11 +83,11 @@ class BookWriter:
             # Table of Contents (on new page)
             doc.add_page_break()
             
-            toc_heading = doc.add_heading("Table of Contents", level=1)
+            doc.add_heading("Table of Contents", level=1)
             
             for i, chapter in enumerate(chapters, 1):
                 chapter_title = chapter.get("title", f"Chapter {i}")
-                toc_entry = doc.add_paragraph(f"Chapter {i}: {chapter_title}")
+                doc.add_paragraph(f"Chapter {i}: {chapter_title}")
 
             # Chapters
             total_images_added = 0
@@ -168,7 +169,7 @@ class BookWriter:
             }
 
     @staticmethod
-    def _add_image_to_doc(doc: Document, img_info: Dict[str, Any]) -> bool:
+    def _add_image_to_doc(doc: DocumentObject, img_info: Dict[str, Any]) -> bool:
         """Add an image to the document.
 
         Args:
