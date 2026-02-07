@@ -401,16 +401,12 @@ pygments==2.19.2
     #   rich
 pymupdf==1.26.7
     # via -r requirements.in
-pyparsing==3.3.2
-    # via pyrtf3
 pypdf==6.6.2
     # via -r requirements.in
 pypika==0.51.0
     # via chromadb
 pyproject-hooks==1.2.0
     # via build
-pyrtf3==0.47.5
-    # via -r requirements.in
 pytest==9.0.2
     # via
     #   -r requirements-dev.in
