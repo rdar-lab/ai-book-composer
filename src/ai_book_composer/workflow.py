@@ -327,6 +327,7 @@ class BookComposerWorkflow:
             # Change settings to ignore cached content for revision
             self.settings.book.use_cached_chapters_list = False
             self.settings.book.use_cached_chapters_content = False
+            self.settings.book.use_cached_decorations = False
 
             # Update all plan items to pending
 

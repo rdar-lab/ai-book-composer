@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -339,24 +340,27 @@ class AgentBase:
             logger.error(f"Failed to parse extracted JSON: {e}")
             raise
 
-    def _get_files_summary(self):
+    def _get_files_summary(self, sample_size: int = 100) -> str:
         gathered_content = self.state.get("gathered_content", {})
         file_list = []
-        for file_path, content_info in gathered_content.items():
-            content = content_info.get("content", "")
-            content_type = content_info.get("type", "unknown")
+
+        if len(gathered_content) > sample_size:
+            # Sample randomly the gathered content to avoid overwhelming the prompt with too much information, while still providing a representative overview of the files available.
+            sampled_paths = random.sample(list(gathered_content.keys()), sample_size)
+            sampled_content = {path: gathered_content[path] for path in sampled_paths}
+            sampled_text = f'(Sampled {sample_size} out of {len(gathered_content)} files)\n'
+        else:
+            sampled_content = gathered_content
+            sampled_text = ''
+
+        for file_path, content_info in sampled_content.items():
             summary = content_info.get("summary", "")
             file_list.append({
                 "name": Path(file_path).name,
-                "type": content_type,
-                "size": len(content),
                 "summary": summary
             })
 
-        file_summary = "\n".join([
-            f"- {f['name']} ({f['type']}, {f['size']} chars) [Summary: {f['summary']}]"
-            for f in file_list
-        ])
+        file_summary = f'{sampled_text}{json.dumps(file_list)}'
 
         # Add key terms if available
         key_terms = self.state.get("key_terms", [])
