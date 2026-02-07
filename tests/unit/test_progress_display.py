@@ -183,7 +183,7 @@ class TestProgressDisplay:
 
         display = ProgressDisplay()
         stats = {"Chapters": 5, "References": 10}
-        display.show_completion("/path/to/book.rtf", stats)
+        display.show_completion("/path/to/book.docx", stats)
 
         assert mock_console.print.called
 
