@@ -2,8 +2,8 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AI BOOK COMPOSER                             │
-│                  Deep-Agent Architecture                         │
+│                     AI BOOK COMPOSER                            │
+│                  Deep-Agent Architecture                        │
 └─────────────────────────────────────────────────────────────────┘
 
                     ┌──────────────────┐
@@ -30,13 +30,13 @@
          │                   │                   │
          │ Creates Plan      │ Uses Tools        │ Validates
          ▼                   ▼                   ▼
-    ┌─────────┐      ┌──────────────┐    ┌──────────┐
-    │ Tasks   │      │   Tools      │    │ Feedback │
-    │ - Gather│      │ ────────────  │    │ Quality  │
-    │ - Plan  │      │ File Lister  │    │ Score    │
-    │ - Write │      │ Text Reader  │    │ Decision │
-    │ - Compile│     │ Audio Trans. │    └─────┬────┘
-    └────┬────┘      │ Video Trans. │          │
+    ┌───────────┐    ┌──────────────┐    ┌──────────┐
+    │ Tasks     │    │   Tools      │    │ Feedback │
+    │ - Gather  │    │ ──────────── │    │ Quality  │
+    │ - Plan    │    │ File Lister  │    │ Score    │
+    │ - Write   │    │ Text Reader  │    │ Decision │
+    │ - Compile │    │ Audio Trans. │    └─────┬────┘
+    └────┬──────┘    │ Video Trans. │          │
          │           │ Chapter Write│          │
          └──────────▶│ Book Gen.    │◀─────────┘
                      └──────┬───────┘
@@ -62,17 +62,17 @@
                      └───────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                      LLM PROVIDERS                               │
+│                      LLM PROVIDERS                              │
 ├─────────────────────────────────────────────────────────────────┤
-│  OpenAI GPT  │  Google Gemini  │  Azure OpenAI  │  Ollama      │
+│  OpenAI GPT  │  Google Gemini  │  Azure OpenAI  │  Ollama       │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                    SUPPORTED FILE TYPES                          │
+│                    SUPPORTED FILE TYPES                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  Text: .txt, .md, .rst, .docx, .rtf, .pdf                      │
-│  Audio: .mp3, .wav, .m4a, .flac, .ogg                          │
-│  Video: .mp4, .avi, .mov, .mkv                                 │
+│  Text: .txt, .md, .rst, .docx, .rtf, .pdf                       │
+│  Audio: .mp3, .wav, .m4a, .flac, .ogg                           │
+│  Video: .mp4, .avi, .mov, .mkv                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
