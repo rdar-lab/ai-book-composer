@@ -205,6 +205,10 @@ def read_audio_file(settings: Settings, file_path: str, language: Optional[str] 
         return cached_result
 
     try:
+        # Replace any 'en..' with simple 'en'
+        if language and 'en' in language.lower():
+            language = 'en'
+
         if mode == "local":
             result = transcribe_local(settings, file_path, language)
         else:
@@ -303,8 +307,10 @@ def transcribe_local(settings: Settings, file_path: Path, language: Optional[str
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
 
     transcribe_kwargs: dict[str, Any] = {"beam_size": 5}
-    if language:
-        transcribe_kwargs["language"] = language
+
+    # This is disabled because we can have many source languages
+    # if language:
+    #    transcribe_kwargs["language"] = language
 
     segments, info = model.transcribe(str(file_path), **transcribe_kwargs)
 
@@ -347,8 +353,10 @@ def transcribe_remote(settings: Settings, file_path: Path, language: Optional[st
     with open(file_path, 'rb') as f:
         files = {'file': f}
         data = {}
-        if language:
-            data['language'] = language
+
+        # This is disabled because we can have many source languages
+        # if language:
+        #    data['language'] = language
 
         response = requests.post(
             f"{endpoint}/transcribe",

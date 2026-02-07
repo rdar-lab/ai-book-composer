@@ -91,6 +91,8 @@ class PreprocessAgent(AgentBase):
         extension = file_info.get("extension", "").lower()
         language = self.state.get("language", "en-US")
 
+        progress.show_action(f"Reading file. file_name={file_path}")
+
         try:
             if extension in [".txt", ".md", ".rst", ".docx", ".rtf", ".pdf"]:
                 result = read_text_file(self.settings, file_path)
@@ -101,7 +103,7 @@ class PreprocessAgent(AgentBase):
                     "content": result.get("content", ""),
                     "status": "success"
                 }
-            elif extension in [".mp3", ".wav", ".m4a", ".flac"]:
+            elif extension in [".ogg", ".mp3", ".wav", ".m4a", ".flac"]:
                 result = read_audio_file(self.settings, file_path, language)
                 return {
                     "file_path": file_path,
