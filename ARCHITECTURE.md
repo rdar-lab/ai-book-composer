@@ -28,7 +28,8 @@
         │ • List all input files                 │
         │ • Read text files (.txt, .md, .pdf)    │
         │ • Transcribe audio (.mp3, .wav, etc.)  │
-        │ • Transcribe video (.mp4, .mov, etc.)  │
+        │ • Transcribe video audio tracks        │
+        │   (.mp4, .mov, etc.)                   │
         │ • Extract images from PDFs             │
         │ • Describe images with vision AI       │
         │ • Initialize RAG vector database       │
@@ -146,7 +147,7 @@
    - Scans input directory for all supported files
    - Reads text files (.txt, .md, .rst, .pdf, .docx, .rtf)
    - Transcribes audio files using Whisper (.mp3, .wav, .m4a, .flac, .ogg)
-   - Transcribes video files using Whisper (.mp4, .avi, .mov, .mkv)
+   - Transcribes video files using Whisper (extracts and transcribes audio track from .mp4, .avi, .mov, .mkv)
    - Extracts images from PDF files
    - Describes extracted images using vision AI
    - Initializes RAG vector database with all content
@@ -182,7 +183,7 @@
 
 The system implements a comprehensive quality control approach:
 
-1. **Caching with Validation**: Results are cached to improve performance
+1. **Caching for Performance**: Results are cached to improve performance
    - Chapter list structure
    - Chapter content
    - Image decorations
