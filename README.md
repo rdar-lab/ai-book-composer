@@ -167,7 +167,7 @@ book:
 Or provide them via the command line:
 
 ```bash
-python -m src.ai-book-composer.cli -i input -o output --style-instructions "I want it to be light reading"
+python -m src.ai_book_composer.cli -i input -o output --style-instructions "I want it to be light reading"
 ```
 
 **Note**: Style instructions are optional. If not provided, the AI will generate content in a neutral, informative style.
@@ -195,7 +195,7 @@ parallel:
 You can specify a custom config file using the `--config` parameter:
 
 ```bash
-python -m src.ai-book-composer.cli --config my-config.yaml -i input -o output
+python -m src.ai_book_composer.cli --config my-config.yaml -i input -o output
 ```
 
 ## Usage
@@ -203,7 +203,7 @@ python -m src.ai-book-composer.cli --config my-config.yaml -i input -o output
 ### Command Line Interface
 
 ```bash
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   --input-dir /path/to/source/files \
   --output-dir /path/to/output \
   --title "My Book Title" \
@@ -402,7 +402,7 @@ The default configuration uses embedded ollama execution, which runs models in-p
 
 ```bash
 # Just run - models download automatically!
-python -m src.ai-book-composer.cli -i input -o output
+python -m src.ai_book_composer.cli -i input -o output
 ```
 
 ## Examples
@@ -410,7 +410,7 @@ python -m src.ai-book-composer.cli -i input -o output
 ### Example 1: Generate Book from Blog Posts
 
 ```bash
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   -i ./blog-posts \
   -o ./output \
   -t "Best of My Blog" \
@@ -420,7 +420,7 @@ python -m src.ai-book-composer.cli \
 ### Example 2: Generate Book from Transcribed Videos
 
 ```bash
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   -i ./video-lectures \
   -o ./output \
   -t "Video Lecture Series" \
@@ -432,7 +432,7 @@ python -m src.ai-book-composer.cli \
 
 ```bash
 # Directory with .txt, .mp3, .mp4 files
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   -i ./mixed-content \
   -o ./output \
   -t "Comprehensive Guide" \
@@ -443,7 +443,7 @@ python -m src.ai-book-composer.cli \
 
 ```bash
 # Generate an academic-style book from research papers
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   -i ./research-papers \
   -o ./output \
   -t "Research Compilation" \
@@ -455,7 +455,7 @@ python -m src.ai-book-composer.cli \
 
 ```bash
 # Generate a casual, easy-to-read book
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   -i ./blog-posts \
   -o ./output \
   -t "Easy Reading Collection" \
@@ -467,7 +467,7 @@ python -m src.ai-book-composer.cli \
 
 ```bash
 # Generate a professional business book
-python -m src.ai-book-composer.cli \
+python -m src.ai_book_composer.cli \
   -i ./business-documents \
   -o ./output \
   -t "Business Insights" \
