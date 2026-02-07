@@ -88,7 +88,7 @@
    - Generates chapter content using LLM
    - **Evaluates chapter content quality (NEW)** - mini-critic step per chapter
    - Compiles references
-   - Generates final RTF book
+   - Generates final DOCX book
 5. **Critique Phase**: Critic evaluates overall book quality and provides feedback
 6. **Iteration**: If quality is below threshold, return to execution
 7. **Finalization**: Once approved, output final book

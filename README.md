@@ -343,14 +343,14 @@ image_processing:
    - Determines optimal placement positions (start, middle, or end)
    - Provides reasoning for each placement decision
 
-3. **Book Generation**: The final RTF book embeds images:
+3. **Book Generation**: The final DOCX book embeds images:
    - Images are inserted at the determined positions
    - Captions are added with the reasoning for each image
-   - Images are properly formatted for RTF output
+   - Images are properly formatted for DOCX output
 
 ## Output Format
 
-The tool generates an RTF (Rich Text Format) book with:
+The tool generates an DOCX book with:
 
 1. **Title Page**: Book title, author, and date
 2. **Table of Contents**: List of all chapters
