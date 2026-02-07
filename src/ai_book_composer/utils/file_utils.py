@@ -205,7 +205,7 @@ def read_audio_file(settings: Settings, file_path: str, language: Optional[str] 
         return cached_result
 
     try:
-        # Replace any 'en..' with simple 'en'
+        # Replace any 'en...' with simple 'en'
         if language and 'en' in language.lower():
             language = 'en'
 
@@ -291,6 +291,7 @@ def write_cache(cache_path: Path, data: Any) -> None:
         logger.warning(f"Failed to write cache {cache_path}: {e}")
 
 
+# noinspection PyUnusedLocal
 def transcribe_local(settings: Settings, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
     """Transcribe using local Whisper model.
 
@@ -334,6 +335,7 @@ def transcribe_local(settings: Settings, file_path: Path, language: Optional[str
     }
 
 
+# noinspection PyUnusedLocal
 def transcribe_remote(settings: Settings, file_path: Path, language: Optional[str] = None) -> Dict[str, Any]:
     """Transcribe using remote Whisper service.
 

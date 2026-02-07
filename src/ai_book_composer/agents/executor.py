@@ -31,6 +31,7 @@ class ExecutorAgent(AgentBase):
             settings,
             llm_temperature=0.7
         )
+        self.previous_attempt_details = ''
 
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """Execute the next task in the plan.
@@ -63,6 +64,8 @@ class ExecutorAgent(AgentBase):
             )
             progress.show_task(task_type, "started")
 
+            self.previous_attempt_details = ''
+
             # Execute based on task type
             if task_type == "plan_chapters":
                 self._plan_chapters_inner()
@@ -82,6 +85,10 @@ class ExecutorAgent(AgentBase):
                 "current_task_index": current_task_index + 1,
                 "status": "executing" if current_task_index < len(plan) else "execution_complete"
             }
+
+    def _capture_attempt_failure(self, attempt_content, attempt_failure_reason):
+        """Capture details of a failed attempt to inform future retries."""
+        self.previous_attempt_details = f"*** THIS IS A SECOND ATTEMPT ***\nPREV ATTEMPT CONTENT:\n{attempt_content}\nFAILURE REASON:\n{attempt_failure_reason}\n***************\n"
 
     def _custom_agent_task(self, current_task: dict[str, Any]) -> str | list[str | dict] | AIMessage:
         system_prompt_template = self.prompts['executor'].get('llm_agent_system_prompt')
@@ -152,7 +159,8 @@ class ExecutorAgent(AgentBase):
             style_instructions_section=style_instructions_section
         )
         user_prompt = user_prompt_template.format(
-            file_summary=self._get_files_summary()
+            file_summary=self._get_files_summary(),
+            previous_attempt_details=self.previous_attempt_details
         )
 
         # Use agent with tools to allow dynamic content reading
@@ -299,7 +307,8 @@ class ExecutorAgent(AgentBase):
             chapter_number=chapter_num,
             title=title,
             description=description,
-            file_summary=self._get_files_summary()
+            file_summary=self._get_files_summary(),
+            previous_attempt_details=self.previous_attempt_details
         )
 
         # Use agent with tools to allow dynamic content reading
@@ -396,8 +405,10 @@ class ExecutorAgent(AgentBase):
 
             # Check for explicit approval or rejection
             if "approve" in response_lower and "not approve" not in response_lower:
+                self.previous_attempt_details = ''  # Clear previous attempt details on success
                 return True, response
             elif "reject" in response_lower or "revise" in response_lower or "needs improvement" in response_lower:
+                self._capture_attempt_failure(chapter_summary, response)
                 progress.show_observation(f"⚠ Chapter list quality issue: {response[:200]}...")
                 return False, response
 
@@ -440,8 +451,8 @@ class ExecutorAgent(AgentBase):
             if style_instructions:
                 style_instructions_section = f"Style Instructions: {style_instructions}\nEvaluate whether the chapter content follows these guidelines."
 
-            # Create preview of content for evaluation (first 1000 characters)
-            content_preview = content[:1000] + ("..." if len(content) > 1000 else "")
+            # Create preview of content for evaluation (first 10000 characters)
+            content_preview = content[:10000] + ("..." if len(content) > 10000 else "")
             word_count = len(content.split())
 
             system_prompt = system_prompt_template.format(
@@ -465,9 +476,11 @@ class ExecutorAgent(AgentBase):
 
             # Check for explicit approval or rejection
             if "approve" in response_lower and "not approve" not in response_lower:
+                self.previous_attempt_details = ''  # Clear previous attempt details on success
                 return True, response
             elif "reject" in response_lower or "revise" in response_lower or "needs improvement" in response_lower:
                 progress.show_observation(f"⚠ Chapter {chapter_num} quality issue: {response[:200]}...")
+                self._capture_attempt_failure(content_preview, response)
                 return False, response
 
             # Default to approval if decision is unclear

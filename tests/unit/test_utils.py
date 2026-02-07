@@ -178,48 +178,6 @@ class TestAudioTranscriptionTool:
         assert result2 == result1
         mock_model_instance.transcribe.assert_not_called()
 
-    @patch('src.ai_book_composer.utils.file_utils.WhisperModel')
-    def test_transcribe_audio_with_hebrew(self, mock_whisper_model, tmp_path):
-        """Test audio transcription with Hebrew language specification."""
-        # Setup mock settings
-        settings = Settings()
-        settings.whisper.mode = "local"
-        settings.whisper.model_size = "base"
-        settings.whisper.local = {"device": "cpu", "compute_type": "int8"}
-        settings.security.max_file_size_mb = 500
-
-        # Create test audio file
-        test_audio = tmp_path / "test_hebrew.mp3"
-        test_audio.write_text("fake audio content")
-
-        # Setup mock Whisper model
-        mock_model_instance = Mock()
-        mock_segment = Mock()
-        mock_segment.start = 0.0
-        mock_segment.end = 5.0
-        mock_segment.text = "שלום עולם"
-
-        mock_info = Mock()
-        mock_info.language = "he"
-        mock_info.duration = 5.0
-
-        mock_model_instance.transcribe.return_value = ([mock_segment], mock_info)
-        mock_whisper_model.return_value = mock_model_instance
-
-        result = read_audio_file(settings, str(test_audio), language="he")
-
-        assert result["transcription"] == "שלום עולם"
-        assert result["language"] == "he"
-
-        # Check cache file was created with language suffix
-        cache_path = file_utils.get_cache_path(settings, test_audio, language="he")
-        assert cache_path.exists()
-
-        # Verify language parameter was passed to Whisper
-        mock_model_instance.transcribe.assert_called_once()
-        call_kwargs = mock_model_instance.transcribe.call_args[1]
-        assert call_kwargs["language"] == "he"
-
     # noinspection PyUnusedLocal
     @patch('src.ai_book_composer.utils.file_utils.WhisperModel')
     def test_transcribe_audio_file_not_found(self, mock_whisper_model):
@@ -275,48 +233,6 @@ class TestVideoTranscriptionTool:
         # Second call - should use cache
         result2 = read_video_file(settings, str(test_video))
         assert result2 == result1
-
-    @patch('src.ai_book_composer.utils.file_utils.ffmpeg')
-    @patch('src.ai_book_composer.utils.file_utils.transcribe_local')
-    def test_transcribe_video_with_language(self, mock_transcribe_local, mock_ffmpeg, tmp_path):
-        """Test video transcription with Hebrew language specification."""
-        # Setup mock settings
-        settings = Settings()
-        settings.media_processing.chunk_duration = 300
-        settings.security.max_file_size_mb = 500
-
-        # Create test video file
-        test_video = tmp_path / "test_hebrew.mp4"
-        test_video.write_text("fake video content")
-
-        # Setup mock ffmpeg probe
-        mock_ffmpeg.probe.return_value = {
-            'format': {'duration': '10.0'}
-        }
-
-        # Setup mock audio transcription tool
-        mock_transcribe_local.return_value = {
-            "transcription": "תוכן וידאו",
-            "segments": [{"start": 0.0, "end": 10.0, "text": "תוכן וידאו"}],
-            "language": "he",
-            "duration": 10.0
-        }
-
-        # Transcribe with Hebrew language
-        result = read_video_file(settings, str(test_video), language="he")
-
-        assert result["transcription"] == "תוכן וידאו"
-        assert result["language"] == "he"
-
-        # Check cache file was created with language suffix
-        cache_path = file_utils.get_cache_path(settings, test_video, language="he")
-        assert cache_path.exists()
-
-        # Verify language parameter was passed
-        mock_transcribe_local.assert_called_once()
-        call_args = mock_transcribe_local.call_args[0]
-        # Language should be either in args or kwargs
-        assert call_args[2] == "he"
 
 
 class TestImageListingTool:

@@ -151,6 +151,8 @@ executor:
     3. Create a chapter structure that presents the information logically
     4. Ensure each chapter has a clear purpose and appropriate scope
     
+    {previous_attempt_details}
+    
     Once you have sufficient information, provide the complete chapter list as a JSON array.
 
   chapter_generation_system_prompt: |
@@ -160,7 +162,7 @@ executor:
     {style_instructions_section}
     
     CRITICAL UNDERSTANDING:
-    - The "Available files" list contains only metadata (filenames, sizes, summaries)
+    - The "Available source material" contains some content to help you get started, but it is NOT comprehensive
     - The actual detailed content is stored in a vector database
     - You MUST retrieve content using the 'get_relevant_documents' tool before writing
     - General knowledge should NOT be used - base your writing on retrieved source materials
@@ -193,6 +195,7 @@ executor:
     - Chapter should fulfill its stated description and objectives
     
     OUTPUT FORMAT:
+    Do not write the plan and analysis steps, only output the final chapter content as plain text when you are ready. Do NOT include any reasoning or analysis in the output - it should be purely the chapter content.
     IMPORTANT: Provide ONLY the chapter content as plain text - no markdown, no additional commentary, no reasoning in the output. The chapter should be a polished, final version ready for publication.
 
   chapter_generation_user_prompt: |
@@ -205,6 +208,8 @@ executor:
     
     AVAILABLE SOURCE MATERIALS:
     {file_summary}
+    
+    {previous_attempt_details}
     
     STEP-BY-STEP PROCESS:
     1. Think about what information this chapter needs to cover
