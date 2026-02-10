@@ -22,6 +22,9 @@ class LLMConfig(BaseModel):
         "critique": 0.2
     })
     static_plan: bool = True
+    use_deep_agent: bool = False
+    use_tool_fixer: bool = False
+    agent_debug_mode: bool = False
 
 
 class WhisperConfig(BaseModel):

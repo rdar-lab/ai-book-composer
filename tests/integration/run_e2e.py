@@ -24,8 +24,19 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
         },
         'providers': {
             'ollama': {
-                    'base_url': 'http://localhost:11434'
-                }
+                'base_url': 'http://localhost:11434'
+            },
+            'ollama_embedded': {
+                'internal': {
+                    'n_ctx': 16384,
+                    'max_tokens': 8192,
+                    'n_batch': 512,
+                    'n_threads': 4,
+                    'verbose': False,
+                    'chat_format': "qwen"
+                },
+                'run_on_gpu': False
+            }
         },
         'whisper': {
             'mode': 'local',

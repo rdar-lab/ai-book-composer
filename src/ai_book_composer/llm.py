@@ -2,19 +2,23 @@
 import copy
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 
+from deepagents import create_deep_agent
+from deepagents.backends import StateBackend
 from huggingface_hub import hf_hub_download
-from langchain_ollama import ChatOllama
-from langchain_community.chat_models import ChatLlamaCpp
+from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage, HumanMessage, BaseMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, Runnable
-from langchain_core.tools import tool
+from langchain_core.tools import tool, BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from pydantic import BaseModel, Field
 
 from .config import Settings
 
@@ -26,154 +30,20 @@ _LARGE_TOOL_MESSAGE_THRESHOLD = 3000  # Characters - compress even recent messag
 _LARGE_USER_MESSAGE_THRESHOLD = 800  # Characters - trim old user messages above this
 _USER_MESSAGE_TRIM_LENGTH = 400  # Characters to keep when trimming user messages
 
+_RE_THINK_BLOCK = re.compile(r'<think>.*?</think>', re.DOTALL)
+_RE_THINK_TAGS = re.compile(r'^<think>|</think>$', re.DOTALL)
+_RE_JSON_BLOCK = re.compile(r'```(?:json)?\s*([\s\S]*?)\s*```')
+# noinspection RegExpRedundantEscape
+_RE_JSON_EXTRACT = re.compile(r'([\[\{][\s\S]*[\]\}])')
+_RE_RESULT_BLOCK = re.compile(r'<result>.*?</result>', re.DOTALL)
+_RE_RESULT_TAGS = re.compile(r'^<result>|</result>$', re.DOTALL)
+
 _mapping_cache: Optional[Dict[str, Any]] = None
 
 
-def load_model_mappings() -> Dict[str, Any]:
-    """Load model mappings from JSON file.
-
-    Returns:
-        Dictionary of llm models
-    """
-    global _mapping_cache
-    if _mapping_cache is None:
-        if Path("models.json").exists():
-            mapping_path = "models.json"
-        else:
-            mapping_path = Path(__file__).parent.parent.parent / "models.json"
-
-        mapping_path = Path(mapping_path)
-        if not mapping_path.exists():
-            raise FileNotFoundError(f"LLM models mapping file not found: {mapping_path}")
-
-        with open(mapping_path, 'r') as f:
-            _mapping_cache = json.load(f)
-
-    return _mapping_cache
-
-
-def get_llm(
-        settings: Settings,
-        temperature: float = 0.7,
-        model: Optional[str] = None,
-        provider: Optional[str] = None,
-
-) -> BaseChatModel:
-    """Get LLM instance based on configuration.
-    
-    Args:
-        settings: The project settings
-        temperature: Temperature for generation (0.0 to 1.0)
-        model: Optional model override
-        provider: Optional provider override
-    Returns:
-        Configured LLM instance
-    """
-    provider = provider or settings.llm.provider
-    model_name = model or settings.llm.model
-
-    logger.info(f"Initializing LLM: provider={provider}, model={model_name}, temperature={temperature}")
-
-    try:
-        if provider == "openai":
-            provider_config = settings.get_provider_config("openai")
-            return ChatOpenAI(
-                model=model_name,
-                temperature=temperature,
-                api_key=provider_config.get("api_key", "")
-            )
-
-        elif provider == "gemini":
-            provider_config = settings.get_provider_config("gemini")
-            return ChatGoogleGenerativeAI(
-                model=model_name,
-                temperature=temperature,
-                google_api_key=provider_config.get("api_key", "")
-            )
-
-        elif provider == "azure":
-            provider_config = settings.get_provider_config("azure")
-            return AzureChatOpenAI(
-                azure_deployment=provider_config.get("deployment", ""),
-                temperature=temperature,
-                api_key=provider_config.get("api_key", ""),
-                azure_endpoint=provider_config.get("endpoint", "")
-            )
-
-        elif provider == "ollama":
-            provider_config = settings.get_provider_config("ollama")
-            # Use model from provider config if not specified
-            base_url = provider_config.get("base_url", "http://localhost:11434")
-
-            logger.info(f"Using Ollama model: {model_name} at {base_url}")
-            return ChatOllama(
-                model=model_name,
-                temperature=temperature,
-                base_url=base_url
-            )
-
-        elif provider == "ollama_embedded":
-            provider_config = settings.get_provider_config("ollama_embedded")
-            internal_settings = provider_config.get("internal", {})
-            run_on_gpu = provider_config.get("run_on_gpu", False)
-
-            # Convert run_on_gpu boolean to n_gpu_layers
-            # If GPU enabled, use a high number to offload all layers
-            # Otherwise use 0 for CPU-only
-            n_gpu_layers = -1 if run_on_gpu else 0
-
-            # Map model names to HuggingFace repo IDs and filenames
-            model_mappings = load_model_mappings()
-
-            # Get model info
-            if model_name not in model_mappings:
-                logger.error(f"Unknown model: {model_name}")
-                raise ValueError(
-                    f"Unknown embedded model: {model_name}\n"
-                    f"Supported models: {', '.join(model_mappings.keys())}\n"
-                    f"To add a custom model, use 'model_path' instead of 'model_name' in config."
-                )
-
-            model_info = model_mappings[model_name]
-            repo_id = model_info["repo_id"]
-            filename = model_info["filename"]
-
-            # Download model from HuggingFace Hub
-            logger.info(f"Downloading model {model_name} from HuggingFace...")
-            logger.info(f"  Repository: {repo_id}")
-            logger.info(f"  File: {filename}")
-
-            try:
-                model_path = hf_hub_download(
-                    repo_id=repo_id,
-                    filename=filename,
-                    cache_dir=Path.home() / ".cache" / "ai-book-composer" / "models"
-                )
-                logger.info(f"Model downloaded to: {model_path}")
-            except Exception as e:
-                logger.exception(f"Failed to download model: {e}")
-                raise RuntimeError(
-                    f"Failed to download model {model_name} from HuggingFace.\n"
-                    f"Error: {e}\n"
-                    f"Please check your internet connection and try again."
-                )
-
-            logger.info(f"Initializing embedded Ollama model: {model_name}")
-
-            return ChatLlamaCpp(
-                model_path=model_path,
-                temperature=temperature,
-                n_gpu_layers=n_gpu_layers,
-                **internal_settings,
-            )
-
-        else:
-            logger.error(f"Unsupported LLM provider: {provider}")
-            raise ValueError(f"Unsupported LLM provider: {provider}")
-
-    except Exception as e:
-        logger.exception(f"Failed to initialize LLM: {e}")
-        raise
+class ThinkAndRespondFormat(BaseModel):
+    think: str = Field(description="The thoughts")
+    result: str = Field(description="The final result")
 
 
 class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
@@ -182,8 +52,18 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
     instead of native tool_calls.
     """
 
-    def __init__(self, model):
+    def __init__(self, model: BaseChatModel, bounded_model: Optional[Runnable] = None):
         self.model = model
+        self.bounded_model = bounded_model
+
+    # noinspection PyProtectedMember
+    @property
+    def _llm_type(self):
+        return self.model._llm_type
+
+    @property
+    def profile(self):
+        return self.model.profile
 
     def bind_tools(self, tools, **kwargs):
         """
@@ -191,8 +71,8 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         Calls the inner model's bind_tools, then wraps the result
         so the bound model ALSO has the XML fix applied.
         """
-        bound_model = self.model.bind_tools(tools, **kwargs)
-        return ToolFixer(bound_model)
+        bound_model = patched_bind_tools(self.model, tools, **kwargs)
+        return ToolFixer(self.model, bound_model)
 
     def invoke(self, input_messages, config: RunnableConfig = None, **kwargs):
         """
@@ -201,7 +81,13 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         # 1. Execute the real model
         logger.info(f"Invoking LLM with ToolFixer.... input={input_messages}, config={config}, kwargs={kwargs}")
         history = input_messages if isinstance(input_messages, list) else []
-        msg = self.model.invoke(self._prune_history(input_messages), config=config, **kwargs)
+
+        if self.bounded_model:
+            model = self.bounded_model
+        else:
+            model = self.model
+
+        msg = model.invoke(self._prune_history(input_messages), config=config, **kwargs)
         logger.info(f"LLM response before fix: {msg}")
 
         # 2. Check and Fix Output
@@ -216,13 +102,13 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
     def _prune_history(messages):
         """
         Creates a copy of messages and aggressively compresses ToolMessages to prevent context overflow.
-        
+
         Strategy:
         - Keep System Prompt intact
         - Keep last 4 message turns full (recent context)
         - Aggressively compress all older ToolMessages (file content responses)
         - Trim large user prompts in middle messages
-        
+
         This prevents message history from exploding when agents repeatedly access file content.
         """
         if not isinstance(messages, list):
@@ -374,6 +260,334 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         return msg
 
 
+def patched_bind_tools(model, tools, tool_choice=None, **kwargs):
+    # This bypasses the strict check that causes the ValueError
+    # while still passing the tools to the underlying llama-cpp-python logic
+    if type(model).__name__ == 'ChatLlamaCpp':
+        from langchain_core.utils.function_calling import convert_to_openai_tool
+        bind_tools = [convert_to_openai_tool(tool_obj) for tool_obj in tools]
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
+        return model.bind(tools=bind_tools, **kwargs)
+    else:
+        # For other models, just call the normal bind_tools
+        return model.bind_tools(tools=tools, **kwargs)
+
+
+def load_model_mappings() -> Dict[str, Any]:
+    """Load model mappings from JSON file.
+
+    Returns:
+        Dictionary of llm models
+    """
+    global _mapping_cache
+    if _mapping_cache is None:
+        if Path("models.json").exists():
+            mapping_path = "models.json"
+        else:
+            mapping_path = Path(__file__).parent.parent.parent / "models.json"
+
+        mapping_path = Path(mapping_path)
+        if not mapping_path.exists():
+            raise FileNotFoundError(f"LLM models mapping file not found: {mapping_path}")
+
+        with open(mapping_path, 'r') as f:
+            _mapping_cache = json.load(f)
+
+    return _mapping_cache
+
+
+def _init_ollama_cpp(**args):
+    from langchain_community.chat_models import ChatLlamaCpp
+    return ChatLlamaCpp(
+        **args,
+    )
+
+
+def get_llm(
+        settings: Settings,
+        temperature: float = 0.7,
+        model: Optional[str] = None,
+        provider: Optional[str] = None,
+
+) -> BaseChatModel:
+    """Get LLM instance based on configuration.
+    
+    Args:
+        settings: The project settings
+        temperature: Temperature for generation (0.0 to 1.0)
+        model: Optional model override
+        provider: Optional provider override
+    Returns:
+        Configured LLM instance
+    """
+    provider = provider or settings.llm.provider
+    model_name = model or settings.llm.model
+
+    logger.info(f"Initializing LLM: provider={provider}, model={model_name}, temperature={temperature}")
+
+    try:
+        if provider == "openai":
+            provider_config = settings.get_provider_config("openai")
+            return ChatOpenAI(
+                model=model_name,
+                temperature=temperature,
+                api_key=provider_config.get("api_key", "")
+            )
+
+        elif provider == "gemini":
+            provider_config = settings.get_provider_config("gemini")
+            return ChatGoogleGenerativeAI(
+                model=model_name,
+                temperature=temperature,
+                google_api_key=provider_config.get("api_key", "")
+            )
+
+        elif provider == "azure":
+            provider_config = settings.get_provider_config("azure")
+            return AzureChatOpenAI(
+                azure_deployment=provider_config.get("deployment", ""),
+                temperature=temperature,
+                api_key=provider_config.get("api_key", ""),
+                azure_endpoint=provider_config.get("endpoint", "")
+            )
+
+        elif provider == "ollama":
+            provider_config = settings.get_provider_config("ollama")
+            # Use model from provider config if not specified
+            base_url = provider_config.get("base_url", "http://localhost:11434")
+
+            logger.info(f"Using Ollama model: {model_name} at {base_url}")
+            return ChatOllama(
+                model=model_name,
+                temperature=temperature,
+                base_url=base_url
+            )
+
+        elif provider == "ollama_embedded":
+            provider_config = settings.get_provider_config("ollama_embedded")
+            internal_settings = provider_config.get("internal", {})
+            run_on_gpu = provider_config.get("run_on_gpu", False)
+
+            # Convert run_on_gpu boolean to n_gpu_layers
+            # If GPU enabled, use a high number to offload all layers
+            # Otherwise use 0 for CPU-only
+            n_gpu_layers = -1 if run_on_gpu else 0
+
+            # Map model names to HuggingFace repo IDs and filenames
+            model_mappings = load_model_mappings()
+
+            # Get model info
+            if model_name not in model_mappings:
+                logger.error(f"Unknown model: {model_name}")
+                raise ValueError(
+                    f"Unknown embedded model: {model_name}\n"
+                    f"Supported models: {', '.join(model_mappings.keys())}\n"
+                )
+
+            model_info = model_mappings[model_name]
+            repo_id = model_info["repo_id"]
+            filename = model_info["filename"]
+
+            # Download model from HuggingFace Hub
+            logger.info(f"Downloading model {model_name} from HuggingFace...")
+            logger.info(f"  Repository: {repo_id}")
+            logger.info(f"  File: {filename}")
+
+            try:
+                model_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    cache_dir=Path.home() / ".cache" / "ai-book-composer" / "models"
+                )
+                logger.info(f"Model downloaded to: {model_path}")
+            except Exception as e:
+                logger.exception(f"Failed to download model: {e}")
+                raise RuntimeError(
+                    f"Failed to download model {model_name} from HuggingFace.\n"
+                    f"Error: {e}\n"
+                    f"Please check your internet connection and try again."
+                )
+
+            logger.info(f"Initializing embedded Ollama model: {model_name}")
+
+            from langchain_community.chat_models import ChatLlamaCpp
+            return _init_ollama_cpp(
+                model_path=model_path,
+                temperature=temperature,
+                n_gpu_layers=n_gpu_layers,
+                **internal_settings,
+            )
+
+        else:
+            logger.error(f"Unsupported LLM provider: {provider}")
+            raise ValueError(f"Unsupported LLM provider: {provider}")
+
+    except Exception as e:
+        logger.exception(f"Failed to initialize LLM: {e}")
+        raise
+
+
+def _extract_llm_response(result: Any) -> Any:
+    # If it is STR return it
+    if isinstance(result, str):
+        return result
+
+    # If it is base message - get the content out of it and parse again
+    if isinstance(result, BaseMessage):
+        return _extract_llm_response(result.content)
+
+    if isinstance(result, dict):
+        # If it contains a structured_response, return it
+        if 'structured_response' in result:
+            return result['structured_response']
+
+        # If it is a list of messages - grab the last one and parse again
+        if 'messages' in result:
+            return _extract_llm_response(result["messages"][-1])
+
+        if 'output' in result:
+            return result['output']
+
+        if 'content' in result:
+            return result['output']
+
+    return result
+
+
+def _extract_thought_and_action(llm_response: Any) -> tuple[str, str]:
+    """
+    Extracts the <think> block content and the remaining action text.
+    Returns a tuple: (thought, action)
+    """
+
+    if isinstance(llm_response, ThinkAndRespondFormat):
+        final_thought = llm_response.think
+        action = llm_response.result
+    else:
+        result_text = str(llm_response)
+
+        think_match = _RE_THINK_BLOCK.search(result_text)
+        thought = think_match.group(0) if think_match else ""
+        # Remove <think> tags if present
+        if thought:
+            # Extract only the inner content of <think>...</think>
+            final_thought = _RE_THINK_TAGS.sub('', thought).strip()
+        else:
+            final_thought = ""
+        # Remove the <think> block from the result to get the action
+        action = _RE_THINK_BLOCK.sub('', result_text).strip()
+
+        # In case there is a <result> block, extract its content as the action
+        result_action_match = _RE_RESULT_BLOCK.search(action)
+        result_action = result_action_match.group(0) if result_action_match else ""
+        if result_action:
+            action = _RE_RESULT_TAGS.sub('', result_action).strip()
+
+    if '<think>' in action:
+        raise Exception("Agent returned another <think> block in action, which is not allowed.")
+
+    return final_thought, action
+
+
+def extract_json_from_llm_response(clean_text: str) -> Optional[Any]:
+    """
+    Generic utility to extract JSON from LLM responses.
+    Handles mark-down code blocks, and leading/trailing text.
+    """
+    markdown_match = _RE_JSON_BLOCK.search(clean_text)
+    if markdown_match:
+        target_text = markdown_match.group(1)
+    else:
+        json_match = _RE_JSON_EXTRACT.search(clean_text)
+        target_text = json_match.group(1) if json_match else clean_text
+
+    if not target_text:
+        raise Exception("Could not find JSON object in the LLM response.")
+
+    try:
+        return json.loads(target_text.strip())
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse extracted JSON: {e}")
+        raise
+
+
+def invoke_agent(settings: Settings, model, system_prompt: str, user_prompt: str, tools=None,
+                 response_format: Optional[type[BaseModel]] = ThinkAndRespondFormat):
+    try:
+        if settings.llm.use_tool_fixer:
+            inner_model = cast(BaseChatModel, cast(Runnable, ToolFixer(model)))
+        else:
+            inner_model = model
+
+        if not tools:
+            tools = generate_default_tools()
+
+        tool_names = [tool_obj.name for tool_obj in tools] if tools else []
+
+        if settings.llm.use_deep_agent:
+            agent = create_deep_agent(
+                model=inner_model,
+                tools=tools,
+                debug=settings.llm.agent_debug_mode,
+                backend=lambda tool_runtime: StateBackend(tool_runtime),
+                response_format=response_format
+            )
+        else:
+            agent = create_agent(
+                model=inner_model,
+                tools=tools,
+                debug=settings.llm.agent_debug_mode
+            )
+
+        logger.info(
+            f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
+
+        # noinspection PyTypeChecker
+        result = agent.invoke(
+            {
+                "messages": [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt)
+                ]
+            }
+        )
+
+        logger.info(f"Agent response: {result}")
+
+        response_content = _extract_llm_response(result)
+        thought, action = _extract_thought_and_action(response_content)
+
+        logger.info(f"\n***Agent Thought***\n{thought}\n*** Action ***\n{action}")
+
+        return thought, action
+    except Exception as exp:
+        logger.exception(f"Agent invocation failed: {exp}")
+        raise
+
+
+# noinspection PyUnusedLocal
+def invoke_llm(settings: Settings, model, system_prompt: str, user_prompt: str):
+    try:
+        logger.info(
+            f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
+
+        # noinspection PyTypeChecker
+        result = model.invoke(f'{system_prompt}\n{user_prompt}')
+
+        logger.info(f"LLM Response: {result}")
+
+        response_content = _extract_llm_response(result)
+        thought, action = _extract_thought_and_action(response_content)
+
+        logger.info(f"\n***LLM Thought***\n{thought}\n*** Action ***\n{action}")
+
+        return thought, action
+    except Exception as exp:
+        logger.exception(f"LLM invocation failed: {exp}")
+        raise
+
+
 @tool
 def system_notification(message: str) -> str:
     """
@@ -381,3 +595,7 @@ def system_notification(message: str) -> str:
     The Assistant should read this message and adjust its strategy.
     """
     return f"SYSTEM ALERT: {message}"
+
+
+def generate_default_tools() -> list[BaseTool]:
+    return [system_notification]

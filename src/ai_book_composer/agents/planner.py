@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 from .agent_base import AgentBase
 from .state import AgentState
 from ..config import Settings
+from ..llm import extract_json_from_llm_response
 from ..progress_display import progress
 from ..utils import file_utils
 
@@ -116,7 +117,8 @@ class PlannerAgent(AgentBase):
 
         return plan
 
-    def _parse_plan(self, response_content) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _parse_plan(response_content) -> List[Dict[str, Any]]:
         """Parse the LLM response into a structured plan (list of tasks).
 
         Args:
@@ -126,7 +128,7 @@ class PlannerAgent(AgentBase):
         Raises:
             ValueError if parsing fails or structure is invalid
         """
-        plan = self._extract_json_from_llm_response(response_content)
+        plan = extract_json_from_llm_response(response_content)
 
         # Validate and normalize structure
         if not isinstance(plan, list):

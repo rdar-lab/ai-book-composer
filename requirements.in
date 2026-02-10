@@ -7,6 +7,10 @@ langchain-google-genai>=0.2.0
 langchain-community>=0.3.0
 langchain-ollama
 langchain-huggingface
+deepagents
+
+# Torch with CPU only
+torch @ https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp312-cp312-linux_x86_64.whl
 
 # Local LLM support (embedded ollama)
 llama-cpp-python>=0.3.2

@@ -8,6 +8,7 @@ from src.ai_book_composer.agents.executor import ExecutorAgent
 from src.ai_book_composer.agents.planner import PlannerAgent
 from src.ai_book_composer.agents.state import create_initial_state
 from src.ai_book_composer.config import Settings
+from src.ai_book_composer.llm import _extract_thought_and_action
 
 TEST_RESPONSE_FOR_CHAPTERS = """
 Alright, I'm trying to figure out how to create a structured list of chapters 
@@ -308,7 +309,7 @@ class TestExecutorAgent:
         settings = Settings()
         executor = ExecutorAgent(settings)
 
-        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_FOR_CHAPTERS)
+        thought, action = _extract_thought_and_action(TEST_RESPONSE_FOR_CHAPTERS)
         assert thought == ''
         chapters = executor._parse_chapter_list(action)
         expected_chapters = \
@@ -372,7 +373,7 @@ class TestExecutorAgent:
         settings = Settings()
         executor = ExecutorAgent(settings)
 
-        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTERS_WITH_KIND_OF_JSON)
+        thought, action = _extract_thought_and_action(TEST_RESPONSE_CHAPTERS_WITH_KIND_OF_JSON)
 
         expected_thought = ('Okay, so I need to create a chapter structure based on the given files. Let '
                             'me start by understanding what each file contains.\n'
@@ -438,7 +439,7 @@ class TestExecutorAgent:
         settings = Settings()
         executor = ExecutorAgent(settings)
 
-        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_1)
+        thought, action = _extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_1)
 
         expected_thought = ('Alright, I need to write Chapter 1: Introduction for a book based on the '
                             "provided files. Let me start by analyzing each file's content.\n"
@@ -489,7 +490,7 @@ class TestExecutorAgent:
         settings = Settings()
         executor = ExecutorAgent(settings)
 
-        thought, action = executor._extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_2)
+        thought, action = _extract_thought_and_action(TEST_RESPONSE_CHAPTER_CONTENT_SAMPLE_2)
 
         expected_thought = ("Alright, I'm trying to figure out how to write Chapter 2: Basics of "
                             'Artificial Intelligence based on the files provided. Let me start by '

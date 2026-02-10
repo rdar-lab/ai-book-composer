@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List
 
-from tenacity import retry, stop_after_attempt
+from tenacity import retry, stop_after_attempt, after_log
 
 from .agent_base import AgentBase
 from .state import AgentState
@@ -131,7 +131,7 @@ class DecoratorAgent(AgentBase):
 
         return "\n\n".join(image_descriptions)
 
-    @retry(stop=stop_after_attempt(3))
+    @retry(stop=stop_after_attempt(3), after=after_log(logger, logging.INFO))
     def _get_image_placements(
             self,
             chapter_number: int,

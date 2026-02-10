@@ -21,19 +21,27 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    
-    - name: Cache uv packages
+
+    - name: Cache Python packages (excluding CUDA)
       uses: actions/cache@v3
       with:
         path: ~/.cache/uv
-        key: ${{ runner.os }}-uv-${{ hashFiles('**/requirements-dev.txt') }}
+        key: ${{ runner.os }}-uv-no-cuda-${{ hashFiles('**/requirements-dev.txt') }}
         restore-keys: |
-          ${{ runner.os }}-uv-
-    
+          ${{ runner.os }}-uv-no-cuda-
+
     - name: Install dependencies
+      timeout-minutes: 15
       run: |
         python -m pip install --upgrade pip uv
-        uv pip sync requirements-dev.txt --system
+        # Skip CUDA packages in CI - they're not needed for testing
+        grep -vE "(cuda|nvrtc|nvidia|llama-cpp-python)" requirements.in > requirements-ci.in
+        uv pip compile requirements-ci.in requirements-dev.in -o requirements-ci.txt
+        uv pip sync requirements-ci.txt --system
+      env:
+        # Force CPU-only versions
+        CMAKE_ARGS: "-DLLAMA_CUBLAS=OFF"
+        FORCE_CMAKE: "1"
 
     - name: Run unit tests
       run: |
