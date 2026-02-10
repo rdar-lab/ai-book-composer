@@ -201,7 +201,6 @@ class TestVideoTranscriptionTool:
         """Test video transcription with caching."""
         # Setup mock settings
         settings = Settings()
-        settings.media_processing.chunk_duration = 300
         settings.security.max_file_size_mb = 500
 
         # Create test video file

@@ -30,7 +30,7 @@ class ExecutorAgent(AgentBase):
     def __init__(self, settings: Settings):
         super().__init__(
             settings,
-            llm_temperature=0.7
+            llm_temperature=settings.llm.temperature.get('execution', 0.85)
         )
         self.previous_attempt_details = ''
 
@@ -109,7 +109,7 @@ class ExecutorAgent(AgentBase):
 
         return plan_chapters
 
-    @retry(stop=stop_after_attempt(10), after=after_log(logger, logging.INFO))
+    @retry(stop=stop_after_attempt(10), after=after_log(logger, logging.INFO))  # type: ignore
     def _plan_chapters_inner(self) -> dict[str, list[dict[str, Any]] | int | str | Any]:
         cached_chapters_list_file = file_utils.get_cache_path(self.settings, "chapter_list.json")
         chapter_list = file_utils.read_cache(
@@ -173,7 +173,7 @@ class ExecutorAgent(AgentBase):
         return chapter_list
 
     # Create a helper function for parallel execution
-    @retry(stop=stop_after_attempt(10), after=after_log(logger, logging.INFO))
+    @retry(stop=stop_after_attempt(10), after=after_log(logger, logging.INFO))  # type: ignore
     def generate_chapter_wrapper(self, chapter_info: Dict[str, Any]) -> Dict[str, Any]:
         """Wrapper function to generate a single chapter for parallel execution."""
 
@@ -267,6 +267,15 @@ class ExecutorAgent(AgentBase):
 
         if not content:
             content = self._generate_chapter_with_llm(chapter_num, title, description)
+
+            word_count = len(content.split())
+            if word_count < self.settings.book.min_words_per_chapter:
+                # Add explicit instruction for retry
+                self._capture_attempt_failure(
+                    content,
+                    f"!!! Chapter is too short ({word_count} words). MUST be at least 1500 words. Expand every section with more detail and examples. !!!"
+                )
+                raise Exception("Attempt failure: Chapter too short")
 
             # Evaluate chapter content quality before caching
             is_approved, reason = self._evaluate_chapter_content_quality(

@@ -167,6 +167,7 @@ Chapter 4: Additional
 
         settings = Settings()
         settings.book.use_cached_chapters_content = False
+        settings.book.min_words_per_chapter = 0
 
         # Create executor
         executor = ExecutorAgent(
@@ -228,6 +229,7 @@ Chapter 4: Additional
 
         settings = Settings()
         settings.book.use_cached_chapters_content = False
+        settings.book.min_words_per_chapter = 0
 
         # Create executor
         executor = ExecutorAgent(

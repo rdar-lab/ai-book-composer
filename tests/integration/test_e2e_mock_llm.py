@@ -168,6 +168,8 @@ def test_e2e_workflow_with_only_llm_mocked(tmp_path):
     settings.llm.provider = 'fake'
     settings.llm.model = 'fake'
 
+    settings.book.min_words_per_chapter = 0
+
     logging_config.setup_logging(settings)
 
     # Act: run the workflow

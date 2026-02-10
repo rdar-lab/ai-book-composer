@@ -54,9 +54,6 @@ def test_config():
     assert hasattr(llm_config, 'model')
     book_config = settings.book
     assert hasattr(book_config, 'output_language')
-    text_reading_config = settings.text_reading
-    assert hasattr(text_reading_config, 'max_lines_per_read')
 
     # Test default values
     assert book_config.output_language == "en-US"
-    assert text_reading_config.max_lines_per_read == 100

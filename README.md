@@ -128,10 +128,6 @@ providers:
 whisper:
   mode: local  # Options: local, remote (default: local for no API keys needed)
 
-# Text file reading configuration
-text_reading:
-  max_lines_per_read: 100  # Max lines to read at once from text files
-
 # Book generation configuration
 book:
   output_language: en-US
@@ -278,10 +274,6 @@ whisper:
     device: cpu  # Options: cpu, cuda
     compute_type: int8
 
-# Audio/Video Processing Configuration
-media_processing:
-  chunk_duration: 300  # Chunk size for large files (in seconds)
-  max_file_duration: 3600  # Max 1 hour per file
 ```
 
 ### Language Specification

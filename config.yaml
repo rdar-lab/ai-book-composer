@@ -47,17 +47,6 @@ whisper:
     device: cpu  # Options: cpu, cuda
     compute_type: int8
 
-# Text File Reading Configuration
-text_reading:
-  max_lines_per_read: 100  # Maximum lines to read at a time from text files
-  supported_formats:
-    - txt
-    - md
-    - rst
-    - docx
-    - rtf
-    - pdf
-
 # Image Processing Configuration
 image_processing:
   supported_formats:
@@ -75,23 +64,6 @@ vision_model:
   provider: openai  # Options: openai, gemini, azure, ollama
   model: gpt-4o-mini  # Vision-capable model (gpt-4o, gpt-4o-mini, gemini-1.5-flash, etc.)
   temperature: 0.3
-
-# Audio/Video Processing Configuration
-media_processing:
-  audio_formats:
-    - mp3
-    - wav
-    - m4a
-    - flac
-    - ogg
-  video_formats:
-    - mp4
-    - avi
-    - mov
-    - mkv
-  # Chunk size for large files (in seconds)
-  chunk_duration: 300  # 5 minutes per chunk
-  max_file_duration: 3600  # Max 1 hour per file
 
 # Book Generation Configuration
 book:
@@ -113,7 +85,6 @@ rag:
   embedding_model: all-MiniLM-L6-v2  # Sentence transformer model for embeddings
   chunk_size: 1000  # Size of text chunks for vector database
   chunk_overlap: 200  # Overlap between chunks
-  retrieval_k: 5  # Number of relevant chunks to retrieve per query
 
 # Logging Configuration
 logging:

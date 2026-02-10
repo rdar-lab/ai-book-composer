@@ -354,6 +354,8 @@ def get_llm(
 
         elif provider == "ollama":
             provider_config = settings.get_provider_config("ollama")
+            internal_settings = provider_config.get("internal", {})
+
             # Use model from provider config if not specified
             base_url = provider_config.get("base_url", "http://localhost:11434")
 
@@ -361,7 +363,8 @@ def get_llm(
             return ChatOllama(
                 model=model_name,
                 temperature=temperature,
-                base_url=base_url
+                base_url=base_url,
+                **internal_settings
             )
 
         elif provider == "ollama_embedded":

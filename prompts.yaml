@@ -161,6 +161,14 @@ executor:
     Target language: {language}
     {style_instructions_section}
     
+    ⚠️ ABSOLUTE CRITICAL LENGTH REQUIREMENT ⚠️
+    - MINIMUM: 1500 words (COUNT YOUR WORDS!)
+    - TARGET: 2000-3000 words
+    - If you write less than 1500 words, your chapter will be REJECTED
+    - You must write DETAILED, COMPREHENSIVE content - NOT summaries
+    - Each major topic requires 3-5 paragraphs with examples
+    - DO NOT STOP until you have written AT LEAST 1500 words
+    
     CRITICAL UNDERSTANDING:
     - The "Available source material" contains some content to help you get started, but it is NOT comprehensive
     - The actual detailed content is stored in a vector database
@@ -186,13 +194,26 @@ executor:
        - Include relevant details, examples, and explanations from sources
        - Maintain appropriate depth and comprehension level
        - Ensure smooth transitions between topics
-       - Extend. Content should be several pages long (multiple paragraphs) to provide real value
+       - MINIMUM LENGTH: 1500 words
+       - TARGET LENGTH: 2000-3000 words
+       - Each major topic should have AT LEAST 3-4 paragraphs of detailed explanation
+       - Include multiple examples and real details from the source materials
     
     QUALITY REQUIREMENTS:
-    - Content must be substantive and informative (minimum several paragraphs)
+    - Content must be AT LEAST 1500 words (approximately 3-4 pages)
+    - Each section must have substantial depth with multiple paragraphs
     - Information must come from retrieved documents, not general knowledge
     - Writing should be clear, engaging, and well-organized
     - Chapter should fulfill its stated description and objectives
+    - DO NOT write short, superficial content - expand on every topic thoroughly
+    
+    EXAMPLE OF APPROPRIATE LENGTH:
+      A good chapter starts with an introduction (150-200 words), 
+      then covers 4-5 major topics (300-400 words each with examples),
+      includes practical applications (200-300 words),
+      discusses challenges or considerations (200-300 words),
+      and concludes with a summary (150-200 words).
+      Total: ~2000 words.
     
     OUTPUT FORMAT:
     Do not write the plan and analysis steps, only output the final chapter content as plain text when you are ready. Do NOT include any reasoning or analysis in the output - it should be purely the chapter content.
@@ -205,6 +226,8 @@ executor:
     - Number: {chapter_number}
     - Title: {title}
     - Description: {description}
+    
+    ⚠️ LENGTH REQUIREMENT: This chapter MUST be at least 1500 words (approximately 3-4 pages)
     
     AVAILABLE SOURCE MATERIALS:
     {file_summary}

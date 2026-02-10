@@ -44,7 +44,7 @@ class AgentBase:
 
         return generate_default_tools() + tools
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60), after=after_log(logger, logging.INFO))
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60), after=after_log(logger, logging.INFO))  # type: ignore
     def _invoke_llm(self, system_prompt: str, user_prompt: str, include_agent_state: bool = True):
         progress_display.progress.show_action("Running LLM...")
 
@@ -60,7 +60,7 @@ class AgentBase:
         return action
 
     # noinspection PyUnusedLocal
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60), after=after_log(logger, logging.INFO))
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60), after=after_log(logger, logging.INFO))  # type: ignore
     def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState = None, custom_tools: list = None,
                       include_agent_state: bool = True,
                       response_format: Optional[type[BaseModel]] = ThinkAndRespondFormat) -> Any:

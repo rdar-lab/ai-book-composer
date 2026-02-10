@@ -15,7 +15,7 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
     config = {
         'llm': {
             'provider': 'ollama',
-            'model': 'qwen2.5:7b-instruct',
+            'model': 'qwen2.5:14b-instruct-q4_K_M',
             'temperature': {
                 'planning': 0.3,
                 'execution': 0.7,
@@ -24,7 +24,10 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
         },
         'providers': {
             'ollama': {
-                'base_url': 'http://localhost:11434'
+                'base_url': 'http://localhost:11434',
+                'internal': {
+                    'num_predict': 4096
+                }
             },
             'ollama_embedded': {
                 'internal': {
@@ -41,9 +44,6 @@ def generate_config_file(config_dir, logs_dir, cache_dir):
         'whisper': {
             'mode': 'local',
             'model_size': 'tiny'
-        },
-        'text_reading': {
-            'max_lines_per_read': 100
         },
         'book': {
             'output_language': 'en-US',

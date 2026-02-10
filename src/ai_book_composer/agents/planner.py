@@ -14,7 +14,7 @@ class PlannerAgent(AgentBase):
     """The Planner (Product Manager) - generates structured plans."""
 
     def __init__(self, settings: Settings):
-        super().__init__(settings, llm_temperature=0.3)
+        super().__init__(settings, llm_temperature=settings.llm.temperature.get('planning', 0.3))
 
     def plan(self, state: AgentState) -> Dict[str, Any]:
         """Generate a structured plan for creating the book.

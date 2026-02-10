@@ -15,7 +15,7 @@ class CriticAgent(AgentBase):
     """The Critic - validates quality and provides feedback."""
 
     def __init__(self, settings: Settings, quality_threshold: float = 0.7):
-        super().__init__(settings=settings, llm_temperature=0.2)
+        super().__init__(settings=settings, llm_temperature=settings.llm.temperature.get('critique', 0.2))
         self.quality_threshold = quality_threshold
 
     def critique(self, state: AgentState) -> Dict[str, Any]:

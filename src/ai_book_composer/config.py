@@ -18,8 +18,9 @@ class LLMConfig(BaseModel):
     model: str = "llama-3.2-1b-instruct"
     temperature: Dict[str, float] = Field(default_factory=lambda: {
         "planning": 0.3,
-        "execution": 0.7,
-        "critique": 0.2
+        "execution": 0.85,
+        "critique": 0.2,
+        "decoration": 0.3
     })
     static_plan: bool = True
     use_deep_agent: bool = False
@@ -43,16 +44,7 @@ class WhisperConfig(BaseModel):
 
 class TextReadingConfig(BaseModel):
     """Text reading configuration."""
-    max_lines_per_read: int = 100
     supported_formats: list = Field(default_factory=lambda: ["txt", "md", "rst", "docx", "rtf", "pdf"])
-
-
-class MediaProcessingConfig(BaseModel):
-    """Media processing configuration."""
-    audio_formats: list = Field(default_factory=lambda: ["mp3", "wav", "m4a", "flac", "ogg"])
-    video_formats: list = Field(default_factory=lambda: ["mp4", "avi", "mov", "mkv"])
-    chunk_duration: int = 300
-    max_file_duration: int = 3600
 
 
 class ImageProcessingConfig(BaseModel):
@@ -78,6 +70,7 @@ class BookConfig(BaseModel):
     quality_threshold: float = 0.7
     max_iterations: int = 3
     style_instructions: str = ""  # Optional instructions to guide AI on book style
+    min_words_per_chapter: int = 500
     use_cached_plan: bool = True  # Whether to cache the generated plan
     use_cached_chapters_list: bool = True  # Whether to cache the chapter list
     use_cached_chapters_content: bool = True  # Whether to cache individual chapter content
@@ -96,7 +89,6 @@ class RAGConfig(BaseModel):
     embedding_model: str = "all-MiniLM-L6-v2"
     chunk_size: int = 1000
     chunk_overlap: int = 200
-    retrieval_k: int = 5
     max_allowed_distance: float = 0.9
 
 
@@ -151,8 +143,6 @@ class Settings:
         # Initialize config objects
         self.llm = LLMConfig(**self._config.get('llm', {}))
         self.whisper = WhisperConfig(**self._config.get('whisper', {}))
-        self.text_reading = TextReadingConfig(**self._config.get('text_reading', {}))
-        self.media_processing = MediaProcessingConfig(**self._config.get('media_processing', {}))
         self.image_processing = ImageProcessingConfig(**self._config.get('image_processing', {}))
         self.vision_model = VisionModelConfig(**self._config.get('vision_model', {}))
         self.book = BookConfig(**self._config.get('book', {}))
@@ -179,8 +169,6 @@ class Settings:
         # Reflect the state back to the self._config dictionary
         self._config['llm'] = self.llm.model_dump()
         self._config['whisper'] = self.whisper.model_dump()
-        self._config['text_reading'] = self.text_reading.model_dump()
-        self._config['media_processing'] = self.media_processing.model_dump()
         self._config['image_processing'] = self.image_processing.model_dump()
         self._config['vision_model'] = self.vision_model.model_dump()
         self._config['book'] = self.book.model_dump()
@@ -216,16 +204,6 @@ class Settings:
                 'remote': {'endpoint': 'http://localhost:9000', 'api_key': None},
                 'local': {'device': 'cpu', 'compute_type': 'int8'}
             },
-            'text_reading': {
-                'max_lines_per_read': 100,
-                'supported_formats': ['txt', 'md', 'rst', 'docx', 'rtf', 'pdf']
-            },
-            'media_processing': {
-                'audio_formats': ['mp3', 'wav', 'm4a', 'flac', 'ogg'],
-                'video_formats': ['mp4', 'avi', 'mov', 'mkv'],
-                'chunk_duration': 300,
-                'max_file_duration': 3600
-            },
             'image_processing': {
                 'supported_formats': ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
                 'extract_from_pdf': True,
@@ -244,9 +222,10 @@ class Settings:
                 'quality_threshold': 0.7,
                 'max_iterations': 3,
                 'style_instructions': '',
+                'min_words_per_chapter': 500,
                 'use_cached_plan': True,
                 'use_cached_chapters_list': True,
-                'use_cached_chapters_content': True
+                'use_cached_chapters_content': True,
             },
             'logging': {
                 'level': 'DEBUG',
@@ -267,7 +246,6 @@ class Settings:
                 'embedding_model': 'all-MiniLM-L6-v2',
                 'chunk_size': 1000,
                 'chunk_overlap': 200,
-                'retrieval_k': 5,
                 'max_allowed_distance': 0.9
             },
             'providers': {

@@ -20,7 +20,7 @@ class DecoratorAgent(AgentBase):
     """The Decorator - decides on image placements in chapters."""
 
     def __init__(self, settings: Settings):
-        super().__init__(settings=settings, llm_temperature=0.3)
+        super().__init__(settings=settings, llm_temperature=settings.llm.temperature.get('decoration', 0.3))
 
     def decorate(self, state: AgentState) -> Dict[str, Any]:
         """Add image placements to chapters.
@@ -131,7 +131,7 @@ class DecoratorAgent(AgentBase):
 
         return "\n\n".join(image_descriptions)
 
-    @retry(stop=stop_after_attempt(3), after=after_log(logger, logging.INFO))
+    @retry(stop=stop_after_attempt(3), after=after_log(logger, logging.INFO))  # type: ignore
     def _get_image_placements(
             self,
             chapter_number: int,
