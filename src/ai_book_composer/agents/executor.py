@@ -5,12 +5,13 @@ from typing import Dict, Any, List, Tuple
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool, BaseTool
-from tenacity import stop_after_attempt, retry
+from tenacity import stop_after_attempt, retry, after_log
 
 from .agent_base import AgentBase
 from .state import AgentState
 from .. import progress_display
 from ..config import Settings
+from ..llm import extract_json_from_llm_response
 from ..parallel_utils import execute_parallel
 from ..progress_display import progress
 from ..utils import file_utils
@@ -108,7 +109,7 @@ class ExecutorAgent(AgentBase):
 
         return plan_chapters
 
-    @retry(stop=stop_after_attempt(10))
+    @retry(stop=stop_after_attempt(10), after=after_log(logger, logging.INFO))
     def _plan_chapters_inner(self) -> dict[str, list[dict[str, Any]] | int | str | Any]:
         cached_chapters_list_file = file_utils.get_cache_path(self.settings, "chapter_list.json")
         chapter_list = file_utils.read_cache(
@@ -172,7 +173,7 @@ class ExecutorAgent(AgentBase):
         return chapter_list
 
     # Create a helper function for parallel execution
-    @retry(stop=stop_after_attempt(10))
+    @retry(stop=stop_after_attempt(10), after=after_log(logger, logging.INFO))
     def generate_chapter_wrapper(self, chapter_info: Dict[str, Any]) -> Dict[str, Any]:
         """Wrapper function to generate a single chapter for parallel execution."""
 
@@ -316,11 +317,12 @@ class ExecutorAgent(AgentBase):
         content = self._parse_chapter_content_response(result)
         return content
 
-    def _parse_chapter_content_response(self, llm_response: str) -> str:
+    @staticmethod
+    def _parse_chapter_content_response(llm_response: str) -> str:
         # noinspection PyBroadException
         try:
-            parsed_response = self._extract_json_from_llm_response(llm_response)
-            if isinstance(str, parsed_response):
+            parsed_response = extract_json_from_llm_response(llm_response)
+            if isinstance(parsed_response, str):
                 return parsed_response
             else:
                 raise Exception("Was able to detect JSON but it wasn't a string")
@@ -491,12 +493,13 @@ class ExecutorAgent(AgentBase):
             # On error, approve by default to not block workflow
             return True, 'Unable to approve or reject'
 
-    def _parse_chapter_list(self, response_content: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _parse_chapter_list(response_content: str) -> List[Dict[str, Any]]:
         """Parse chapter list from LLM response."""
         chapters = []
 
         try:
-            data = self._extract_json_from_llm_response(response_content)
+            data = extract_json_from_llm_response(response_content)
         except Exception as e:
             logger.warning(f"Failed to parse chapter list as JSON: {str(e)}")
             data = None

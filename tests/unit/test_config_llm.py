@@ -91,7 +91,7 @@ class TestLLMProvider:
         assert call_kwargs['base_url'] == 'http://localhost:11434'
 
     @patch('src.ai_book_composer.llm.hf_hub_download')
-    @patch('src.ai_book_composer.llm.ChatLlamaCpp')
+    @patch('src.ai_book_composer.llm._init_ollama_cpp')
     def test_embedded_ollama_provider(self, mock_llamacpp, mock_download):
         """Test embedded ollama provider initialization."""
         mock_download.return_value = '/path/to/downloaded/model.gguf'
@@ -126,7 +126,7 @@ class TestLLMProvider:
     def test_embedded_ollama_with_gpu(self):
         """Test that run_on_gpu=True sets n_gpu_layers=-1."""
         with patch('src.ai_book_composer.llm.hf_hub_download') as mock_download, \
-                patch('src.ai_book_composer.llm.ChatLlamaCpp') as mock_llamacpp:
+                patch('src.ai_book_composer.llm._init_ollama_cpp') as mock_llamacpp:
             mock_download.return_value = '/path/to/model.gguf'
             mock_settings = Settings()
             mock_settings.llm.provider = 'ollama_embedded'

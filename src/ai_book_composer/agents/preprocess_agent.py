@@ -227,7 +227,7 @@ class PreprocessAgent(AgentBase):
                     logger.info(f"Summarizing gathered file content for easier processing. file_name={file_name}")
                     progress.show_action(
                         f"Summarizing gathered file content for easier processing. file_name={file_name}")
-                    file_summary = self._invoke_llm(system_prompt, user_prompt)
+                    file_summary = self._invoke_llm(system_prompt, user_prompt, include_agent_state=False)
 
                     logger.info(f"File content summarized successfully. Summary={file_summary}")
                     progress.show_thought("File content summarized successfully.")

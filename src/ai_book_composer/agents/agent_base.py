@@ -1,30 +1,20 @@
 import json
 import logging
 import random
-import re
 from pathlib import Path
 from typing import Any, Optional
 from typing import Dict
 
-from langchain.agents import create_agent
-from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from langchain_core.tools import tool, BaseTool
-from tenacity import retry, stop_after_attempt, wait_fixed
+from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_fixed, after_log
 
 from .state import AgentState
 from .. import progress_display
 from ..config import load_prompts, Settings
-from ..llm import get_llm, ToolFixer, system_notification
+from ..llm import get_llm, ThinkAndRespondFormat, invoke_agent, invoke_llm, generate_default_tools
 
 logger = logging.getLogger(__name__)
-
-_RE_THINK_BLOCK = re.compile(r'<think>.*?</think>', re.DOTALL)
-_RE_THINK_TAGS = re.compile(r'^<think>|</think>$', re.DOTALL)
-_RE_JSON_BLOCK = re.compile(r'```(?:json)?\s*([\s\S]*?)\s*```')
-# noinspection RegExpRedundantEscape
-_RE_JSON_EXTRACT = re.compile(r'([\[\{][\s\S]*[\]\}])')
-_RE_RESULT_BLOCK = re.compile(r'<result>.*?</result>', re.DOTALL)
-_RE_RESULT_TAGS = re.compile(r'^<result>|</result>$', re.DOTALL)
 
 # Constants for state summary
 MAX_CRITIC_FEEDBACK_LENGTH = 200  # Maximum length for critic feedback in state summary
@@ -49,15 +39,14 @@ class AgentBase:
 
     def _generate_tools(self) -> list[BaseTool]:
         tools: list[BaseTool] = [
-            system_notification,
             self.get_relevant_documents_tool()
         ]
 
-        return tools
+        return generate_default_tools() + tools
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60), after=after_log(logger, logging.INFO))
     def _invoke_llm(self, system_prompt: str, user_prompt: str, include_agent_state: bool = True):
-        llm = self._get_llm()
+        progress_display.progress.show_action("Running LLM...")
 
         # Add agent state summary to system prompt if enabled
         if include_agent_state:
@@ -65,62 +54,25 @@ class AgentBase:
             if state_summary:
                 system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}\n\n"
 
-        logger.info(
-            f"Invoking llm with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\n")
-        progress_display.progress.show_action("Running LLM...")
-
-        # noinspection PyTypeChecker
-        result = llm.invoke(f'f{system_prompt}\n{user_prompt}')
-
-        logger.info(f"LLM Response: {result}")
-
-        response_content = self._extract_llm_response(result)
-
-        response_content = str(response_content)
-        thought, action = self._extract_thought_and_action(response_content)
-
-        logger.info(f"\n***LLM Thought***\n{thought}\n*** Action ***\n{action}")
-
-        if '<think>' in action:
-            raise Exception("Agent returned another <think> block in action, which is not allowed.")
+        thought, action = invoke_llm(self.settings, self._get_llm(), system_prompt, user_prompt)
 
         progress_display.progress.show_agent_response(thought, action)
         return action
 
-    @staticmethod
-    def _extract_llm_response(result: Any) -> Any:
-        if isinstance(result, BaseMessage):
-            return result.content
-
-        if "messages" in result:
-            response_content = result["messages"][-1].content
-        elif 'output' in result:
-            response_content = result['output']
-        elif 'content' in result:
-            response_content = result['content']
-        else:
-            response_content = result
-        return response_content
-
     # noinspection PyUnusedLocal
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60))
-    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState, custom_tools: list = None,
-                      include_agent_state: bool = True) -> Any:
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(60), after=after_log(logger, logging.INFO))
+    def _invoke_agent(self, system_prompt: str, user_prompt: str, state: AgentState = None, custom_tools: list = None,
+                      include_agent_state: bool = True,
+                      response_format: Optional[type[BaseModel]] = ThinkAndRespondFormat) -> Any:
+        progress_display.progress.show_action("Running agent...")
+
         if not custom_tools:
             tools = self._generate_tools()
         else:
             tools = custom_tools
 
-        llm = ToolFixer(self._get_llm())
-
-        # noinspection PyTypeChecker
-        agent = create_agent(
-            model=llm,
-            tools=tools,
-            debug=False
-        )
-
-        tool_names = [tool_obj.name for tool_obj in tools]
+        if not state:
+            state = self.state
 
         # Add agent state summary to system prompt if enabled
         if include_agent_state:
@@ -128,31 +80,8 @@ class AgentBase:
             if state_summary:
                 system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
 
-        logger.info(
-            f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
-        progress_display.progress.show_action("Running agent...")
-
-        # noinspection PyTypeChecker
-        result = agent.invoke(
-            {
-                "messages": [
-                    SystemMessage(content=system_prompt),
-                    HumanMessage(content=user_prompt)
-                ]
-            }
-        )
-
-        logger.info(f"Agent response: {result}")
-
-        response_content = self._extract_llm_response(result)
-
-        response_content = str(response_content)
-        thought, action = self._extract_thought_and_action(response_content)
-
-        logger.info(f"\n***Agent Thought***\n{thought}\n*** Action ***\n{action}")
-
-        if '<think>' in action:
-            raise Exception("Agent returned another <think> block in action, which is not allowed.")
+        thought, action = invoke_agent(self.settings, self._get_llm(), system_prompt, user_prompt, tools,
+                                       response_format=response_format)
 
         progress_display.progress.show_agent_response(thought, action)
 
@@ -292,53 +221,6 @@ class AgentBase:
             }
 
         return get_relevant_documents
-
-    @staticmethod
-    def _extract_thought_and_action(result_text: str) -> tuple[str, str]:
-        """
-        Extracts the <think> block content and the remaining action text.
-        Returns a tuple: (thought, action)
-        """
-        think_match = _RE_THINK_BLOCK.search(result_text)
-        thought = think_match.group(0) if think_match else ""
-        # Remove <think> tags if present
-        if thought:
-            # Extract only the inner content of <think>...</think>
-            inner_thought = _RE_THINK_TAGS.sub('', thought).strip()
-        else:
-            inner_thought = ""
-        # Remove the <think> block from the result to get the action
-        action = _RE_THINK_BLOCK.sub('', result_text).strip()
-
-        # In case there is a <result> block, extract its content as the action
-        result_action_match = _RE_RESULT_BLOCK.search(action)
-        result_action = result_action_match.group(0) if result_action_match else ""
-        if result_action:
-            action = _RE_RESULT_TAGS.sub('', result_action).strip()
-
-        return inner_thought, action
-
-    @staticmethod
-    def _extract_json_from_llm_response(clean_text: str) -> Optional[Any]:
-        """
-        Generic utility to extract JSON from LLM responses.
-        Handles mark-down code blocks, and leading/trailing text.
-        """
-        markdown_match = _RE_JSON_BLOCK.search(clean_text)
-        if markdown_match:
-            target_text = markdown_match.group(1)
-        else:
-            json_match = _RE_JSON_EXTRACT.search(clean_text)
-            target_text = json_match.group(1) if json_match else clean_text
-
-        if not target_text:
-            raise Exception("Could not find JSON object in the LLM response.")
-
-        try:
-            return json.loads(target_text.strip())
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse extracted JSON: {e}")
-            raise
 
     def _get_files_summary(self, sample_size: int = 100) -> str:
         gathered_content = self.state.get("gathered_content", {})

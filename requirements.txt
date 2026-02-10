@@ -8,8 +8,11 @@ aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
+anthropic==0.79.0
+    # via langchain-anthropic
 anyio==4.12.1
     # via
+    #   anthropic
     #   google-genai
     #   httpx
     #   openai
@@ -25,6 +28,8 @@ backoff==2.2.1
     # via posthog
 bcrypt==5.0.0
     # via chromadb
+bracex==2.6
+    # via wcmatch
 build==1.4.0
     # via chromadb
 certifi==2026.1.4
@@ -58,15 +63,20 @@ cuda-pathfinder==1.3.3
     # via cuda-bindings
 dataclasses-json==0.6.7
     # via langchain-community
+deepagents==0.3.12
+    # via -r requirements.in
 dirty-equals==0.11
     # via -r requirements.in
 diskcache==5.6.3
     # via llama-cpp-python
 distro==1.9.0
     # via
+    #   anthropic
     #   google-genai
     #   openai
     #   posthog
+docstring-parser==0.17.0
+    # via anthropic
 durationpy==0.10
     # via kubernetes
 faster-whisper==1.2.1
@@ -116,6 +126,7 @@ httptools==0.7.1
     # via uvicorn
 httpx==0.28.1
     # via
+    #   anthropic
     #   chromadb
     #   google-genai
     #   langgraph-sdk
@@ -150,7 +161,9 @@ jinja2==3.1.6
     #   llama-cpp-python
     #   torch
 jiter==0.13.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
 joblib==1.5.3
     # via scikit-learn
 jsonpatch==1.33
@@ -164,7 +177,11 @@ jsonschema-specifications==2025.9.1
 kubernetes==35.0.0
     # via chromadb
 langchain==1.2.8
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   deepagents
+langchain-anthropic==1.3.1
+    # via deepagents
 langchain-chroma==1.1.0
     # via -r requirements.in
 langchain-classic==1.0.1
@@ -174,7 +191,9 @@ langchain-community==0.4.1
 langchain-core==1.2.8
     # via
     #   -r requirements.in
+    #   deepagents
     #   langchain
+    #   langchain-anthropic
     #   langchain-chroma
     #   langchain-classic
     #   langchain-community
@@ -187,7 +206,9 @@ langchain-core==1.2.8
     #   langgraph-checkpoint
     #   langgraph-prebuilt
 langchain-google-genai==4.2.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   deepagents
 langchain-huggingface==1.2.0
     # via -r requirements.in
 langchain-ollama==1.0.1
@@ -367,9 +388,11 @@ pycparser==3.0
 pydantic==2.12.5
     # via
     #   -r requirements.in
+    #   anthropic
     #   chromadb
     #   google-genai
     #   langchain
+    #   langchain-anthropic
     #   langchain-classic
     #   langchain-core
     #   langchain-google-genai
@@ -479,6 +502,7 @@ six==1.17.0
     #   python-dateutil
 sniffio==1.3.1
     # via
+    #   anthropic
     #   google-genai
     #   openai
 sqlalchemy==2.0.46
@@ -528,6 +552,7 @@ typing-extensions==4.15.0
     # via
     #   -r requirements.in
     #   aiosignal
+    #   anthropic
     #   anyio
     #   chromadb
     #   google-genai
@@ -570,6 +595,8 @@ uvloop==0.22.1
     # via uvicorn
 watchfiles==1.1.1
     # via uvicorn
+wcmatch==10.1
+    # via deepagents
 websocket-client==1.9.0
     # via kubernetes
 websockets==15.0.1
