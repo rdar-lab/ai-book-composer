@@ -184,7 +184,15 @@ class PreprocessAgent(AgentBase):
         gathered_content = self._gather_all_content(files)
         self._summarize_all_files(gathered_content)
 
-        all_images = self._gather_images(files)
+        if self.settings.book.decorate_with_images:
+            all_images = self._gather_images(files)
+
+            # Describe all images
+            if all_images:
+                progress.show_thought("Describing images for better placement decisions")
+                self._describe_all_images(all_images)
+        else:
+            all_images = []
 
         self.state["gathered_content"] = gathered_content
         self.state["images"] = all_images
@@ -338,11 +346,6 @@ class PreprocessAgent(AgentBase):
                         progress.show_observation(f"⚠ No images found in {pdf_name}")
 
         progress.show_observation(f"Image gathering complete: {len(all_images)} total image(s) available")
-
-        # Describe all images
-        if all_images:
-            progress.show_thought("Describing images for better placement decisions")
-            self._describe_all_images(all_images)
 
         return all_images
 

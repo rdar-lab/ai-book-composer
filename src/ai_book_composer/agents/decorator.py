@@ -30,68 +30,77 @@ class DecoratorAgent(AgentBase):
         """
         self.state = state
 
-        with progress.agent_context(
-                "Decorator",
-                "Finding best placements for images within the chapters to enhance the content"
-        ):
-            progress.show_action("Decorator: Analyzing image placements...")
+        decorate_with_images = self.settings.book.decorate_with_images
 
-            chapters = state.get("chapters", [])
-            images = state.get("images", [])
-            language = state.get("language", "en-US")
-            style_instructions = state.get("style_instructions", "")
+        if decorate_with_images:
+            with progress.agent_context(
+                    "Decorator",
+                    "Finding best placements for images within the chapters to enhance the content"
+            ):
+                progress.show_action("Decorator: Analyzing image placements...")
 
-            if not images:
-                progress.show_observation("Decorator: No images available, skipping decoration")
-                # noinspection PyTypeChecker
-                return state
+                chapters = state.get("chapters", [])
+                images = state.get("images", [])
+                language = state.get("language", "en-US")
+                style_instructions = state.get("style_instructions", "")
 
-            if not chapters:
-                raise Exception("Decorator: No chapters found in state to decorate.")
+                if not images:
+                    progress.show_observation("Decorator: No images available, skipping decoration")
+                    # noinspection PyTypeChecker
+                    return state
 
-            # Decorate each chapter
-            decorated_chapters = []
-            for i, chapter in enumerate(chapters):
-                chapter_number = i + 1
-                chapter_title = chapter.get("title", f"Chapter {chapter_number}")
-                chapter_content = chapter.get("content", "")
+                if not chapters:
+                    raise Exception("Decorator: No chapters found in state to decorate.")
 
-                # Get content preview (first 1000 characters for analysis)
-                content_preview = chapter_content[:1000] + ("..." if len(chapter_content) > 1000 else "")
+                # Decorate each chapter
+                decorated_chapters = []
+                for i, chapter in enumerate(chapters):
+                    chapter_number = i + 1
+                    chapter_title = chapter.get("title", f"Chapter {chapter_number}")
+                    chapter_content = chapter.get("content", "")
 
-                # Format available images for the prompt
-                images_summary = self._format_images_for_prompt(images)
+                    # Get content preview (first 1000 characters for analysis)
+                    content_preview = chapter_content[:1000] + ("..." if len(chapter_content) > 1000 else "")
 
-                cache_file = file_utils.get_cache_path(self.settings, f"decorator_chapter_{chapter_number}_placements", "json")
-                placements = file_utils.read_cache(cache_file)
+                    # Format available images for the prompt
+                    images_summary = self._format_images_for_prompt(images)
 
-                if placements is None or not self.settings.book.use_cached_decorations:
-                    # Get image placement suggestions from LLM
-                    placements = self._get_image_placements(
-                        chapter_number=chapter_number,
-                        chapter_title=chapter_title,
-                        chapter_content_preview=content_preview,
-                        available_images=images_summary,
-                        all_images=images,
-                        language=language,
-                        style_instructions=style_instructions
-                    )
-                    file_utils.write_cache(cache_file, placements)
+                    cache_file = file_utils.get_cache_path(self.settings,
+                                                           f"decorator_chapter_{chapter_number}_placements", "json")
+                    placements = file_utils.read_cache(cache_file)
 
-                # Create decorated chapter with image placements
-                decorated_chapter = {
-                    **chapter,
-                    "images": placements
+                    if placements is None or not self.settings.book.use_cached_decorations:
+                        # Get image placement suggestions from LLM
+                        placements = self._get_image_placements(
+                            chapter_number=chapter_number,
+                            chapter_title=chapter_title,
+                            chapter_content_preview=content_preview,
+                            available_images=images_summary,
+                            all_images=images,
+                            language=language,
+                            style_instructions=style_instructions
+                        )
+                        file_utils.write_cache(cache_file, placements)
+
+                    # Create decorated chapter with image placements
+                    decorated_chapter = {
+                        **chapter,
+                        "images": placements
+                    }
+                    decorated_chapters.append(decorated_chapter)
+
+                    progress.show_observation(f"Decorator: Added {len(placements)} images to chapter {chapter_number}")
+
+                self.state["chapters"] = decorated_chapters
+
+                return {
+                    "chapters": decorated_chapters,
+                    "status": "decorated"
                 }
-                decorated_chapters.append(decorated_chapter)
-
-                progress.show_observation(f"Decorator: Added {len(placements)} images to chapter {chapter_number}")
-
-            self.state["chapters"] = decorated_chapters
-
+        else:
+            progress.show_observation("Decoration with images is disabled in settings, skipping decoration step.")
             return {
-                "chapters": decorated_chapters,
-                "status": "decorated"
+                "status": "decoration_skipped"
             }
 
     def _format_images_for_prompt(self, images: List[Dict[str, Any]]) -> str:

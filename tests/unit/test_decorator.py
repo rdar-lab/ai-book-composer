@@ -15,6 +15,7 @@ from src.ai_book_composer.config import Settings
 def _create_decorator_no_cache(settings: Optional[Settings] = None) -> DecoratorAgent:
     if settings is None:
         settings = Settings()
+    settings.book.decorate_with_images = True
     settings.book.use_cached_decorations = False
     agent = DecoratorAgent(settings)
     return agent

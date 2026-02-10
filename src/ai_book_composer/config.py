@@ -75,6 +75,7 @@ class BookConfig(BaseModel):
     use_cached_chapters_list: bool = True  # Whether to cache the chapter list
     use_cached_chapters_content: bool = True  # Whether to cache individual chapter content
     use_cached_decorations: bool = True  # Whether to cache decorated images
+    decorate_with_images: bool = False  # Whether to use vision model to generate image descriptions and decorate the book
 
 
 class ParallelConfig(BaseModel):
@@ -226,6 +227,7 @@ class Settings:
                 'use_cached_plan': True,
                 'use_cached_chapters_list': True,
                 'use_cached_chapters_content': True,
+                'decorate_with_images': False
             },
             'logging': {
                 'level': 'DEBUG',
