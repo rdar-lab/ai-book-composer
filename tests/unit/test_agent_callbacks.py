@@ -1,8 +1,8 @@
 """Unit tests for agent callback handler functionality."""
 
-from unittest.mock import MagicMock, patch
-from uuid import uuid4
 import sys
+from unittest.mock import MagicMock
+from uuid import uuid4
 
 # Mock the dependencies before importing llm
 sys.modules['langchain_ollama'] = MagicMock()
@@ -27,24 +27,24 @@ class TestAgentProgressCallbackHandler:
         """Test that on_llm_start triggers the callback."""
         callback = MagicMock()
         handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
+
         serialized = {"name": "test_llm"}
         prompts = ["test prompt"]
-        
+
         handler.on_llm_start(serialized, prompts, run_id=uuid4())
-        
+
         callback.assert_called_once_with("llm_start", "Agent is thinking...")
 
     def test_on_tool_start_calls_callback(self):
         """Test that on_tool_start triggers the callback."""
         callback = MagicMock()
         handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
+
         serialized = {"name": "get_relevant_documents"}
         input_str = "test input"
-        
+
         handler.on_tool_start(serialized, input_str, run_id=uuid4())
-        
+
         callback.assert_called_once()
         args = callback.call_args[0]
         assert args[0] == "tool_start"
@@ -55,11 +55,11 @@ class TestAgentProgressCallbackHandler:
         """Test that on_tool_end triggers the callback."""
         callback = MagicMock()
         handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
+
         output = "test output"
-        
+
         handler.on_tool_end(output, run_id=uuid4())
-        
+
         callback.assert_called_once()
         args = callback.call_args[0]
         assert args[0] == "tool_end"
@@ -69,17 +69,17 @@ class TestAgentProgressCallbackHandler:
         """Test that on_llm_end triggers the callback."""
         callback = MagicMock()
         handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
+
         response = {"output": "test response"}
-        
+
         handler.on_llm_end(response, run_id=uuid4())
-        
+
         callback.assert_called_once_with("llm_end", "Agent completed thinking. Response: {'output': 'test response'}")
 
     def test_callback_handler_without_callback(self):
         """Test that handler works without a callback function."""
         handler = AgentProgressCallbackHandler(progress_callback=None)
-        
+
         # Should not raise any exceptions
         handler.on_llm_start({"name": "test"}, ["prompt"], run_id=uuid4())
         handler.on_tool_start({"name": "tool"}, "input", run_id=uuid4())
@@ -91,13 +91,13 @@ class TestAgentProgressCallbackHandler:
         """Test that on_tool_start truncates long input strings."""
         callback = MagicMock()
         handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
+
         # Create a long input string
         long_input = "x" * 200
         serialized = {"name": "test_tool"}
-        
+
         handler.on_tool_start(serialized, long_input, run_id=uuid4())
-        
+
         callback.assert_called_once()
         args = callback.call_args[0]
         assert "..." in args[1]  # Should be truncated
@@ -107,12 +107,12 @@ class TestAgentProgressCallbackHandler:
         """Test that on_tool_end truncates long output strings."""
         callback = MagicMock()
         handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
+
         # Create a long output string
         long_output = "y" * 300
-        
+
         handler.on_tool_end(long_output, run_id=uuid4())
-        
+
         callback.assert_called_once()
         args = callback.call_args[0]
         assert "..." in args[1]  # Should be truncated
