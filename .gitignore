@@ -43,8 +43,6 @@ htmlcov/
 
 # Output files
 output/
-*.rtf
-*.docx
 
 # Temporary files
 tmp/
