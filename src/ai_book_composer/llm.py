@@ -69,6 +69,7 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
             self, serialized: Dict[str, Any], prompts: list[str], **kwargs: Any
     ) -> None:
         """Called when LLM starts running."""
+        logger.debug(f'AgentProgressCallbackHandler - LLM Start - Prompts: {prompts}')
         if self.progress_callback:
             self.progress_callback("llm_start", "Agent is thinking...")
 
@@ -76,6 +77,7 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
             self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
     ) -> None:
         """Called when a tool starts running."""
+        logger.debug(f'AgentProgressCallbackHandler - Tool Start - Tool: {serialized}, Input: {input_str}')
         if self.progress_callback:
             tool_name = serialized.get("name", "Unknown tool")
             # Truncate long inputs
@@ -88,6 +90,7 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
 
     def on_tool_end(self, output: Any, **kwargs: Any) -> None:
         """Called when a tool ends running."""
+        logger.debug(f'AgentProgressCallbackHandler - Tool End - Output: {output}')
         if self.progress_callback:
             # Truncate long outputs
             output_str = str(output)
@@ -102,15 +105,19 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
             self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
     ) -> None:
         """Called when a chain starts running."""
-        if self.progress_callback:
-            chain_name = serialized.get("name", "agent")
-            if "agent" in chain_name.lower():
-                self.progress_callback("chain_start", "Agent processing request...")
+        logger.debug(f'AgentProgressCallbackHandler - Chain Start - Inputs: {inputs}')
 
     def on_llm_end(self, response: Any, **kwargs: Any) -> None:
         """Called when LLM ends running."""
+        logger.debug(f'AgentProgressCallbackHandler - LLM End - Response: {response}')
         if self.progress_callback:
-            self.progress_callback("llm_end", "Agent completed thinking.")
+            output_str = str(response)
+            truncated_output = (
+                output_str[:self.MAX_OUTPUT_DISPLAY_LENGTH] + "..."
+                if len(output_str) > self.MAX_OUTPUT_DISPLAY_LENGTH
+                else output_str
+            )
+            self.progress_callback("llm_end", f"Agent completed thinking. Response: {truncated_output}")
 
 
 class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
@@ -146,7 +153,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
         Intercepts the execution.
         """
         # 1. Execute the real model
-        logger.info(f"Invoking LLM with ToolFixer.... input={input_messages}, config={config}, kwargs={kwargs}")
+        logger.debug(f"Invoking LLM with ToolFixer.... input={input_messages}, config={config}, kwargs={kwargs}")
         history = input_messages if isinstance(input_messages, list) else []
 
         if self.bounded_model:
@@ -155,7 +162,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
             model = self.model
 
         msg = model.invoke(self._prune_history(input_messages), config=config, **kwargs)
-        logger.info(f"LLM response before fix: {msg}")
+        logger.debug(f"LLM response before fix: {msg}")
 
         # 2. Check and Fix Output
         if isinstance(msg, AIMessage) and not msg.tool_calls:
@@ -296,7 +303,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                     unique_id = f"call_{str(uuid.uuid4())}"
 
                     if ToolFixer._is_duplicate_call(tool_name, tool_args, history):
-                        logger.info(f"🔧 Skipping duplicate tool call: {data}")
+                        logger.debug(f"🔧 Skipping duplicate tool call: {data}")
                         # we SWAP the call to the system_notification tool.
                         msg.tool_calls = [{
                             "name": "system_notification",
@@ -321,7 +328,7 @@ class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
                             "type": "tool_call"
                         }]
                         msg.content = f'<tool_call>{json.dumps(data)}</tool_call>'
-                        logger.info(f"🔧 Patched tool call: {data.get('name')}")
+                        logger.debug(f"🔧 Patched tool call: {data.get('name')}")
         except Exception as e:
             logger.warning(f"Parsing failed: {e}")
         return msg
@@ -660,7 +667,7 @@ def invoke_agent(settings: Settings, model, system_prompt: str, user_prompt: str
             config=config
         )
 
-        logger.info(f"Agent response: {result}")
+        logger.debug(f"Agent response: {result}")
 
         response_content = _extract_llm_response(result)
         thought, action = _extract_thought_and_action(response_content)
@@ -682,7 +689,7 @@ def invoke_llm(settings: Settings, model, system_prompt: str, user_prompt: str):
         # noinspection PyTypeChecker
         result = model.invoke(f'{system_prompt}\n{user_prompt}')
 
-        logger.info(f"LLM Response: {result}")
+        logger.debug(f"LLM Response: {result}")
 
         response_content = _extract_llm_response(result)
         thought, action = _extract_thought_and_action(response_content)
