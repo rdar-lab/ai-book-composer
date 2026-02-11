@@ -176,9 +176,9 @@ class TestLLMProvider:
         call_kwargs = mock_anthropic.call_args[1]
         assert call_kwargs['model'] == 'claude-3-5-sonnet-20241022'
         assert call_kwargs['temperature'] == 0.7
-        assert call_kwargs['anthropic_api_key'] == 'test-key'
+        assert call_kwargs['api_key'] == 'test-key'
 
-    @patch('src.ai_book_composer.llm.ChatBedrock')
+    @patch('src.ai_book_composer.llm.ChatBedrockConverse')
     def test_bedrock_provider_with_credentials(self, mock_bedrock):
         """Test AWS Bedrock provider initialization with explicit credentials."""
         mock_settings = Settings()
@@ -196,11 +196,11 @@ class TestLLMProvider:
         call_kwargs = mock_bedrock.call_args[1]
         assert call_kwargs['model_id'] == 'anthropic.claude-3-sonnet-20240229-v1:0'
         assert call_kwargs['region_name'] == 'us-east-1'
-        assert call_kwargs['model_kwargs'] == {'temperature': 0.7}
+        assert call_kwargs['temperature'] == 0.7
         assert call_kwargs['aws_access_key_id'] == 'test-access-key'
         assert call_kwargs['aws_secret_access_key'] == 'test-secret-key'
 
-    @patch('src.ai_book_composer.llm.ChatBedrock')
+    @patch('src.ai_book_composer.llm.ChatBedrockConverse')
     def test_bedrock_provider_with_profile(self, mock_bedrock):
         """Test AWS Bedrock provider initialization with credentials profile."""
         mock_settings = Settings()
@@ -217,7 +217,7 @@ class TestLLMProvider:
         call_kwargs = mock_bedrock.call_args[1]
         assert call_kwargs['model_id'] == 'anthropic.claude-3-haiku-20240307-v1:0'
         assert call_kwargs['region_name'] == 'us-west-2'
-        assert call_kwargs['model_kwargs'] == {'temperature': 0.5}
+        assert call_kwargs['temperature'] == 0.5
         assert call_kwargs['credentials_profile_name'] == 'my-profile'
 
     def test_unsupported_provider(self):

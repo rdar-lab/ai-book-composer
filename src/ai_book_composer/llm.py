@@ -6,12 +6,13 @@ import re
 import uuid
 from pathlib import Path
 from typing import Optional, Dict, Any, cast, Callable
-from uuid import UUID
 
 from deepagents import create_deep_agent
 from deepagents.backends import StateBackend
 from huggingface_hub import hf_hub_download
 from langchain.agents import create_agent
+from langchain_anthropic import ChatAnthropic
+from langchain_aws import ChatBedrockConverse
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import AIMessage, ToolMessage, HumanMessage, BaseMessage, SystemMessage
@@ -20,8 +21,6 @@ from langchain_core.tools import tool, BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_aws import ChatBedrock
 from pydantic import BaseModel, Field
 
 from .config import Settings
@@ -52,7 +51,7 @@ class ThinkAndRespondFormat(BaseModel):
 
 class AgentProgressCallbackHandler(BaseCallbackHandler):
     """Callback handler for streaming agent progress updates."""
-    
+
     # Constants for truncation lengths
     MAX_INPUT_DISPLAY_LENGTH = 100
     MAX_OUTPUT_DISPLAY_LENGTH = 200
@@ -67,22 +66,22 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
         self.progress_callback = progress_callback
 
     def on_llm_start(
-        self, serialized: Dict[str, Any], prompts: list[str], **kwargs: Any
+            self, serialized: Dict[str, Any], prompts: list[str], **kwargs: Any
     ) -> None:
         """Called when LLM starts running."""
         if self.progress_callback:
             self.progress_callback("llm_start", "Agent is thinking...")
 
     def on_tool_start(
-        self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
+            self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
     ) -> None:
         """Called when a tool starts running."""
         if self.progress_callback:
             tool_name = serialized.get("name", "Unknown tool")
             # Truncate long inputs
             display_input = (
-                input_str[:self.MAX_INPUT_DISPLAY_LENGTH] + "..." 
-                if len(input_str) > self.MAX_INPUT_DISPLAY_LENGTH 
+                input_str[:self.MAX_INPUT_DISPLAY_LENGTH] + "..."
+                if len(input_str) > self.MAX_INPUT_DISPLAY_LENGTH
                 else input_str
             )
             self.progress_callback("tool_start", f"Using tool: {tool_name} with input: {display_input}")
@@ -93,21 +92,20 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
             # Truncate long outputs
             output_str = str(output)
             truncated_output = (
-                output_str[:self.MAX_OUTPUT_DISPLAY_LENGTH] + "..." 
-                if len(output_str) > self.MAX_OUTPUT_DISPLAY_LENGTH 
+                output_str[:self.MAX_OUTPUT_DISPLAY_LENGTH] + "..."
+                if len(output_str) > self.MAX_OUTPUT_DISPLAY_LENGTH
                 else output_str
             )
             self.progress_callback("tool_end", f"Tool completed. Output: {truncated_output}")
 
     def on_chain_start(
-        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
+            self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
     ) -> None:
         """Called when a chain starts running."""
         if self.progress_callback:
             chain_name = serialized.get("name", "agent")
             if "agent" in chain_name.lower():
                 self.progress_callback("chain_start", "Agent processing request...")
-
 
     def on_llm_end(self, response: Any, **kwargs: Any) -> None:
         """Called when LLM ends running."""
@@ -401,7 +399,7 @@ def get_llm(
             return ChatOpenAI(
                 model=model_name,
                 temperature=temperature,
-                api_key=provider_config.get("api_key", "")
+                api_key=provider_config.get("api_key") or None
             )
 
         elif provider == "gemini":
@@ -409,49 +407,46 @@ def get_llm(
             return ChatGoogleGenerativeAI(
                 model=model_name,
                 temperature=temperature,
-                google_api_key=provider_config.get("api_key", "")
+                google_api_key=provider_config.get("api_key") or None
             )
 
         elif provider == "azure":
             provider_config = settings.get_provider_config("azure")
             return AzureChatOpenAI(
-                azure_deployment=provider_config.get("deployment", ""),
+                azure_deployment=provider_config.get("deployment") or None,
                 temperature=temperature,
-                api_key=provider_config.get("api_key", ""),
-                azure_endpoint=provider_config.get("endpoint", "")
+                api_key=provider_config.get("api_key") or None,
+                azure_endpoint=provider_config.get("endpoint") or None,
             )
 
         elif provider == "anthropic":
             provider_config = settings.get_provider_config("anthropic")
+
+            # noinspection PyArgumentList
             return ChatAnthropic(
                 model=model_name,
                 temperature=temperature,
-                anthropic_api_key=provider_config.get("api_key", "")
+                api_key=provider_config.get("api_key") or None
             )
 
         elif provider == "bedrock":
             provider_config = settings.get_provider_config("bedrock")
-            
+
             # Build credentials dict, excluding empty values
             # If explicit credentials are provided, they take precedence over profile-based auth
-            credentials = {}
-            if provider_config.get("aws_access_key_id"):
-                credentials["aws_access_key_id"] = provider_config.get("aws_access_key_id")
-            if provider_config.get("aws_secret_access_key"):
-                credentials["aws_secret_access_key"] = provider_config.get("aws_secret_access_key")
-            if provider_config.get("aws_session_token"):
-                credentials["aws_session_token"] = provider_config.get("aws_session_token")
-            
+            creds_keys = ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]
+            credentials = {k: v for k, v in provider_config.items() if k in creds_keys and v}
+
             # Use profile_name only when no explicit credentials are provided
             # This allows fallback to AWS credentials file (~/.aws/credentials)
-            return ChatBedrock(
+            # noinspection PyArgumentList
+            return ChatBedrockConverse(
                 model_id=model_name,
                 region_name=provider_config.get("region_name", "us-east-1"),
-                model_kwargs={"temperature": temperature},
+                temperature=temperature,
                 credentials_profile_name=provider_config.get("profile_name") if not credentials else None,
                 **credentials
             )
-
         elif provider == "ollama":
             provider_config = settings.get_provider_config("ollama")
             internal_settings = provider_config.get("internal", {})
