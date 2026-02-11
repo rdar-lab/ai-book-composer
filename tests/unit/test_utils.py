@@ -1,7 +1,6 @@
 """Unit tests for AI Book Composer tools with mocked LLMs."""
 
 import json
-import sys
 from io import BytesIO
 from unittest.mock import Mock, patch
 
@@ -374,7 +373,8 @@ class TestImageDescription:
         assert description2 == description1
         mock_llm.invoke.assert_not_called()
 
-    def test_describe_image_fallback_on_error(self, tmp_path, monkeypatch):
+    @patch('src.ai_book_composer.utils.file_utils.get_llm')
+    def test_describe_image_fallback_on_error(self, get_llm_mock, tmp_path):
         """Test that describe_image falls back on error."""
         settings = Settings()
 
@@ -387,15 +387,7 @@ class TestImageDescription:
         mock_llm = Mock()
         mock_llm.invoke.side_effect = Exception("LLM error")
 
-        # Create a mock get_llm function
-        # noinspection PyUnusedLocal,PyShadowingNames
-        def mock_get_llm(settings, temperature, model, provider):
-            return mock_llm
-
-        # Monkeypatch get_llm in sys.modules
-        mock_llm_module = Mock()
-        mock_llm_module.get_llm = mock_get_llm
-        monkeypatch.setitem(sys.modules, 'src.ai_book_composer.llm', mock_llm_module)
+        get_llm_mock.return_value = mock_llm
 
         # Mock prompts
         prompts = {
