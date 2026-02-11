@@ -415,15 +415,18 @@ class ExecutorAgent(AgentBase):
             response_lower = response.lower()
 
             # Check for explicit approval or rejection
-            if "approve" in response_lower and "not approve" not in response_lower:
-                self.previous_attempt_details = ''  # Clear previous attempt details on success
-                return True, response
-            elif "reject" in response_lower or "revise" in response_lower or "needs improvement" in response_lower:
+            if (
+                    "reject" in response_lower or
+                    "revise" in response_lower or
+                    "needs improvement" in response_lower or
+                    "not approve" in response_lower
+            ):
                 self._capture_attempt_failure(chapter_summary, response)
                 progress.show_observation(f"⚠ Chapter list quality issue: {response[:200]}...")
                 return False, response
 
             # Default to approve if decision is unclear
+            self.previous_attempt_details = ''  # Clear previous attempt details on success
             return True, response
 
         except Exception as e:
@@ -485,16 +488,18 @@ class ExecutorAgent(AgentBase):
             # Parse response for approval decision
             response_lower = response.lower()
 
-            # Check for explicit approval or rejection
-            if "approve" in response_lower and "not approve" not in response_lower:
-                self.previous_attempt_details = ''  # Clear previous attempt details on success
-                return True, response
-            elif "reject" in response_lower or "revise" in response_lower or "needs improvement" in response_lower:
+            if (
+                    "reject" in response_lower or
+                    "revise" in response_lower or
+                    "needs improvement" in response_lower or
+                    "not approve" in response_lower
+            ):
                 progress.show_observation(f"⚠ Chapter {chapter_num} quality issue: {response[:200]}...")
                 self._capture_attempt_failure(content_preview, response)
                 return False, response
 
-            # Default to approval if decision is unclear
+            # Default to approve if decision is unclear
+            self.previous_attempt_details = ''  # Clear previous attempt details on success
             return True, response
 
         except Exception as e:

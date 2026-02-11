@@ -11,7 +11,7 @@ AI Book Composer is a tool that automatically generates high-quality books from 
 - **Multi-format Support**: Process text files, audio files (with transcription), and video files (with transcription)
 - **Image Support**: Extract images from PDF files and embed them in generated books
 - **Deep-Agent Architecture**: Implements Plan → Execute → Decorate → Iterate → Verify workflow
-- **Multiple LLM Providers**: Supports OpenAI GPT, Google Gemini, Azure OpenAI, Ollama (server), and Embedded Ollama (in-process)
+- **Multiple LLM Providers**: Supports OpenAI GPT, Google Gemini, Azure OpenAI, Anthropic Claude, AWS Bedrock, Ollama (server), and Embedded Ollama (in-process)
 - **No API Keys Required**: Default configuration uses embedded ollama and local whisper - runs completely offline
 - **LangGraph Orchestration**: Uses LangGraph for robust workflow management
 - **Quality-Focused**: Iterative refinement with critic feedback for high-quality output
@@ -101,7 +101,7 @@ The project uses YAML configuration files. Copy `config.yaml` and customize as n
 ```yaml
 # LLM Configuration
 llm:
-  provider: ollama_embedded  # Options: openai, gemini, azure, ollama, ollama_embedded
+  provider: ollama_embedded  # Options: openai, gemini, azure, anthropic, bedrock, ollama, ollama_embedded
   model: llama-3.2-3b-instruct
 
 # Provider-specific settings (use environment variables for API keys)
@@ -114,6 +114,12 @@ providers:
     api_key: ${AZURE_OPENAI_API_KEY}
     endpoint: ${AZURE_OPENAI_ENDPOINT}
     deployment: ${AZURE_OPENAI_DEPLOYMENT}
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+  bedrock:
+    region_name: ${AWS_REGION}
+    aws_access_key_id: ${AWS_ACCESS_KEY_ID}
+    aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}
   ollama:
     base_url: http://localhost:11434
   ollama_embedded:
@@ -373,6 +379,51 @@ export AZURE_OPENAI_ENDPOINT=your-endpoint
 export AZURE_OPENAI_DEPLOYMENT=your-deployment
 export LLM_PROVIDER=azure
 ```
+
+### Anthropic (Claude)
+```bash
+export ANTHROPIC_API_KEY=your-key
+
+# Then update config.yaml:
+# llm:
+#   provider: anthropic
+#   model: claude-3-5-sonnet-20241022  # or claude-3-opus-20240229, claude-3-sonnet-20240229, etc.
+```
+
+Available Anthropic models:
+- `claude-3-5-sonnet-20241022` - Most intelligent model (recommended)
+- `claude-3-opus-20240229` - Powerful model for complex tasks
+- `claude-3-sonnet-20240229` - Balanced performance and speed
+- `claude-3-haiku-20240307` - Fast and compact
+
+Get your API key from: https://console.anthropic.com/
+
+### AWS Bedrock
+```bash
+# Option 1: Using AWS credentials directly
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=your-access-key
+export AWS_SECRET_ACCESS_KEY=your-secret-key
+
+# Option 2: Using AWS credentials profile (recommended)
+# Configure via: aws configure --profile your-profile-name
+# Then set profile_name in config.yaml
+
+# Then update config.yaml:
+# llm:
+#   provider: bedrock
+#   model: anthropic.claude-3-sonnet-20240229-v1:0  # or other Bedrock model
+```
+
+Available AWS Bedrock models (examples):
+- `anthropic.claude-3-5-sonnet-20241022-v2:0` - Latest Claude 3.5 Sonnet
+- `anthropic.claude-3-opus-20240229-v1:0` - Claude 3 Opus
+- `anthropic.claude-3-sonnet-20240229-v1:0` - Claude 3 Sonnet
+- `anthropic.claude-3-haiku-20240307-v1:0` - Claude 3 Haiku
+- `amazon.titan-text-express-v1` - Amazon Titan
+- `meta.llama3-70b-instruct-v1:0` - Meta Llama 3
+
+Note: Model availability varies by AWS region. Ensure you have requested access to the models in the Bedrock console.
 
 ### Ollama (Server-based)
 ```bash

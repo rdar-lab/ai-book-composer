@@ -258,6 +258,15 @@ class Settings:
                     'endpoint': os.environ.get('AZURE_OPENAI_ENDPOINT', ''),
                     'deployment': os.environ.get('AZURE_OPENAI_DEPLOYMENT', '')
                 },
+                'anthropic': {
+                    'api_key': os.environ.get('ANTHROPIC_API_KEY', '')
+                },
+                'bedrock': {
+                    'region_name': os.environ.get('AWS_REGION', 'us-east-1'),
+                    'aws_access_key_id': os.environ.get('AWS_ACCESS_KEY_ID', ''),
+                    'aws_secret_access_key': os.environ.get('AWS_SECRET_ACCESS_KEY', ''),
+                    'aws_session_token': os.environ.get('AWS_SESSION_TOKEN', '')
+                },
                 'ollama': {
                     'base_url': 'http://localhost:11434'
                 },
