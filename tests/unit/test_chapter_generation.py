@@ -104,10 +104,11 @@ Chapter 3: Applications
         write_chapter.name = "write_chapter"
         write_chapter.ainvoke = AsyncMock(return_value={"success": True})
 
+        settings = Settings()
+        settings.book.min_words_per_chapter = 0
+
         # Create executor
-        executor = ExecutorAgent(
-            Settings()
-        )
+        executor = ExecutorAgent(settings)
 
         # Create state
         state = create_initial_state(
