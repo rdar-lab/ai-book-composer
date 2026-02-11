@@ -2,7 +2,7 @@
 
 # LLM Configuration
 llm:
-  provider: ollama_embedded  # Options: openai, gemini, azure, ollama, ollama_embedded
+  provider: ollama_embedded  # Options: openai, gemini, azure, anthropic, bedrock, ollama, ollama_embedded
   model: llama-3.2-3b-instruct
   temperature:
     planning: 0.3
@@ -21,6 +21,16 @@ providers:
     api_key: ${AZURE_OPENAI_API_KEY}
     endpoint: ${AZURE_OPENAI_ENDPOINT}
     deployment: ${AZURE_OPENAI_DEPLOYMENT}
+  
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}  # Get your API key from https://console.anthropic.com/
+  
+  bedrock:
+    region_name: ${AWS_REGION}  # e.g., us-east-1, us-west-2
+    aws_access_key_id: ${AWS_ACCESS_KEY_ID}  # Optional if using AWS credentials profile
+    aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}  # Optional if using AWS credentials profile
+    aws_session_token: ${AWS_SESSION_TOKEN}  # Optional, for temporary credentials
+    profile_name: null  # Optional: AWS credentials profile name (e.g., 'default')
   
   ollama:
     base_url: http://localhost:11434

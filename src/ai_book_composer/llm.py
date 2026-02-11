@@ -20,6 +20,8 @@ from langchain_core.tools import tool, BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_aws import ChatBedrock
 from pydantic import BaseModel, Field
 
 from .config import Settings
@@ -417,6 +419,34 @@ def get_llm(
                 temperature=temperature,
                 api_key=provider_config.get("api_key", ""),
                 azure_endpoint=provider_config.get("endpoint", "")
+            )
+
+        elif provider == "anthropic":
+            provider_config = settings.get_provider_config("anthropic")
+            return ChatAnthropic(
+                model=model_name,
+                temperature=temperature,
+                anthropic_api_key=provider_config.get("api_key", "")
+            )
+
+        elif provider == "bedrock":
+            provider_config = settings.get_provider_config("bedrock")
+            
+            # Build credentials dict, excluding empty values
+            credentials = {}
+            if provider_config.get("aws_access_key_id"):
+                credentials["aws_access_key_id"] = provider_config.get("aws_access_key_id")
+            if provider_config.get("aws_secret_access_key"):
+                credentials["aws_secret_access_key"] = provider_config.get("aws_secret_access_key")
+            if provider_config.get("aws_session_token"):
+                credentials["aws_session_token"] = provider_config.get("aws_session_token")
+            
+            return ChatBedrock(
+                model_id=model_name,
+                region_name=provider_config.get("region_name", "us-east-1"),
+                model_kwargs={"temperature": temperature},
+                credentials_profile_name=provider_config.get("profile_name") if not credentials else None,
+                **credentials
             )
 
         elif provider == "ollama":
