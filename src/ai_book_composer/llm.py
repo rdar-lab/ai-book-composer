@@ -50,6 +50,10 @@ class ThinkAndRespondFormat(BaseModel):
 
 class AgentProgressCallbackHandler(BaseCallbackHandler):
     """Callback handler for streaming agent progress updates."""
+    
+    # Constants for truncation lengths
+    MAX_INPUT_DISPLAY_LENGTH = 100
+    MAX_OUTPUT_DISPLAY_LENGTH = 200
 
     def __init__(self, progress_callback: Optional[Callable[[str, str], None]] = None):
         """Initialize the callback handler.
@@ -74,15 +78,24 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
         if self.progress_callback:
             tool_name = serialized.get("name", "Unknown tool")
             # Truncate long inputs
-            display_input = input_str[:100] + "..." if len(input_str) > 100 else input_str
+            display_input = (
+                input_str[:self.MAX_INPUT_DISPLAY_LENGTH] + "..." 
+                if len(input_str) > self.MAX_INPUT_DISPLAY_LENGTH 
+                else input_str
+            )
             self.progress_callback("tool_start", f"Using tool: {tool_name} with input: {display_input}")
 
     def on_tool_end(self, output: Any, **kwargs: Any) -> None:
         """Called when a tool ends running."""
         if self.progress_callback:
             # Truncate long outputs
-            output_str = str(output)[:200] + "..." if len(str(output)) > 200 else str(output)
-            self.progress_callback("tool_end", f"Tool completed. Output: {output_str}")
+            output_str = str(output)
+            truncated_output = (
+                output_str[:self.MAX_OUTPUT_DISPLAY_LENGTH] + "..." 
+                if len(output_str) > self.MAX_OUTPUT_DISPLAY_LENGTH 
+                else output_str
+            )
+            self.progress_callback("tool_end", f"Tool completed. Output: {truncated_output}")
 
     def on_chain_start(
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
@@ -92,6 +105,7 @@ class AgentProgressCallbackHandler(BaseCallbackHandler):
             chain_name = serialized.get("name", "agent")
             if "agent" in chain_name.lower():
                 self.progress_callback("chain_start", "Agent processing request...")
+
 
     def on_llm_end(self, response: Any, **kwargs: Any) -> None:
         """Called when LLM ends running."""
@@ -601,10 +615,11 @@ def invoke_agent(settings: Settings, model, system_prompt: str, user_prompt: str
             f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
 
         # Create callback handler if progress_callback is provided
-        config = None
-        if progress_callback:
-            callback_handler = AgentProgressCallbackHandler(progress_callback)
-            config = {"callbacks": [callback_handler]}
+        config = (
+            RunnableConfig(callbacks=[AgentProgressCallbackHandler(progress_callback)])
+            if progress_callback
+            else None
+        )
 
         # noinspection PyTypeChecker
         result = agent.invoke(
