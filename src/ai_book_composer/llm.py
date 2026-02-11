@@ -5,12 +5,14 @@ import logging
 import re
 import uuid
 from pathlib import Path
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Dict, Any, cast, Callable
+from uuid import UUID
 
 from deepagents import create_deep_agent
 from deepagents.backends import StateBackend
 from huggingface_hub import hf_hub_download
 from langchain.agents import create_agent
+from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import AIMessage, ToolMessage, HumanMessage, BaseMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, Runnable
@@ -44,6 +46,57 @@ _mapping_cache: Optional[Dict[str, Any]] = None
 class ThinkAndRespondFormat(BaseModel):
     think: str = Field(description="The thoughts")
     result: str = Field(description="The final result")
+
+
+class AgentProgressCallbackHandler(BaseCallbackHandler):
+    """Callback handler for streaming agent progress updates."""
+
+    def __init__(self, progress_callback: Optional[Callable[[str, str], None]] = None):
+        """Initialize the callback handler.
+        
+        Args:
+            progress_callback: Function to call with (event_type, message) for progress updates
+        """
+        super().__init__()
+        self.progress_callback = progress_callback
+
+    def on_llm_start(
+        self, serialized: Dict[str, Any], prompts: list[str], **kwargs: Any
+    ) -> None:
+        """Called when LLM starts running."""
+        if self.progress_callback:
+            self.progress_callback("llm_start", "Agent is thinking...")
+
+    def on_tool_start(
+        self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
+    ) -> None:
+        """Called when a tool starts running."""
+        if self.progress_callback:
+            tool_name = serialized.get("name", "Unknown tool")
+            # Truncate long inputs
+            display_input = input_str[:100] + "..." if len(input_str) > 100 else input_str
+            self.progress_callback("tool_start", f"Using tool: {tool_name} with input: {display_input}")
+
+    def on_tool_end(self, output: Any, **kwargs: Any) -> None:
+        """Called when a tool ends running."""
+        if self.progress_callback:
+            # Truncate long outputs
+            output_str = str(output)[:200] + "..." if len(str(output)) > 200 else str(output)
+            self.progress_callback("tool_end", f"Tool completed. Output: {output_str}")
+
+    def on_chain_start(
+        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
+    ) -> None:
+        """Called when a chain starts running."""
+        if self.progress_callback:
+            chain_name = serialized.get("name", "agent")
+            if "agent" in chain_name.lower():
+                self.progress_callback("chain_start", "Agent processing request...")
+
+    def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+        """Called when LLM ends running."""
+        if self.progress_callback:
+            self.progress_callback("llm_end", "Agent completed thinking.")
 
 
 class ToolFixer(Runnable[LanguageModelInput, AIMessage]):
@@ -516,7 +569,8 @@ def extract_json_from_llm_response(clean_text: str) -> Optional[Any]:
 
 
 def invoke_agent(settings: Settings, model, system_prompt: str, user_prompt: str, tools=None,
-                 response_format: Optional[type[BaseModel]] = ThinkAndRespondFormat):
+                 response_format: Optional[type[BaseModel]] = ThinkAndRespondFormat,
+                 progress_callback: Optional[Callable[[str, str], None]] = None):
     try:
         if settings.llm.use_tool_fixer:
             inner_model = cast(BaseChatModel, cast(Runnable, ToolFixer(model)))
@@ -546,6 +600,12 @@ def invoke_agent(settings: Settings, model, system_prompt: str, user_prompt: str
         logger.info(
             f"Invoking agent with: \n***system prompt***\n{system_prompt}\n***user prompt***\n{user_prompt}\ntools: {tool_names}")
 
+        # Create callback handler if progress_callback is provided
+        config = None
+        if progress_callback:
+            callback_handler = AgentProgressCallbackHandler(progress_callback)
+            config = {"callbacks": [callback_handler]}
+
         # noinspection PyTypeChecker
         result = agent.invoke(
             {
@@ -553,7 +613,8 @@ def invoke_agent(settings: Settings, model, system_prompt: str, user_prompt: str
                     SystemMessage(content=system_prompt),
                     HumanMessage(content=user_prompt)
                 ]
-            }
+            },
+            config=config
         )
 
         logger.info(f"Agent response: {result}")

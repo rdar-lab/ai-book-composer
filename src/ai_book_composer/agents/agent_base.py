@@ -80,8 +80,26 @@ class AgentBase:
             if state_summary:
                 system_prompt = f"{system_prompt}\n\n## Current Agent State\n{state_summary}"
 
+        # Create progress callback that logs and displays console output
+        def agent_progress_callback(event_type: str, message: str):
+            """Callback for agent progress updates that logs and displays to console."""
+            logger.info(f"Agent progress [{event_type}]: {message}")
+            
+            # Display appropriate message based on event type
+            if event_type == "llm_start":
+                progress_display.progress.show_thought(message)
+            elif event_type == "tool_start":
+                progress_display.progress.show_action(message, emoji="🔧")
+            elif event_type == "tool_end":
+                progress_display.progress.show_observation(message, emoji="📋")
+            elif event_type == "chain_start":
+                progress_display.progress.show_action(message, emoji="⚙️")
+            elif event_type == "llm_end":
+                progress_display.progress.show_observation(message, emoji="✅")
+
         thought, action = invoke_agent(self.settings, self._get_llm(), system_prompt, user_prompt, tools,
-                                       response_format=response_format)
+                                       response_format=response_format,
+                                       progress_callback=agent_progress_callback)
 
         progress_display.progress.show_agent_response(thought, action)
 
