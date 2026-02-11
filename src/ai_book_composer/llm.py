@@ -433,6 +433,7 @@ def get_llm(
             provider_config = settings.get_provider_config("bedrock")
             
             # Build credentials dict, excluding empty values
+            # If explicit credentials are provided, they take precedence over profile-based auth
             credentials = {}
             if provider_config.get("aws_access_key_id"):
                 credentials["aws_access_key_id"] = provider_config.get("aws_access_key_id")
@@ -441,6 +442,8 @@ def get_llm(
             if provider_config.get("aws_session_token"):
                 credentials["aws_session_token"] = provider_config.get("aws_session_token")
             
+            # Use profile_name only when no explicit credentials are provided
+            # This allows fallback to AWS credentials file (~/.aws/credentials)
             return ChatBedrock(
                 model_id=model_name,
                 region_name=provider_config.get("region_name", "us-east-1"),
