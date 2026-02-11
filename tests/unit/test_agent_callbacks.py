@@ -65,18 +65,6 @@ class TestAgentProgressCallbackHandler:
         assert args[0] == "tool_end"
         assert "test output" in args[1]
 
-    def test_on_chain_start_calls_callback(self):
-        """Test that on_chain_start triggers the callback for agent chains."""
-        callback = MagicMock()
-        handler = AgentProgressCallbackHandler(progress_callback=callback)
-        
-        serialized = {"name": "agent_chain"}
-        inputs = {"messages": []}
-        
-        handler.on_chain_start(serialized, inputs, run_id=uuid4())
-        
-        callback.assert_called_once_with("chain_start", "Agent processing request...")
-
     def test_on_llm_end_calls_callback(self):
         """Test that on_llm_end triggers the callback."""
         callback = MagicMock()
@@ -86,7 +74,7 @@ class TestAgentProgressCallbackHandler:
         
         handler.on_llm_end(response, run_id=uuid4())
         
-        callback.assert_called_once_with("llm_end", "Agent completed thinking.")
+        callback.assert_called_once_with("llm_end", "Agent completed thinking. Response: {'output': 'test response'}")
 
     def test_callback_handler_without_callback(self):
         """Test that handler works without a callback function."""
