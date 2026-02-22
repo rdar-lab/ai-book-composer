@@ -552,12 +552,18 @@ def _extract_llm_response(result: Any) -> Any:
             return _extract_llm_response(result["messages"][-1])
 
         if 'output' in result:
-            return result['output']
+            return _extract_llm_response(result['output'])
 
         if 'content' in result:
-            return result['output']
+            return _extract_llm_response(result['content'])
 
-    return result
+        if 'text' in result:
+            return _extract_llm_response(result['text'])
+
+    if isinstance(result, list):
+        return _extract_llm_response(result[-1])
+
+    return str(result)
 
 
 def _extract_thought_and_action(llm_response: Any) -> tuple[str, str]:
