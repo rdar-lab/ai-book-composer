@@ -12,11 +12,11 @@ My personal entry into this new paradigm didn't start with a desire to test cutt
 
 While working on my RepRap 3D printer an external MOSFET failed in a closed-circuit mode. This meant the temperature of the heating element began to climb uncontrollably. Because the failure was physical, the printer's firmware was entirely powerless to stop it. The only thing standing between my home and a fire was physically shutting down the power supply.
 
-\[IMAGE here\]
+![Burned 3d printer](./images/burned_3d_printer.png)
 
 To prevent this from happening again, I decided to wire the printer to a smart switch, allowing for an automated power cutoff if the sensors detected a runaway thermal event. I created a new repository, [octo-fire-guard](https://github.com/rdar-lab/octo-fire-guard), to build this safety utility. While the project itself wasn't an AI agent, its creation was my catalyst. I decided to test the waters with the GitHub Copilot agent, describing the safety protocol and the required hardware integration in plain English. The result was staggering. The agent effortlessly handled the boilerplate and mapped out the logic, proving to me just how thin the barrier between "intent" and "execution" had become. Moreover, the work that Microsoft/Github did with integrating Copilot with the issues and PRs is amazing. I could actually assign it issues and provide it feedback via code review comments, resulting in cycles of iterations till the result was just right.
 
-\[Example: Jumpstarting with Copilot\]
+![Jump start with copilot](./images/jumpstart_with_copilot.png)
 
 Inspired by this success, I began utilizing AI for more routine, trivial automation tasks, leading to the creation of [ai-file-organizer](https://github.com/rdar-lab/ai-file-organizer). However, I wanted to push the boundaries further. To truly understand the current state of autonomous systems, I dove headfirst into [ai-book-composer](https://github.com/rdar-lab/ai-book-composer). This project was a trial by fire, forcing a direct confrontation with the complexities of orchestration frameworks, the nuances of deep agent implementations, and the wildly varying capabilities of modern Large Language Models.
 
@@ -35,7 +35,7 @@ My journey to finding the right "brain" for my projects was an eye-opening exped
 - Anthropic (Claude 3.5 Sonnet/Opus): Currently the gold standard for reasoning and coding. Its ability to follow complex instructions and execute flawless tool calls is amazing. However, that premium performance comes with a premium price tag, making high-frequency iteration and testing incredibly expensive.
 - DeepSeek: The current disruptor in the space. It provides a highly intelligent, budget-friendly alternative that genuinely rivals the "prime" models in reasoning capabilities. For developers looking to balance deep intelligence with token economy, DeepSeek is currently proving to be the optimal choice.
 
-\[IMAGE here\]
+![War of models](./images/war_of_models.png)
 
 ## The LangChain Hell
 
@@ -49,17 +49,15 @@ At its core, LangChain is the foundational toolkit. It provides the standard int
 
 Crucially, LangChain is LLM-agnostic. This is a massive win for developers. Instead of tightly coupling your application to a specific vendor's SDK, LangChain acts as a unified abstraction layer. You can write your entire application logic once, and simply switch the underlying LLM vendor (from OpenAI to Anthropic, or Gemini to DeepSeek) at the implementation layer by changing a single line of code. You are never locked into a single provider.
 
-Core Example: Imagine a simple, straight-line pipeline (a "chain"). You pass a user question into a Prompt Template. LangChain sends this formatted prompt to the LLM, receives the raw text output, and passes it through an Output Parser.
-
-\[Example: Using langchain to support multiple vendors, source ai-book-generator\]
+Here is a simple example of how LangChain abstracts the LLM layer, allowing you to swap models without changing your core logic:
+![Example: How to use langchain](images/example_langchain.png)
 
 ### 2\. LangGraph: The State Machine
 
 While LangChain is great for linear tasks, true agents require autonomy. Agents need to think, act, observe the result of that action, and think again-which means they require loops. LangGraph is an orchestration framework built on top of LangChain designed specifically to handle these cyclical, multi-step workflows using a graph architecture of nodes and edges.
 
-Core Example: Picture a cyclical workflow. An LLM sits in a central "Decision Node." It decides it needs to search the web, so LangGraph routes execution along an edge to a "Search Tool Node," and then routes the results back to the Decision Node to evaluate the new data.
-
-\[Example: building a graph with Langraph, source ai-book-generator\]
+Here is a simple example of how LangGraph allows you to create a state machine that can loop and make decisions based on LLM outputs:
+![example_langraph.png](images/example_langraph.png)
 
 ### 3\. The deepagents Library: The Engine of Autonomy
 
@@ -73,7 +71,8 @@ It solves the most difficult problems in agent design out-of-the-box by providin
 - Subagent spawning: A built-in task tool enables agents to spawn specialized subagents for context isolation. This keeps the main agent's context clean while still going deep on specific subtasks.
 - Long-term memory: Extend agents with persistent memory across threads using LangGraph's Memory Store. Agents can save and retrieve information from previous conversations.
 
-\[Example: how to use deepagents library, source: official documentation\]
+Here is a simple example on how to use the deepagents library to create a simple agent that can read and write files, plan tasks, and manage context:
+![example_deepagents.png](images/example_deepagents.png)
 
 With all it's power, this ecosystem is currently in a state of hyper-evolution, leading to an experience that can only be described as "documentation hell."
 
@@ -83,7 +82,7 @@ The sheer velocity of change in these libraries means that documentation is ofte
 - AI Hallucinations: Because LLMs are trained on historical data, they are essentially blind to a library's update released yesterday. They will confidently suggest "legacy" code that no longer functions with your current environment.
 - The Ambiguity Tax: Using these tools requires a massive tolerance for ambiguity, a high learning curve, and the patience to debug undocumented breaking changes in real-time.
 
-\[IMAGE here\]
+![lang_hell.png](images/lang_hell.png)
 
 ## It is (Still) All About the Tooling
 
@@ -96,7 +95,7 @@ Giving an agent the wrong tools, or poorly optimized tools, is a recipe for disa
 
 Instead of feeding the agent raw, complete files, I built tools that allowed the agent to search for specific document segments based on semantic queries. This shift to highly granular, query-based tools resulted in a massive performance boost. It kept the context window clean, focused the agent's attention, and drastically lowered token consumption. It proved a vital lesson in agent design: providing an LLM with "too much" information is often far worse than providing "just enough.". Choosing the right tools can be the difference between a useless junk or an amazing gizmo.
 
-\[IMAGE here\]
+![wrong_tools.png](images/wrong_tools.png)
 
 ## Will AI Replace Humans? The Dev Angle
 
@@ -112,4 +111,4 @@ Looking further out, the actual day-to-day role of a "Developer" will undergo a 
 
 The wave of AI-driven development is already crashing over the industry. You can either let it submerge you, or you can grab a board and learn to ride it.
 
-\[IMAGE here\]
+![riding_the_deepagent_wave.png](images/riding_the_deepagent_wave.png)
