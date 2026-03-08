@@ -61,7 +61,7 @@ Here is a simple example of how LangGraph allows you to create a state machine t
 
 ### 3\. The deepagents Library: The Engine of Autonomy
 
-While LangGraph gives you the raw materials to build complex state machines, the specific [deepagents](https://www.google.com/search?q=%5Bhttps://docs.langchain.com/oss/python/deepagents/overview%5D%28https://docs.langchain.com/oss/python/deepagents/overview%29) library is much more than a simple wrapper. With the right tools, memory, compression, and prompts, this library automates creating an AI agent that can be as capable as a GitHub coding agent on any generic tool.
+While LangGraph gives you the raw materials to build complex state machines, the deepagent library is much more than a simple wrapper. With the right tools, memory, compression, and prompts, this library automates creating an AI agent that can be as capable as a GitHub coding agent on any generic task.
 
 It solves the most difficult problems in agent design out-of-the-box by providing these core capabilities:
 
