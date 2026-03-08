@@ -72,6 +72,7 @@ It solves the most difficult problems in agent design out-of-the-box by providin
 - Long-term memory: Extend agents with persistent memory across threads using LangGraph's Memory Store. Agents can save and retrieve information from previous conversations.
 
 Here is a simple example on how to use the deepagents library to create a simple agent that can read and write files, plan tasks, and manage context:
+
 ![example_deepagents.png](images/example_deepagents.png)
 
 With all it's power, this ecosystem is currently in a state of hyper-evolution, leading to an experience that can only be described as "documentation hell."
