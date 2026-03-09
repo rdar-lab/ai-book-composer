@@ -98,7 +98,7 @@ Instead of feeding the agent raw, complete files, I built tools that allowed the
 
 ![wrong_tools.png](images/wrong_tools.png)
 
-## It is (Still) All About the prompt
+## It is (Still) All About the Prompt
 
 If the LLM is the brain and the frameworks are the nervous system, the prompt is the Operating System. When you transition to using autonomous libraries like deepagents, the nature of prompting fundamentally changes. You are no longer writing a request for a single output; you are writing the behavioral constitution for an autonomous loop.
 
@@ -110,6 +110,7 @@ The deepagents library comes with a powerful write_todos tool, but the agent won
 
 Prompting for deep agents is essentially Programmatic Prose. You are designing logic gates, error handlers, and state management using natural language. In a cyclical agent system, a single ambiguous sentence in your prompt can be the difference between a task completed in 10 seconds and an agent spinning its wheels until your API budget is exhausted.
 
+![prompt_hell.png](images/prompt_hell.png)
 
 ## Will AI Replace Humans? The Dev Angle
 
