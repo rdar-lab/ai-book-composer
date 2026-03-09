@@ -114,7 +114,7 @@ Prompting for deep agents is essentially Programmatic Prose. You are designing l
 
 ## Will AI Replace Humans? The Dev Angle
 
-Looking at the rapid advancement of these agentic systems, the inevitable question arises: are we coding ourselves out of a job? The future of the software development profession is best viewed through two distinct timelines:
+In this article, I presented concepts related to the use of deep agents and how to implement them yourself. With the rising power of vibe coding, the inevitable question arises: are we coding ourselves out of a job? The future of the software development profession is best viewed through two distinct timelines:
 
 ### 1-5 Years: The Great Consolidation
 
