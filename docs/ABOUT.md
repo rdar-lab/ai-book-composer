@@ -98,6 +98,19 @@ Instead of feeding the agent raw, complete files, I built tools that allowed the
 
 ![wrong_tools.png](images/wrong_tools.png)
 
+## It is (Still) All About the prompt
+
+If the LLM is the brain and the frameworks are the nervous system, the prompt is the Operating System. When you transition to using autonomous libraries like deepagents, the nature of prompting fundamentally changes. You are no longer writing a request for a single output; you are writing the behavioral constitution for an autonomous loop.
+
+During the development of the ai-book-composer, I realized that giving an agent the right tools is useless if the prompt doesn't strictly dictate how and when to use them. In an agentic workflow, structural precision is everything:
+
+The tool descriptions are also part of the prompts. In a deep agent architecture, the prompt isn't just your main instruction. The description fields attached to your tools (like read_file or write_todos) are injected directly into the LLM's system prompt. If your tool description is vague, the agent will hallucinate its usage. Naming a tool search is dangerous; naming it semantic_document_search with a description detailing exactly what arguments it expects and what it returns is how you guarantee precision.
+
+The deepagents library comes with a powerful write_todos tool, but the agent won't always use it intuitively. Your system prompt must enforce a strict "Plan First, Execute Second" architecture. Instructing the agent to always evaluate the goal and generate a to-do list before taking any concrete action prevents it from rushing into blind, token-wasting execution.
+
+Prompting for deep agents is essentially Programmatic Prose. You are designing logic gates, error handlers, and state management using natural language. In a cyclical agent system, a single ambiguous sentence in your prompt can be the difference between a task completed in 10 seconds and an agent spinning its wheels until your API budget is exhausted.
+
+
 ## Will AI Replace Humans? The Dev Angle
 
 Looking at the rapid advancement of these agentic systems, the inevitable question arises: are we coding ourselves out of a job? The future of the software development profession is best viewed through two distinct timelines:
