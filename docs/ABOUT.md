@@ -18,6 +18,16 @@ To prevent this from happening again, I decided to wire the printer to a smart s
 
 ![Jump start with copilot](./images/jumpstart_with_copilot.png)
 
+
+UPDATE:
+After a few months of working with the github Copilot, I got completely hooked up to it. I spend the full credit budget every month and find myself wishing for more.
+At some point, all the credits run out a week into the month, and I decided to augment my work with Claude Code as well.
+It took some work to get going with the Claude CLI, and I found myself eventually combining both Claude CLI and self-hosted Github runner to work with 2 parallel agents.
+Claude code performance was the same like Github Copilot agent, since both were using Anthropic Claude Sonnet 4.6 as the underlying model, but the flexibility of using the CLI and the ability to feed it with custom prompts and tools made it a much more enjoyable experience.
+The CLI has one extremely annoying quirk though, which is the constant permission requests for access to tools and files.
+I also employed methodologies like generating a detailed agent memory file called AGENTS.md, which I would feed to the agents at the start of every session to provide them with all the knowledge bootstrap they need to start working, eliminating the inefficiency of probing the codebase every time, but also enabling me to save any clarifications and instructions. 
+
+I was fascinated by the deep ability for coding agents to work so well, that I decided to try to get to implement deep thinking agents like that myself. The rest of this article is about my journey to understand the current state of the art in deepagents, the challenges I faced, and the lessons I learned along the way.
 Inspired by this success, I began utilizing AI for more routine, trivial automation tasks, leading to the creation of [ai-file-organizer](https://github.com/rdar-lab/ai-file-organizer). However, I wanted to push the boundaries further. To truly understand the current state of autonomous systems, I dove headfirst into [ai-book-composer](https://github.com/rdar-lab/ai-book-composer). This project was a trial by fire, forcing a direct confrontation with the complexities of orchestration frameworks, the nuances of deep agent implementations, and the wildly varying capabilities of modern Large Language Models.
 
 ## It is All About the Model
@@ -34,6 +44,9 @@ My journey to finding the right "brain" for my projects was an eye-opening exped
 - Gemini: A highly capable middle ground. It performs moderately well across most general tasks and boasts an impressive context window, but for highly complex logical branching and autonomous decision-making, it sometimes lacked the sharp reasoning spark found in more specialized models.
 - Anthropic (Claude 3.5 Sonnet/Opus): Currently the gold standard for reasoning and coding. Its ability to follow complex instructions and execute flawless tool calls is amazing. However, that premium performance comes with a premium price tag, making high-frequency iteration and testing incredibly expensive.
 - DeepSeek: The current disruptor in the space. It provides a highly intelligent, budget-friendly alternative that genuinely rivals the "prime" models in reasoning capabilities. For developers looking to balance deep intelligence with token economy, DeepSeek is currently proving to be the optimal choice.
+
+UPDATE:
+After more experimentation, I found that the "reasoning" models gives significant boost to the performance of deepagents. Anthropic's Opus was the best in class but at a significant operational cost comparing to any of the competitors.  
 
 ![War of models](./images/war_of_models.png)
 
@@ -95,6 +108,8 @@ Giving an agent the wrong tools, or poorly optimized tools, is a recipe for disa
 - The RAG Pivot: Realizing the agent was drowning in information, I entirely refactored the tooling to use a Retrieval-Augmented Generation (RAG) approach.
 
 Instead of feeding the agent raw, complete files, I built tools that allowed the agent to search for specific document segments based on semantic queries. This shift to highly granular, query-based tools resulted in a massive performance boost. It kept the context window clean, focused the agent's attention, and drastically lowered token consumption. It proved a vital lesson in agent design: providing an LLM with "too much" information is often far worse than providing "just enough.". Choosing the right tools can be the difference between a useless junk or an amazing gizmo.
+
+UPDATE: On another project, I needed to enable the deepagent with internet access. I started (of-course) with using free OSS tools. That was a disaster. The tools lack the security and precision required to operate in an open environment. The agent would constantly get stuck in loops of calling the tool, getting irrelevant results, or errors. I eventually switched to use "Tavily" (https://www.tavily.com/) which is a paid tool but provides a much more robust and secure interface for web access, with built-in error handling and result parsing. The difference in performance was night and day. The agent could finally use the web access tool effectively without getting stuck or producing garbage results.
 
 ![wrong_tools.png](images/wrong_tools.png)
 
