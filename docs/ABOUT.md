@@ -19,13 +19,15 @@ To prevent this from happening again, I decided to wire the printer to a smart s
 ![Jump start with copilot](./images/jumpstart_with_copilot.png)
 
 
-UPDATE:
-After a few months of working with the github Copilot, I got completely hooked up to it. I spend the full credit budget every month and find myself wishing for more.
-At some point, all the credits run out a week into the month, and I decided to augment my work with Claude Code as well.
-It took some work to get going with the Claude CLI, and I found myself eventually combining both Claude CLI and self-hosted Github runner to work with 2 parallel agents.
-Claude code performance was the same like Github Copilot agent, since both were using Anthropic Claude Sonnet 4.6 as the underlying model, but the flexibility of using the CLI and the ability to feed it with custom prompts and tools made it a much more enjoyable experience.
-The CLI has one extremely annoying quirk though, which is the constant permission requests for access to tools and files.
-I also employed methodologies like generating a detailed agent memory file called AGENTS.md, which I would feed to the agents at the start of every session to provide them with all the knowledge bootstrap they need to start working, eliminating the inefficiency of probing the codebase every time, but also enabling me to save any clarifications and instructions. 
+**Update:**
+
+After a few months of working with the GitHub Copilot, I got completely hooked up to it. I spend the full credit budget every month and find myself wishing for more.
+
+At some point, all the credits run out a week into the month, and I decided to augment my work with Claude Code as well. It took some work to get going with the Claude CLI, and I found myself eventually combining both Claude CLI and self-hosted Github runner to work with 2 parallel agents.
+
+Claude Code performance was the same as GitHub Copilot agent, since both were using Anthropic Claude Sonnet 4.6 as the underlying model, but the flexibility of using the CLI and the ability to feed it with custom prompts and tools made it a much more enjoyable experience. The CLI has one extremely annoying quirk though, which is the constant permission requests for access to tools and files.
+
+I also employed methodologies like generating a detailed agent memory file called AGENTS.md, which I would feed to the agents at the start of every session to provide them with all the knowledge bootstrap they need to start working, eliminating the inefficiency of probing the codebase every time, but also enabling me to save any clarifications and instructions.
 
 I was fascinated by the deep ability for coding agents to work so well, that I decided to try to get to implement deep thinking agents like that myself. The rest of this article is about my journey to understand the current state of the art in deepagents, the challenges I faced, and the lessons I learned along the way.
 Inspired by this success, I began utilizing AI for more routine, trivial automation tasks, leading to the creation of [ai-file-organizer](https://github.com/rdar-lab/ai-file-organizer). However, I wanted to push the boundaries further. To truly understand the current state of autonomous systems, I dove headfirst into [ai-book-composer](https://github.com/rdar-lab/ai-book-composer). This project was a trial by fire, forcing a direct confrontation with the complexities of orchestration frameworks, the nuances of deep agent implementations, and the wildly varying capabilities of modern Large Language Models.
@@ -45,8 +47,9 @@ My journey to finding the right "brain" for my projects was an eye-opening exped
 - Anthropic (Claude 3.5 Sonnet/Opus): Currently the gold standard for reasoning and coding. Its ability to follow complex instructions and execute flawless tool calls is amazing. However, that premium performance comes with a premium price tag, making high-frequency iteration and testing incredibly expensive.
 - DeepSeek: The current disruptor in the space. It provides a highly intelligent, budget-friendly alternative that genuinely rivals the "prime" models in reasoning capabilities. For developers looking to balance deep intelligence with token economy, DeepSeek is currently proving to be the optimal choice.
 
-UPDATE:
-After more experimentation, I found that the "reasoning" models gives significant boost to the performance of deepagents. Anthropic's Opus was the best in class but at a significant operational cost comparing to any of the competitors.  
+**Update:**
+
+After more experimentation, I found that the "reasoning" models give a significant boost to the performance of deepagents. Anthropic's Opus was the best in class but at a significant operational cost compared to any of the competitors.
 
 ![War of models](./images/war_of_models.png)
 
@@ -142,7 +145,9 @@ Looking further out, the actual day-to-day role of a "Developer" will undergo a 
 ### The Academic Dual-Track: The Emergence of the AI Architect
 
 This shift will not erase traditional Computer Science. The rigorous mathematics, algorithmic theory, data structures, and the exact science of computational complexity that underpin CS will remain absolutely vital. The industry will always need brilliant minds who understand the fundamental science of computation to research and develop the next generation of algorithms and models. Nothing changes there.
+
 However, we will see the emergence of a completely new, parallel academic track dedicated entirely to the senior engineering skills required in the age of AI. This new discipline—perhaps called "AI Systems Orchestration" or "Agentic Architecture"—will train the next generation of technical directors.
+
 The academy will essentially split: one track will continue training the computer scientists who discover the fundamental algorithms, while the new track will forge the technical directors who wield those engines to build the future.
 
 ## Conclusion 
