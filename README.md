@@ -2,6 +2,8 @@
 
 Using AI and Deep Agent pattern to generate comprehensive books from source files.
 
+> For the story behind this project and lessons learned building deep agents, read [Riding the DeepAgent Wave](docs/ABOUT.md).
+
 ## Overview
 
 AI Book Composer is a tool that automatically generates high-quality books from a directory of source files using AI and the Deep-Agent architecture pattern. It supports multiple input formats (text, audio, video) and generates well-structured books with proper formatting, table of contents, and references.

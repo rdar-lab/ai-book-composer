@@ -8,28 +8,31 @@ By leveraging tools like GitHub Copilot, autonomous agents, and orchestration fr
 
 ## The Age of (Hybrid) Vibe Coding
 
-My personal entry into this new paradigm didn't start with a desire to test cutting-edge software, it started with a terrifying hardware crisis.
+My personal entry into this new paradigm didn't start with a desire to test cutting-edge software; it started with a terrifying hardware crisis.
 
 While working on my RepRap 3D printer an external MOSFET failed in a closed-circuit mode. This meant the temperature of the heating element began to climb uncontrollably. Because the failure was physical, the printer's firmware was entirely powerless to stop it. The only thing standing between my home and a fire was physically shutting down the power supply.
 
 ![Burned 3d printer](./images/burned_3d_printer.png)
 
-To prevent this from happening again, I decided to wire the printer to a smart switch, allowing for an automated power cutoff if the sensors detected a runaway thermal event. I created a new repository, [octo-fire-guard](https://github.com/rdar-lab/octo-fire-guard), to build this safety utility. While the project itself wasn't an AI agent, its creation was my catalyst. I decided to test the waters with the GitHub Copilot agent, describing the safety protocol and the required hardware integration in plain English. The result was staggering. The agent effortlessly handled the boilerplate and mapped out the logic, proving to me just how thin the barrier between "intent" and "execution" had become. Moreover, the work that Microsoft/Github did with integrating Copilot with the issues and PRs is amazing. I could actually assign it issues and provide it feedback via code review comments, resulting in cycles of iterations till the result was just right.
+To prevent this from happening again, I decided to wire the printer to a smart switch, allowing for an automated power cutoff if the sensors detected a runaway thermal event. I created a new repository, [octo-fire-guard](https://github.com/rdar-lab/octo-fire-guard), to build this safety utility. While the project itself wasn't an AI agent, its creation was my catalyst. I decided to test the waters with the GitHub Copilot agent, describing the safety protocol and the required hardware integration in plain English. The result was staggering. The agent effortlessly handled the boilerplate and mapped out the logic, proving to me just how thin the barrier between "intent" and "execution" had become. Moreover, the work that Microsoft/GitHub did with integrating Copilot with the issues and PRs was genuinely impressive. I could actually assign it issues and provide it feedback via code review comments, resulting in cycles of iterations until the result was just right.
 
 ![Jump start with copilot](./images/jumpstart_with_copilot.png)
 
 
 **Update:**
 
-After a few months of working with the GitHub Copilot, I got completely hooked up to it. I spend the full credit budget every month and find myself wishing for more.
+After a few months of working with the GitHub Copilot, I got completely hooked on it. I spend the full credit budget every month and find myself wishing for more.
 
-At some point, all the credits run out a week into the month, and I decided to augment my work with Claude Code as well. It took some work to get going with the Claude CLI, and I found myself eventually combining both Claude CLI and self-hosted Github runner to work with 2 parallel agents.
+At some point, all the credits run out a week into the month, and I decided to augment my work with Claude Code as well. It took some work to get going with the Claude CLI, and I found myself eventually combining both Claude CLI and self-hosted GitHub runner to work with 2 parallel agents.
 
-Claude Code performance was the same as GitHub Copilot agent, since both were using Anthropic Claude Sonnet 4.6 as the underlying model, but the flexibility of using the CLI and the ability to feed it with custom prompts and tools made it a much more enjoyable experience. The CLI has one extremely annoying quirk though, which is the constant permission requests for access to tools and files.
+Claude Code performance was the same as GitHub Copilot agent, since both were using Anthropic Claude Sonnet as the underlying model, but the flexibility of using the CLI and the ability to feed it with custom prompts and tools made it a much more enjoyable experience. The CLI has one extremely annoying quirk though, which is the constant permission requests for access to tools and files.
 
-I also employed methodologies like generating a detailed agent memory file called AGENTS.md, which I would feed to the agents at the start of every session to provide them with all the knowledge bootstrap they need to start working, eliminating the inefficiency of probing the codebase every time, but also enabling me to save any clarifications and instructions.
+I also started maintaining a detailed agent memory file called AGENTS.md, which I would feed to the agents at the start of every session to provide them with all the knowledge bootstrap they need to start working, eliminating the need to re-probe the codebase every session, and giving me a place to capture clarifications and evolving instructions.
 
-I was fascinated by the deep ability for coding agents to work so well, that I decided to try to get to implement deep thinking agents like that myself. The rest of this article is about my journey to understand the current state of the art in deepagents, the challenges I faced, and the lessons I learned along the way.
+The pairing of a Human "Director" and an AI "Agent" is a powerful one. The human can focus on the high-level vision, the "why" and the "what," while the agent handles the "how." This division of labor allows for rapid iteration and execution, as the agent can quickly generate code, test it, and adapt based on feedback, while the human can steer the project in the right direction without getting bogged down in syntax or implementation details. I also see values in my experience as a developer to guide the agent, provide feedbacks and correct security, architectural and efficiency mistakes (hence my decision to call this section Hybrid Vibe-Coding)
+
+I was so fascinated by the ability of coding agents to work so well that I decided to try to implement deep thinking agents like that myself. The rest of this article is about my journey to understand the current state of the art in deepagents, the challenges I faced, and the lessons I learned along the way.
+
 Inspired by this success, I began utilizing AI for more routine, trivial automation tasks, leading to the creation of [ai-file-organizer](https://github.com/rdar-lab/ai-file-organizer). However, I wanted to push the boundaries further. To truly understand the current state of autonomous systems, I dove headfirst into [ai-book-composer](https://github.com/rdar-lab/ai-book-composer). This project was a trial by fire, forcing a direct confrontation with the complexities of orchestration frameworks, the nuances of deep agent implementations, and the wildly varying capabilities of modern Large Language Models.
 
 ## It is All About the Model
@@ -42,9 +45,9 @@ If this engine lacks reasoning depth or fails to adhere to strict formatting, th
 
 My journey to finding the right "brain" for my projects was an eye-opening expedition through the current landscape of AI, revealing that not all models are created equal when it comes to agentic workflows:
 
-- Ollama: A fantastic starting point for local, privacy-focused experimentation. However, when pushed into agentic workflows, it struggled significantly with tool calling. For agents that need to reliably output strict JSON to interact with external functions, local models often lack the necessary precision and consistency. I spent hours trying the make the tool-calling with Ollama work using my 16GB gaming GPU as the infrastructure to run it, with no luck.
+- Ollama: A fantastic starting point for local, privacy-focused experimentation. However, when pushed into agentic workflows, it struggled significantly with tool calling. For agents that need to reliably output strict JSON to interact with external functions, local models often lack the necessary precision and consistency. I spent hours trying to make the tool calling with Ollama work using my 16GB gaming GPU as the infrastructure to run it, with no luck.
 - Gemini: A highly capable middle ground. It performs moderately well across most general tasks and boasts an impressive context window, but for highly complex logical branching and autonomous decision-making, it sometimes lacked the sharp reasoning spark found in more specialized models.
-- Anthropic (Claude 3.5 Sonnet/Opus): Currently the gold standard for reasoning and coding. Its ability to follow complex instructions and execute flawless tool calls is amazing. However, that premium performance comes with a premium price tag, making high-frequency iteration and testing incredibly expensive.
+- Anthropic (Claude 3.5 Sonnet/Opus): Currently the gold standard for reasoning and coding. Its ability to follow complex instructions and execute tool calls with consistent precision is unmatched. However, that premium performance comes with a premium price tag, making high-frequency iteration and testing incredibly expensive.
 - DeepSeek: The current disruptor in the space. It provides a highly intelligent, budget-friendly alternative that genuinely rivals the "prime" models in reasoning capabilities. For developers looking to balance deep intelligence with token economy, DeepSeek is currently proving to be the optimal choice.
 
 **Update:**
@@ -70,7 +73,7 @@ Here is a simple example of how LangChain abstracts the LLM layer, allowing you 
 
 ### 2\. LangGraph: The State Machine
 
-While LangChain is great for linear tasks, true agents require autonomy. Agents need to think, act, observe the result of that action, and think again-which means they require loops. LangGraph is an orchestration framework built on top of LangChain designed specifically to handle these cyclical, multi-step workflows using a graph architecture of nodes and edges.
+While LangChain is great for linear tasks, true agents require autonomy. Agents need to think, act, observe the result of that action, and think again — which means they require loops. LangGraph is an orchestration framework built on top of LangChain designed specifically to handle these cyclical, multi-step workflows using a graph architecture of nodes and edges.
 
 Here is a simple example of how LangGraph allows you to create a state machine that can loop and make decisions based on LLM outputs:
 ![example_langraph.png](images/example_langraph.png)
@@ -81,17 +84,17 @@ While LangGraph gives you the raw materials to build complex state machines, the
 
 It solves the most difficult problems in agent design out-of-the-box by providing these core capabilities:
 
-- Planning and task decomposition: Deep agents include a built-in write_todos tool that enables agents to break down complex tasks into discrete steps, track progress, and adapt plans as new information emerges.
-- Context management: File system tools (ls, read_file, write_file, edit_file) allow agents to offload large context to in-memory or filesystem storage, preventing context window overflow and enabling work with variable-length tool results.
+- Planning and task decomposition: Deep agents include a built-in `write_todos` tool that enables agents to break down complex tasks into discrete steps, track progress, and adapt plans as new information emerges.
+- Context management: File system tools (`ls`, `read_file`, `write_file`, `edit_file`) allow agents to offload large context to in-memory or filesystem storage, preventing context window overflow and enabling work with variable-length tool results.
 - Pluggable filesystem backends: The virtual filesystem is powered by pluggable backends that you can swap to fit your use case. Choose from in-memory state, local disk, LangGraph store for cross-thread persistence, sandboxes for isolated code execution (Modal, Daytona, Deno), or combine multiple backends with composite routing. You can also implement your own custom backend.
 - Subagent spawning: A built-in task tool enables agents to spawn specialized subagents for context isolation. This keeps the main agent's context clean while still going deep on specific subtasks.
 - Long-term memory: Extend agents with persistent memory across threads using LangGraph's Memory Store. Agents can save and retrieve information from previous conversations.
 
-Here is a simple example on how to use the deepagents library to create a simple agent that can read and write files, plan tasks, and manage context:
+Here is a simple example of how to use the deepagents library to create a simple agent that can read and write files, plan tasks, and manage context:
 
 ![example_deepagents.png](images/example_deepagents.png)
 
-With all it's power, this ecosystem is currently in a state of hyper-evolution, leading to an experience that can only be described as "documentation hell."
+With all its power, this ecosystem is currently in a state of hyper-evolution, leading to an experience that can only be described as "documentation hell."
 
 The sheer velocity of change in these libraries means that documentation is often stale within months, or even weeks, of publication. This creates an incredibly frustrating environment for developers trying to build stable systems:
 
@@ -103,16 +106,18 @@ The sheer velocity of change in these libraries means that documentation is ofte
 
 ## It is (Still) All About the Tooling
 
-Even with the smartest model and the most robust framework, an agent is only as effective as the tools you give it. In the context of DeepAgents, "tooling" refers to the specific, bounded capabilities-the functions and APIs-you grant the LLM to interact with the outside world.
+Even with the smartest model and the most robust framework, an agent is only as effective as the tools you give it. In the context of DeepAgents, "tooling" refers to the specific, bounded capabilities — the functions and APIs — you grant the LLM to interact with the outside world.
 
 Giving an agent the wrong tools, or poorly optimized tools, is a recipe for disaster. I learned this the hard way during the development of the ai-book-composer:
 
 - The "Full File" Trap: In my first iteration, I simply provided a tool that allowed the LLM to read entire files into its context. This approach was catastrophic. It generated massive, bloated context windows that confused the model's reasoning, caused execution failures, and consumed tokens like water spilling from a broken pipe.
-- The RAG Pivot: Realizing the agent was drowning in information, I entirely refactored the tooling to use a Retrieval-Augmented Generation (RAG) approach.
+- The RAG Pivot: Realizing the agent was drowning in information, I entirely refactored the tooling to use a Retrieval-Augmented Generation (RAG) approach. Instead of feeding the agent raw, complete files, I built tools that allowed the agent to search for specific document segments based on semantic queries. This shift to highly granular, query-based tools resulted in a massive performance boost — it kept the context window clean, focused the agent's attention, and drastically lowered token consumption. Providing an LLM with "too much" information is often far worse than providing "just enough."
 
-Instead of feeding the agent raw, complete files, I built tools that allowed the agent to search for specific document segments based on semantic queries. This shift to highly granular, query-based tools resulted in a massive performance boost. It kept the context window clean, focused the agent's attention, and drastically lowered token consumption. It proved a vital lesson in agent design: providing an LLM with "too much" information is often far worse than providing "just enough.". Choosing the right tools can be the difference between a useless junk or an amazing gizmo.
+**Update:**
 
-UPDATE: On another project, I needed to enable the deepagent with internet access. I started (of-course) with using free OSS tools. That was a disaster. The tools lack the security and precision required to operate in an open environment. The agent would constantly get stuck in loops of calling the tool, getting irrelevant results, or errors. I eventually switched to use "Tavily" (https://www.tavily.com/) which is a paid tool but provides a much more robust and secure interface for web access, with built-in error handling and result parsing. The difference in performance was night and day. The agent could finally use the web access tool effectively without getting stuck or producing garbage results.
+On another project, I needed to enable the deepagent with internet access. I started, of course, with free OSS tools. That was a disaster. The tools lack the security and precision required to operate in an open environment. The agent would constantly get stuck in loops of calling the tool, getting irrelevant results, or errors.
+
+I eventually switched to [Tavily](https://www.tavily.com/), a paid tool that provides a much more robust and secure interface for web access, with built-in error handling and result parsing. The difference in performance was night and day. The agent could finally use the web access tool effectively without getting stuck or producing garbage results.
 
 ![wrong_tools.png](images/wrong_tools.png)
 
@@ -120,11 +125,11 @@ UPDATE: On another project, I needed to enable the deepagent with internet acces
 
 If the LLM is the brain and the frameworks are the nervous system, the prompt is the Operating System. When you transition to using autonomous libraries like deepagents, the nature of prompting fundamentally changes. You are no longer writing a request for a single output; you are writing the behavioral constitution for an autonomous loop.
 
-During the development of the ai-book-composer, I realized that giving an agent the right tools is useless if the prompt doesn't strictly dictate how and when to use them. In an agentic workflow, structural precision is everything:
+During the development of the ai-book-composer, I realized that giving an agent the right tools is useless if the prompt doesn't strictly dictate how and when to use them. In an agentic workflow, structural precision is everything.
 
-The tool descriptions are also part of the prompts. In a deep agent architecture, the prompt isn't just your main instruction. The description fields attached to your tools (like read_file or write_todos) are injected directly into the LLM's system prompt. If your tool description is vague, the agent will hallucinate its usage. Naming a tool search is dangerous; naming it semantic_document_search with a description detailing exactly what arguments it expects and what it returns is how you guarantee precision.
+The tool descriptions are also part of the prompts. In a deep agent architecture, the prompt isn't just your main instruction. The description fields attached to your tools (like `read_file` or `write_todos`) are injected directly into the LLM's system prompt. If your tool description is vague, the agent will hallucinate its usage. Naming a tool `search` is dangerous; naming it `semantic_document_search` with a description detailing exactly what arguments it expects and what it returns is how you guarantee precision.
 
-The deepagents library comes with a powerful write_todos tool, but the agent won't always use it intuitively. Your system prompt must enforce a strict "Plan First, Execute Second" architecture. Instructing the agent to always evaluate the goal and generate a to-do list before taking any concrete action prevents it from rushing into blind, token-wasting execution.
+The deepagents library comes with a powerful `write_todos` tool, but the agent won't always use it intuitively. Your system prompt must enforce a strict "Plan First, Execute Second" architecture. Instructing the agent to always evaluate the goal and generate a to-do list before taking any concrete action prevents it from rushing into blind, token-wasting execution.
 
 Prompting for deep agents is essentially Programmatic Prose. You are designing logic gates, error handlers, and state management using natural language. In a cyclical agent system, a single ambiguous sentence in your prompt can be the difference between a task completed in 10 seconds and an agent spinning its wheels until your API budget is exhausted.
 
@@ -132,11 +137,11 @@ Prompting for deep agents is essentially Programmatic Prose. You are designing l
 
 ## Will AI Replace Humans? The Dev Angle
 
-In this article, I presented concepts related to the use of deep agents and how to implement them yourself. With the rising power of vibe coding, the inevitable question arises: are we coding ourselves out of a job? The future of the software development profession is best viewed through two distinct timelines:
+After spending months building these systems — wrestling with model selection, debugging framework quirks, and rewriting prompts until agents finally behaved — one question kept surfacing: what happens to the developers who don't learn to do this? With the rising power of vibe coding, the inevitable question is no longer hypothetical: are we coding ourselves out of a job? The future of the software development profession is best viewed through two distinct timelines:
 
 ### 1-5 Years: The Great Consolidation
 
-In the near term, we are likely entering a period of workforce consolidation, particularly for Junior and Mid-level roles. When a single expert developer, armed with a team of DeepAgents, can comfortably handle the workload of three or four traditional engineers, companies will naturally reduce their reliance on entry-level staff. The risk to junior roles is immense, as the "trivial" coding tasks-the historical training ground for new developers-are the first to be fully automated. Conversely, Expert developers will see demand skyrocket. The industry will desperately need seasoned architects to design these complex agentic systems, supervise their logic, and ensure systemic integrity.
+In the near term, we are likely entering a period of workforce consolidation, particularly for Junior and Mid-level roles. When a single expert developer, armed with a team of DeepAgents, can comfortably handle the workload of three or four traditional engineers, companies will naturally reduce their reliance on entry-level staff. The risk to junior roles is immense, as the "trivial" coding tasks — the historical training ground for new developers — are the first to be fully automated. Conversely, expert developers will see demand skyrocket. The industry will desperately need seasoned architects to design these complex agentic systems, supervise their logic, and ensure systemic integrity.
 
 ### 5+ Years: The Innovation Pivot
 
@@ -150,7 +155,11 @@ However, we will see the emergence of a completely new, parallel academic track 
 
 The academy will essentially split: one track will continue training the computer scientists who discover the fundamental algorithms, while the new track will forge the technical directors who wield those engines to build the future.
 
-## Conclusion 
+## Conclusion
+
+Building the ai-book-composer taught me that deep agent development is not magic — it is engineering with a new set of primitives. The model is your reasoning engine: choose one that can follow complex instructions and call tools reliably, or nothing else matters. The framework is your scaffolding: LangGraph gives you the loops and state management, and deepagents gives you the autonomy layer on top. The tools are your agent's hands: give it too much information and it drowns, give it precisely scoped retrieval tools and it thrives. And the prompt is the operating system that ties it all together — imprecise language in a cyclical agent system compounds into chaos.
+
+None of these lessons are obvious from the outside. They come from hours of debugging silent failures, blown API budgets, and agents spinning in loops. That is exactly why it is worth doing yourself.
 
 The wave of AI-driven development is already crashing over the industry. You can either let it submerge you, or you can grab a board and learn to ride it.
 
