@@ -29,6 +29,8 @@ Claude Code performance was the same as GitHub Copilot agent, since both were us
 
 I also started maintaining a detailed agent memory file called AGENTS.md, which I would feed to the agents at the start of every session to provide them with all the knowledge bootstrap they need to start working, eliminating the need to re-probe the codebase every session, and giving me a place to capture clarifications and evolving instructions.
 
+> See here a template on how to run self-hosted Claude code agents [self-hosted-claude-github-agent](https://github.com/rdar-lab/self-hosted-claude-github-agent).
+
 The pairing of a Human "Director" and an AI "Agent" is a powerful one. The human can focus on the high-level vision, the "why" and the "what," while the agent handles the "how." This division of labor allows for rapid iteration and execution, as the agent can quickly generate code, test it, and adapt based on feedback, while the human can steer the project in the right direction without getting bogged down in syntax or implementation details. I also see values in my experience as a developer to guide the agent, provide feedbacks and correct security, architectural and efficiency mistakes (hence my decision to call this section Hybrid Vibe-Coding)
 
 I was so fascinated by the ability of coding agents to work so well that I decided to try to implement deep thinking agents like that myself. The rest of this article is about my journey to understand the current state of the art in deepagents, the challenges I faced, and the lessons I learned along the way.
